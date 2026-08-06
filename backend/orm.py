@@ -56,14 +56,70 @@ class Divida(Base):
     excluido_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class Parcela(Base):
+    """
+    Uma prestação de uma dívida.
+
+    `cancelada_em` em vez de DELETE: renegociação cancela as pendentes e gera
+    outras, mas as antigas ficam. Histórico de pagamento não se apaga — é o que
+    o usuário usa para provar o que já pagou.
+    """
+
+    __tablename__ = "parcela"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=novo_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+    divida_id: Mapped[str] = mapped_column(String(36), index=True)
+
+    numero: Mapped[int] = mapped_column(Integer)
+    total: Mapped[int] = mapped_column(Integer)
+    valor: Mapped[int] = mapped_column(BigInteger)
+    vencimento: Mapped[date] = mapped_column(Date)
+
+    paga_em: Mapped[date | None] = mapped_column(Date, nullable=True)
+    valor_pago: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    cancelada_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    criada_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Renegociacao(Base):
+    """Registro de um acordo. Guarda o antes e o depois, para o histórico."""
+
+    __tablename__ = "renegociacao"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=novo_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+    divida_id: Mapped[str] = mapped_column(String(36), index=True)
+
+    valor_anterior: Mapped[int] = mapped_column(BigInteger)
+    novo_valor: Mapped[int] = mapped_column(BigInteger)
+    novo_total_parcelas: Mapped[int] = mapped_column(Integer)
+    nova_taxa_juros_mensal: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    primeiro_vencimento: Mapped[date] = mapped_column(Date)
+    observacao: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    criada_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class Perfil(Base):
-    """Renda e dependentes. Uma linha por tenant."""
+    """Renda, dependentes e preferências de lembrete. Uma linha por tenant."""
 
     __tablename__ = "perfil"
 
     tenant_id: Mapped[str] = mapped_column(String(36), primary_key=True)
     renda_mensal: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     dependentes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # Preferência de lembrete. A HORA é aplicada no aparelho, não aqui: o
+    # servidor não sabe o fuso do dispositivo, e agendar notificação local é
+    # inerentemente local. Guardamos a preferência; quem compõe o instante é o app.
+    # server_default além do default: sem ele, a migration que adiciona a coluna
+    # NOT NULL falha numa tabela que já tem linhas.
+    hora_lembrete: Mapped[str] = mapped_column(String(5), default="09:00", server_default="09:00")
+    dias_antecedencia_lembrete: Mapped[int] = mapped_column(
+        Integer, default=3, server_default="3"
+    )
     atualizado_em: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

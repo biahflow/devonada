@@ -11,6 +11,7 @@ from auth import tenant_atual
 from config import Settings, get_settings
 from db import get_db
 from domain.minimo_existencial import margem_disponivel, minimo_existencial
+from domain.parcelas import situacao_da_parcela
 from domain.resumo import (
     ParcelaEstimada,
     comprometimento_mensal,
@@ -112,7 +113,25 @@ def resumo(
     perfil = db.scalar(select(orm.Perfil).where(orm.Perfil.tenant_id == tenant))
     renda = perfil.renda_mensal if perfil and perfil.renda_mensal else None
 
-    comprometido = comprometimento_mensal(itens)
+    # Parcelas pendentes, com o credor junto: servem para o comprometimento do
+    # mês E para os próximos vencimentos. Com elas, as DUAS aproximações
+    # declaradas em docs/backend.md deixam de existir.
+    pendentes = db.execute(
+        select(orm.Parcela, orm.Divida.credor)
+        .join(orm.Divida, orm.Divida.id == orm.Parcela.divida_id)
+        .where(
+            orm.Parcela.tenant_id == tenant,
+            orm.Parcela.cancelada_em.is_(None),
+            orm.Parcela.paga_em.is_(None),
+            orm.Divida.excluido_em.is_(None),
+        )
+        .order_by(orm.Parcela.vencimento)
+    ).all()
+
+    do_mes = [
+        p.valor for p, _ in pendentes if f"{p.vencimento.year}-{p.vencimento.month:02d}" == mes_alvo
+    ]
+    comprometido = comprometimento_mensal(itens, do_mes if pendentes else None)
     minimo = None
     comprometimento_bps = None
     margem = None
@@ -142,9 +161,16 @@ def resumo(
             minimoExistencial=minimo,
             margemDisponivel=margem,
             porCriticidade=por_criticidade,
-            # Vazio até o Bloco 5 (parcelas). O app já trata: "Nenhum
-            # vencimento à vista" — melhor que uma data inventada.
-            proximosVencimentos=[],
+            proximosVencimentos=[
+                schemas.VencimentoProximo(
+                    dividaId=p.divida_id,
+                    credor=credor,
+                    valor=p.valor,
+                    vencimento=p.vencimento,
+                    situacao=situacao_da_parcela(p.vencimento, p.paga_em),  # type: ignore[arg-type]
+                )
+                for p, credor in pendentes[:5]
+            ],
             evolucaoSaldo=[
                 schemas.PontoEvolucao(mes=s.mes, saldo=s.saldo) for s in evolucao[-12:]
             ],

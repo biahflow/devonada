@@ -31,6 +31,12 @@ class NovaDivida(Camel):
     taxaJurosMensal: int | None = Field(default=None, ge=0)
     extracaoId: str | None = None
 
+    # Os dois andam juntos: com ambos, o backend gera o cronograma. Com só um,
+    # a requisição é rejeitada — gerar parcelas sem data, ou guardar uma data
+    # sem cronograma, produz meia informação.
+    totalParcelas: int | None = Field(default=None, gt=0, le=480)
+    primeiroVencimento: date | None = None
+
 
 class PatchDivida(Camel):
     credor: str | None = Field(default=None, min_length=1, max_length=200)
@@ -73,9 +79,73 @@ class RespostaDivida(Camel):
     divida: Divida
 
 
+SituacaoParcela = Literal["pendente", "paga", "atrasada"]
+
+
+class Parcela(Camel):
+    id: str
+    numero: int
+    total: int
+    valor: int
+    vencimento: date
+    # Derivada NO BACKEND. O fuso do aparelho não decide o que está atrasado.
+    situacao: SituacaoParcela
+    pagoEm: date | None = None
+    valorPago: int | None = None
+
+
+class ListaParcelas(Camel):
+    parcelas: list[Parcela]
+
+
+class RespostaParcela(Camel):
+    parcela: Parcela
+
+
+class PagamentoInput(Camel):
+    pagoEm: date
+    valorPago: int = Field(ge=0)
+
+
+class RenegociacaoInput(Camel):
+    novoValor: int = Field(gt=0)
+    novoTotalParcelas: int = Field(gt=0, le=480)
+    novaTaxaJurosMensal: int | None = Field(default=None, ge=0)
+    primeiroVencimento: date
+    observacao: str | None = Field(default=None, max_length=500)
+
+
+class Lembrete(Camel):
+    """
+    Um aviso a agendar no aparelho.
+
+    `dataLembrete` é DATA, não instante: o servidor decide o QUE e o QUAL DIA;
+    o aparelho compõe a hora local a partir da preferência do usuário. Mandar
+    um instante UTC daqui faria a notificação tocar na hora errada para
+    qualquer fuso diferente do servidor.
+
+    `titulo` e `corpo` vêm prontos para não haver formatação de moeda duplicada
+    entre servidor e cliente.
+    """
+
+    id: str
+    dividaId: str
+    parcelaId: str
+    titulo: str
+    corpo: str
+    dataLembrete: date
+
+
+class ListaLembretes(Camel):
+    lembretes: list[Lembrete]
+    horaLembrete: str
+
+
 class PerfilFinanceiro(Camel):
     rendaMensal: int | None = Field(default=None, ge=0)
     dependentes: int | None = Field(default=None, ge=0)
+    horaLembrete: str = Field(default="09:00", pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    diasAntecedenciaLembrete: int = Field(default=3, ge=0, le=30)
 
 
 class RespostaPerfil(Camel):

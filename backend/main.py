@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from config import get_settings
-from routers import chat, contratos, dividas, perfil, resumo
+from routers import chat, contratos, dividas, lembretes, parcelas, perfil, resumo
 
 settings = get_settings()
 
@@ -56,8 +56,10 @@ async def erro_validacao(_: Request, exc: RequestValidationError):
 # ORDEM IMPORTA: resumo registra /v1/dividas/resumo e dividas registra
 # /v1/dividas/{divida_id}. Invertido, "resumo" seria capturado como um id.
 app.include_router(resumo.router)
+app.include_router(parcelas.router)
 app.include_router(dividas.router)
 app.include_router(perfil.router)
+app.include_router(lembretes.router)
 app.include_router(contratos.router)
 app.include_router(chat.router)
 

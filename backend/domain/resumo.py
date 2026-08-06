@@ -54,18 +54,23 @@ def custo_medio_juros_mensal(itens: Sequence[ParcelaEstimada]) -> int | None:
     return decimal_para_bps(soma / Decimal(peso_total) / DEZ_MIL)
 
 
-def comprometimento_mensal(itens: Sequence[ParcelaEstimada]) -> int:
+def comprometimento_mensal(
+    itens: Sequence[ParcelaEstimada], parcelas_do_mes: Sequence[int] | None = None
+) -> int:
     """
     Quanto sai por mês para pagar dívida, em centavos.
 
-    APROXIMAÇÃO DECLARADA: enquanto não existir a tabela de parcelas (Bloco 5),
-    estimamos a prestação como `valorCobrado / totalParcelas`. Dívida sem
-    `totalParcelas` é ignorada — chutar um prazo produziria um comprometimento
-    de renda inventado, que é justamente o número que o usuário levaria a sério.
+    Quando há PARCELAS REAIS (M3), soma-as — é o número verdadeiro. A
+    aproximação `valorCobrado / totalParcelas` fica só para dívida cadastrada
+    sem cronograma, e dívida sem nenhum dos dois continua ignorada: chutar
+    prazo produziria justamente o número que o usuário leva a sério.
 
-    Quando as parcelas existirem, esta função passa a somar as parcelas reais e
-    a aproximação sai.
+    `parcelas_do_mes` são os valores das parcelas pendentes que vencem no mês
+    consultado.
     """
+    if parcelas_do_mes:
+        return sum(parcelas_do_mes)
+
     total = 0
     for item in itens:
         if item.total_parcelas and item.total_parcelas > 0:

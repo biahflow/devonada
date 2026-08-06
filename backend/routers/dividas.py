@@ -10,6 +10,7 @@ from auth import tenant_atual
 from db import get_db
 from domain.correcao import valor_corrigido
 from domain.prescricao import possivel_prescricao
+from routers.parcelas import criar_parcelas
 
 router = APIRouter(prefix="/v1/dividas", tags=["Dividas"])
 
@@ -84,6 +85,18 @@ def criar(
             detail={"message": "A data de origem não pode estar no futuro.", "campo": "dataOrigem"},
         )
 
+    # Os dois andam juntos: um sem o outro produz meia informação — parcelas sem
+    # datas, ou uma data que não gera cronograma nenhum.
+    if bool(nova.totalParcelas) != bool(nova.primeiroVencimento):
+        faltando = "primeiroVencimento" if nova.totalParcelas else "totalParcelas"
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "message": "Para montar o carnê, informe o número de parcelas e a data da primeira.",
+                "campo": faltando,
+            },
+        )
+
     d = orm.Divida(
         tenant_id=tenant,
         credor=nova.credor.strip(),
@@ -92,8 +105,17 @@ def criar(
         tipo=nova.tipo,
         taxa_juros_mensal=nova.taxaJurosMensal,
         extracao_id=nova.extracaoId,
+        total_parcelas=nova.totalParcelas,
+        proximo_vencimento=nova.primeiroVencimento,
     )
     db.add(d)
+    db.flush()
+
+    if nova.totalParcelas and nova.primeiroVencimento:
+        criar_parcelas(
+            db, tenant, d.id, nova.valorCobrado, nova.totalParcelas, nova.primeiroVencimento
+        )
+
     db.commit()
     db.refresh(d)
     return schemas.RespostaDivida(divida=_para_schema(d))
