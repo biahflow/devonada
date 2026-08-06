@@ -346,11 +346,24 @@ Alimenta o agendamento local de `expo-notifications`.
 
 Response `200`:
 ```json
-{ "lembretes": [ { "id": "...", "dividaId": "...", "parcelaId": "...", "titulo": "Nubank vence em 3 dias", "corpo": "Parcela 3 de 12 — R$ 450,00", "dispararEm": "2024-03-17T12:00:00Z" } ] }
+{
+  "horaLembrete": "09:00",
+  "lembretes": [
+    { "id": "...", "dividaId": "...", "parcelaId": "...", "titulo": "Nubank vence em 3 dias", "corpo": "Parcela 3 de 12 — R$ 450,00", "dataLembrete": "2024-03-17" }
+  ]
+}
 ```
 
-O texto do lembrete vem **pronto do backend**, já formatado, para não haver formatação de moeda
-duplicada entre servidor e cliente. Tom obrigatoriamente neutro — ver `guardrails.md`, seção 4.
+> **`dataLembrete` é DATA, não instante — isto corrige a especificação original.**
+> A versão anterior previa `dispararEm` como timestamp UTC, o que está errado: **o servidor não
+> sabe o fuso do aparelho**, e um instante calculado nele tocaria na hora errada para qualquer
+> dispositivo fora do fuso do servidor. Agendar notificação local é inerentemente local.
+>
+> A divisão correta: o **backend decide o quê e o qual dia**; o **aparelho compõe a hora**, a
+> partir de `horaLembrete` (preferência do usuário, guardada no perfil).
+
+O texto vem **pronto do backend**, já formatado, para não haver formatação de moeda duplicada
+entre servidor e cliente. Tom obrigatoriamente neutro — ver `guardrails.md`, seção 4.
 
 ---
 
@@ -473,7 +486,7 @@ existencial não têm o que exibir.*
 
 - [~] `GET /v1/dividas/resumo` com `?mes=` — implementado
 - [x] Agregados: totais, `custoMedioJurosMensal` (ponderado pelo saldo), `porCriticidade`
-- [ ] `proximosVencimentos` — volta **vazio** até o Bloco 5; sem parcelas não há vencimento real
+- [x] `proximosVencimentos` — com parcelas reais (M3), deixou de voltar vazio
 - [x] `evolucaoSaldo` via `saldo_snapshot`, um ponto por mês, acumulando a partir de hoje
 
 ### Bloco 4 — M1.5 · ingestão de contrato
@@ -488,8 +501,9 @@ existencial não têm o que exibir.*
 
 ### Bloco 5 — sem front construído ainda
 
-- [ ] M3: `GET /v1/dividas/{id}/parcelas`, `POST /v1/parcelas/{id}/pagamento`,
-      `POST /v1/dividas/{id}/renegociacao`, `GET /v1/lembretes`
+- [~] M3: `GET /v1/dividas/{id}/parcelas`, `POST /v1/parcelas/{id}/pagamento`,
+      `POST /v1/dividas/{id}/renegociacao`, `GET /v1/lembretes` — implementados e exercitados
+      por request; falta ver no app
 - [ ] M4: `POST /v1/dividas/simulacoes` — inclusive o campo `comparacao`, que vem calculado de
       propósito para o front não replicar regra de negócio
 - [ ] M5: chat real com os `kind` `divida_resumo` e `plano_sugerido`
@@ -500,6 +514,7 @@ existencial não têm o que exibir.*
 |---|---|
 | `GET /v1/dividas` | funcionando — lista carrega no app |
 | Blocos 0 a 4 | implementados e exercitados por request real; **ainda não vistos no app** |
+| M3 (parcelas, pagamento, renegociação, lembretes) | idem — 116 testes, dos quais 116 passam contra Postgres |
 | `POST /v1/chat/messages` | mock: card fixo, sem LLM. Ganhou auth |
 | Leitura de contrato | implementada, **bloqueada** por falta de `ANTHROPIC_API_KEY` |
 | Bloco 5 (M3/M4/M5) | não existe |

@@ -63,6 +63,8 @@ cada rota. O cliente nunca envia tenant; ele vem do token.
 | `valorCorrigido` | Juros compostos pela taxa **do próprio contrato** | O contrato do usuário | `domain/correcao.py` |
 | `minimoExistencial` | 25% do salário mínimo vigente | Decreto 11.150/2022, art. 3º | `domain/minimo_existencial.py` |
 | `custoMedioJurosMensal` | Média das taxas **ponderada pelo saldo** | — (escolha de método, documentada) | `domain/resumo.py` |
+| Valor da parcela | Divisão inteira com a **sobra na última** | — (aritmética; a soma tem de fechar) | `domain/parcelas.py` |
+| `situacao` da parcela | Vencimento < hoje e não paga | — (derivada no servidor, nunca no cliente) | `domain/parcelas.py` |
 
 ### Quatro limitações declaradas
 
@@ -73,11 +75,10 @@ Estão aqui porque escondê-las seria pior que tê-las.
    o `valorCobrado * 1.1` que existia antes.
 2. **`dependentes` não entra no mínimo existencial.** O Decreto 11.150 não escala por
    dependente. O campo é coletado e guardado, esperando você definir uma regra com fonte.
-3. **`comprometimentoRenda` é aproximação** enquanto não houver parcelas (Bloco 5): estima a
-   prestação como `valorCobrado / totalParcelas` e **ignora** dívida sem `totalParcelas`. Chutar
-   prazo produziria o número que o usuário mais leva a sério.
-4. **`proximosVencimentos` volta vazio** pelo mesmo motivo. O app exibe "Nenhum vencimento à
-   vista", que é melhor que uma data inventada.
+3. ~~`comprometimentoRenda` é aproximação~~ — **resolvido no M3.** Com parcelas reais, soma as
+   parcelas pendentes do mês. A estimativa `valorCobrado / totalParcelas` sobrevive só para
+   dívida cadastrada sem cronograma.
+4. ~~`proximosVencimentos` volta vazio~~ — **resolvido no M3.** Lista as próximas parcelas reais.
 
 ### `evolucaoSaldo` acumula a partir de hoje
 

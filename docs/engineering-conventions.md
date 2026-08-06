@@ -123,6 +123,12 @@ app, **nenhum teste consegue tocar a rede** sem alterar aquele arquivo.
   os quatro estados das telas.
 - Ao corrigir um defeito, **escreva primeiro o teste que reproduz**. Bug sem teste de regressão
   volta.
+
+> **Ruído conhecido:** telas com `FlatList` deixam o jest imprimir *"A worker process has failed
+> to exit gracefully"*. O `VirtualizedList` agenda um timer de render que dispara depois do
+> unmount; não é vazamento do nosso código e não afeta o resultado. `jest.clearAllTimers()` não
+> resolve — só age sobre timers falsos. Ignore o aviso; não use `--forceExit` para escondê-lo,
+> porque aí um vazamento real também ficaria invisível.
 - Não teste implementação (chamou tal função); teste o que o usuário observa.
 
 ---

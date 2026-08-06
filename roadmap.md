@@ -154,25 +154,31 @@ percentual calculado em TypeScript. **Ainda não fechado** — falta o backend.
 
 ---
 
-## M3 — Plano de pagamento e lembretes
+## M3 — Plano de pagamento e lembretes — entregue, aguardando validação em device
 
-Depende de: `GET /v1/dividas/{id}/parcelas`, `POST /v1/parcelas/{id}/pagamento`,
-`POST /v1/dividas/{id}/renegociacao`, `GET /v1/lembretes`.
+Primeiro milestone em que o backend veio junto, e por isso o único que **fecha limitações
+declaradas**: com parcelas reais, `comprometimentoRenda` deixou de ser aproximação e
+`proximosVencimentos` deixou de voltar vazio.
 
-- [ ] Tela de cronograma (`app/dividas/[id]/plano.tsx`): parcelas com número, valor,
+- [x] Tela de cronograma (`app/dividas/[id]/plano.tsx`): parcelas com número, valor,
       vencimento e situação. "Atrasada" vem do backend — o front não compara datas, senão o
       fuso do aparelho vira fonte de divergência.
-- [ ] Marcar parcela como paga, com atualização otimista e rollback, invalidando `['dividas']`
+- [x] Marcar parcela como paga, com atualização otimista e rollback, invalidando `['dividas']`
       inteiro no sucesso (o resumo do painel também muda).
-- [ ] Registro de renegociação, preservando o histórico das parcelas anteriores.
-- [ ] `expo-notifications`: agendamento local a partir de `GET /v1/lembretes`, com o texto já
+- [x] Registro de renegociação, preservando o histórico das parcelas anteriores.
+- [x] `expo-notifications`: agendamento local a partir de `GET /v1/lembretes`, com o texto já
       formatado pelo backend. Permissão pedida **no contexto**, ao ativar o lembrete — nunca
       no primeiro boot.
-- [ ] Configuração de horário do lembrete pelo usuário. Nada dispara de madrugada.
-- [ ] Parcela quitada ganha destaque em `accent`. Atraso é `warning`, nunca `danger`.
+- [x] Configuração de horário do lembrete pelo usuário. Nada dispara de madrugada.
+- [x] Parcela quitada ganha destaque em `accent`. Atraso é `warning`, nunca `danger`.
+
+- [x] O formulário passou a coletar número de parcelas e primeiro vencimento — sem os dois não
+      havia de onde gerar cronograma.
+- [ ] **Disparo do lembrete só você confirma.** Eu agendo e testo a lógica (hora válida,
+      instante local, reagendamento); que a notificação toca na hora certa exige aparelho.
 
 **Sai com:** parcela marcada como paga reflete no painel na mesma sessão, e o lembrete local
-dispara na data e no horário escolhidos.
+dispara na data e no horário escolhidos. **Ainda não fechado** — falta o device.
 
 ---
 
