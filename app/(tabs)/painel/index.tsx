@@ -56,6 +56,13 @@ export default function Painel() {
       <Screen>
         {cabecalho}
         <ErrorState error={error} onRetry={refetch} />
+        {/* Caminho de saída para o 401: sem token o app não fala com o
+            servidor, e o ErrorState sozinho não diz o que fazer a respeito. */}
+        <Button
+          label="Configurar conexão"
+          onPress={() => router.push('/painel/token')}
+          variant="ghost"
+        />
       </Screen>
     );
   }
