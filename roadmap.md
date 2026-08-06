@@ -245,14 +245,17 @@ destravou, de quebra, a leitura de contrato do M1.5.
       o prompt não recebe valores, e número no texto sem card é cortado no servidor.
 - [x] O plano do chat usa a **mesma** `domain/simulacao.py` do M4 — conferido por teste e por
       request real.
-- [ ] Card que sugere criar ou alterar dívida abre o **formulário preenchido** para o usuário
-      confirmar (`guardrails.md`, 7.2). **Fora do escopo desta rodada** — exige um `kind` novo,
-      e nenhuma escrita por conversa existe hoje.
-- [ ] **Validação em device pendente.** Rolagem do chat com card, teclado sobre o composer e
-      legibilidade dos cards em tela pequena exigem aparelho.
+- [x] Card que sugere criar ou alterar dívida abre o **formulário preenchido** para o usuário
+      confirmar (`guardrails.md`, 7.2). `kind` `divida_proposta`, com os valores saneados no
+      servidor e revalidados na chegada à tela. **Nenhuma rota de escrita nova** — a gravação
+      continua sendo a do cadastro manual, e um teste prova que a conversa não cria dívida.
+- [ ] **Validação em device pendente.** Rolagem do chat com card, teclado sobre o composer,
+      legibilidade dos cards em tela pequena e o caminho card → formulário preenchido exigem
+      aparelho.
 
-**Sai com:** o assistente responde sobre as dívidas do usuário com card tipado, e nenhum número
-que ele comunica foi escrito por ele. **Ainda não fechado** — falta o device.
+**Sai com:** o assistente responde sobre as dívidas do usuário com card tipado, nenhum número que
+ele comunica como fato foi escrito por ele, e o que ele propõe só vira dado quando o usuário
+confirma. **Ainda não fechado** — falta o device.
 
 ---
 

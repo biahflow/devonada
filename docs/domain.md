@@ -130,7 +130,8 @@ União discriminada por `kind` (`src/api/types.ts`). É o mecanismo pelo qual da
 entra na conversa. **Todo número que o assistente comunica vai num card**, nunca no texto livre
 da mensagem.
 
-Cards existentes: `valor_justo`, `info`. Previstos para M5: `divida_resumo`, `plano_sugerido`.
+Cards existentes: `valor_justo`, `info`, `divida_resumo`, `plano_sugerido` e `divida_proposta` — o
+rascunho que abre o formulário para o usuário confirmar, nunca uma gravação.
 
 ### script
 Mensagem pronta de negociação, gerada no backend. Apresentada como sugestão copiável e

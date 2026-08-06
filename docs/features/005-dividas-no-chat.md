@@ -20,10 +20,13 @@ plano devolve a simulação — ambos em card tipado, com deep link para a tela 
 
 **Não objetivos:**
 
-- **Deixar o modelo emitir número.** Ele escolhe qual card mostrar; o backend preenche os valores
-  lendo o banco. O schema da resposta não tem campo para valor monetário.
+- **Deixar o modelo emitir número como fato.** Ele escolhe qual card mostrar; o backend preenche os
+  valores lendo o banco. O schema da resposta não tem campo para valor monetário — exceto no rascunho
+  de `divida_proposta`, que é a fala da própria pessoa devolvida para conferência.
 - **Executar ação por conversa.** O assistente não cria, não altera e não quita dívida
-  (`guardrails.md`, 7.2). Card que sugere escrita fica para depois do M5.
+  (`guardrails.md`, 7.2). Ele **propõe**: `divida_proposta` abre o formulário preenchido, e quem
+  grava é o usuário, na tela, pela rota do cadastro manual. Quitação e baixa de parcela não têm
+  proposta — essas continuam só na tela da dívida.
 - **Dar parecer jurídico.** Prescrição e abusividade são "vale investigar", nunca afirmação.
 - **Substituir as telas.** O card é ponto de entrada, não versão reduzida da tela.
 
@@ -36,6 +39,12 @@ esqueceu a pessoa).
 O usuário pergunta pelo credor e recebe `divida_resumo`: saldo, próximo vencimento, criticidade,
 e um toque que leva a `dividas/[id]`. Pede um plano e recebe `plano_sugerido`: data de liberdade
 em dourado, prazo, economia, e um toque que leva ao simulador.
+
+Conta uma dívida que ainda não está cadastrada — "devo mil e quinhentos no Nubank desde março" — e
+recebe `divida_proposta`: o rascunho do que foi entendido, sob o rótulo "Foi isto que eu entendi" e
+o aviso de que **nada foi salvo**. O toque abre `dividas/nova` com os campos preenchidos, e a
+gravação acontece ali, no botão de sempre. Se disser que um dado de uma dívida existente mudou, o
+mesmo card vem com `dividaId` e leva à edição, com o campo proposto por cima do que está salvo.
 
 **Os quatro estados:**
 
@@ -71,6 +80,13 @@ em dourado, prazo, economia, e um toque que leva ao simulador.
   **já foi gravada** — o que ele escreveu não se perde por falha nossa.
 - **RF-010** — `economia` ausente exibe "ainda não calculado", nunca R$ 0,00.
 - **RF-011** — O plano do chat e o simulador dão o mesmo número: mesma função de domínio.
+- **RF-012** — `divida_proposta` **não grava nada**. Ele preenche o formulário; a escrita é a do
+  cadastro manual, disparada pelo usuário.
+- **RF-013** — Os campos do rascunho são saneados no servidor **e** revalidados na chegada à tela.
+  Campo inválido cai sozinho, sem derrubar os válidos ao lado, e o formulário abre vazio ali.
+- **RF-014** — Rascunho vazio não vira card, e `dividaId` fora do contexto derruba o card inteiro —
+  virar "cadastre outra" em silêncio seria pior que não propor nada.
+- **RF-015** — A tela diz que aquilo é o que foi entendido e que nada foi salvo.
 
 ## Como o guardrail 7.1 é sustentado
 
@@ -78,9 +94,14 @@ Três camadas independentes, porque prompt não é guardrail:
 
 | Camada | Onde | O que impede |
 |---|---|---|
-| Estrutural | `assistente/regras.py` | O schema não tem campo para valor. O modelo não consegue emitir número. |
+| Estrutural | `assistente/regras.py` | No que o modelo afirma, o schema não tem campo para valor. Ele não consegue emitir número como fato. |
 | Contexto | `routers/chat.py::_contexto` | O prompt recebe identificação, nunca valores. O que o modelo não vê, não repete errado. |
-| Varredura | `assistente/assistente_llm.py` | Número no texto sem card derruba o texto, no servidor. |
+| Varredura | `assistente/assistente_llm.py` | Número no texto sem card **de banco** derruba o texto, no servidor. |
+
+O rascunho de `divida_proposta` é a exceção declarada em `guardrails.md`, 7.1: valor vindo da fala
+da própria pessoa, exibido como rascunho e nunca como fato. Ele **não** licencia número no texto —
+quando a varredura corta o texto, o rascunho sobrevive sozinho, para ela não redigitar o que acabou
+de dizer.
 
 E a montagem (`routers/chat.py::montar_cards`) lê o banco para preencher cada card — é ela que
 faz "o modelo escolhe o quê, o backend diz quanto" ser verdade em código, não em intenção.
@@ -90,13 +111,13 @@ faz "o modelo escolhe o quê, o backend diz quanto" ser verdade em código, não
 | Guardrail | Como é respeitado |
 |---|---|
 | 1.2 Sem valor derivado | O plano do card usa `domain/simulacao.py`, a mesma do M4 |
-| 1.3 Procedência | Todo número exibido veio de campo tipado preenchido pelo banco |
+| 1.3 Procedência | Todo número exibido como fato veio de campo tipado preenchido pelo banco; o rascunho é rotulado como rascunho |
 | 2 Egress único | `src/api/chat.ts` sobre `request` |
 | 3 Postura jurídica | Regra 4 do system prompt: nunca parecer jurídico |
 | 5 LGPD | A `message` de erro não carrega valor nem credor |
 | 6 Multi-tenant | O contexto só tem dívidas do tenant, e id fora dele é descartado duas vezes |
-| 7.2 Autonomia | O assistente não executa escrita nenhuma |
-| 7.3 Entrada não confiável | O system prompt declara que a mensagem é dado, não instrução |
+| 7.2 Autonomia | O assistente não executa escrita nenhuma: propõe o formulário, e o usuário confirma |
+| 7.3 Entrada não confiável | O system prompt declara que a mensagem é dado, não instrução; e a resposta do modelo é saneada campo a campo antes de virar rascunho |
 
 ## Definition of Ready
 
@@ -107,16 +128,22 @@ faz "o modelo escolhe o quê, o backend diz quanto" ser verdade em código, não
 
 ## Definition of Done
 
-- [x] `npm run typecheck`, `npm run lint`, `npm test` (191) e `npm run bundle:check` passam.
-- [x] `pytest` passa (202) em SQLite e em Postgres, **sem tocar a rede**.
+- [x] `npm run typecheck`, `npm run lint`, `npm test` (213) e `npm run bundle:check` passam.
+- [x] `pytest` passa (213) em SQLite e em Postgres, **sem tocar a rede**.
 - [x] Os quatro estados implementados e cobertos por teste.
 - [x] Nenhum valor calculado no cliente.
 - [x] Nenhum dado financeiro em log ou mensagem de erro.
 - [x] `accessibilityLabel` em todo controle — incluindo o campo do composer, que não tinha.
 - [x] Exercitado com **chamada real** à OpenAI: pergunta por credor, pedido de plano, pergunta
       fora do domínio e conferência de que o plano do chat bate com o simulador.
-- [ ] **Não validado em device.** Rolagem do chat com card, teclado sobre o composer e
-      legibilidade dos cards em tela pequena exigem aparelho.
+- [x] Guardrail 7.2 provado por teste: depois da conversa que propõe cadastro, `GET /v1/dividas`
+      tem a mesma contagem de antes.
+- [ ] **Não validado em device.** Rolagem do chat com card, teclado sobre o composer,
+      legibilidade dos cards em tela pequena e o caminho card → formulário preenchido exigem
+      aparelho.
+- [ ] **`divida_proposta` não exercitado com chamada real ao provedor.** A rota, o saneamento e a
+      tela estão cobertos por teste com cliente falso; a leitura de "devo mil e quinhentos no
+      Nubank" por um modelo de verdade depende de chave.
 - [x] Documentos canônicos atualizados no mesmo commit.
 
 ## Riscos e modos de falha
@@ -128,7 +155,13 @@ faz "o modelo escolhe o quê, o backend diz quanto" ser verdade em código, não
   extenso. A defesa estrutural (schema sem campo de valor) é a que sustenta o caso; a varredura é
   a segunda camada, não a primeira.
 - **O assistente determinístico reconhece pouca coisa.** É de propósito — e é ele que roda quando
-  não há chave. Fora das intenções que conhece, admite não saber.
+  não há chave. Fora das intenções que conhece, admite não saber. Ele **não propõe cadastro**: tirar
+  "mil e quinhentos no Nubank" de uma frase exigiria um interpretador de dinheiro escrito à mão, e
+  errar a leitura da fala da pessoa é pior que não propor.
+- **O rascunho pode entender errado.** É o risco que a copy administra em vez de esconder: o card
+  diz "foi isto que eu entendi", a tela repete o aviso, e nada é gravado antes da confirmação. O
+  modo de falha que sobra é ela confirmar sem conferir — por isso o rascunho nunca preenche campo
+  que não foi dito, em vez de "chutar para ajudar".
 - **Custo por mensagem.** Toda mensagem é uma chamada paga. Não há cache nem limite por usuário
   neste milestone.
 - **O histórico cresce sem poda.** O teto é de leitura (50 mensagens); nada apaga mensagem antiga

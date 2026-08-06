@@ -66,6 +66,53 @@ describe('tela de edição de dívida', () => {
   });
 });
 
+describe('rascunho vindo do chat', () => {
+  it('abre o cadastro preenchido e avisa que veio da conversa', () => {
+    global.definirParametrosDeRota({
+      credor: 'Nubank',
+      valorCobrado: '150000',
+      tipo: 'consumo',
+    });
+    renderizarTela(<NovaDivida />);
+
+    expect(screen.getByText(/Confira antes de salvar/)).toBeTruthy();
+    expect(screen.getByLabelText('Credor').props.value).toBe('Nubank');
+    expect(screen.getByLabelText('Valor cobrado').props.value).toBe('R$ 1.500,00');
+    // E nada foi gravado só por abrir a tela.
+    expect(requestMock).not.toHaveBeenCalled();
+  });
+
+  it('parâmetro inválido não vira valor no formulário', () => {
+    // Guardrail 7.3: parâmetro de rota é entrada não confiável. O campo abre
+    // vazio, que é a verdade sobre o que se sabe dele.
+    global.definirParametrosDeRota({ credor: 'Nubank', valorCobrado: 'mil e quinhentos' });
+    renderizarTela(<NovaDivida />);
+
+    expect(screen.getByLabelText('Credor').props.value).toBe('Nubank');
+    expect(screen.getByLabelText('Valor cobrado').props.value).toBe('');
+  });
+
+  it('sem rascunho, o cadastro mantém a descrição de sempre', () => {
+    renderizarTela(<NovaDivida />);
+    expect(screen.getByText(/O resto o buddy ajuda a descobrir/)).toBeTruthy();
+  });
+
+  it('na edição, o campo proposto entra por cima e o resto continua salvo', async () => {
+    responderPorRota({
+      '/v1/dividas/': {
+        divida: umaDivida({ credor: 'Nubank', valorCobrado: 45000, taxaJurosMensal: 1250 }),
+      },
+    });
+    global.definirParametrosDeRota({ id: 'divida-1', taxaJurosMensal: '250' });
+    renderizarTela(<EditarDivida />);
+
+    await waitFor(() => expect(screen.getByLabelText('Juros ao mês').props.value).toBe('2,50%'));
+    expect(screen.getByLabelText('Credor').props.value).toBe('Nubank');
+    expect(screen.getByLabelText('Valor cobrado').props.value).toBe('R$ 450,00');
+    expect(screen.getByText(/Confira antes de salvar/)).toBeTruthy();
+  });
+});
+
 describe('tela de renda', () => {
   it('mostra o carregamento do perfil', () => {
     nuncaResponde();

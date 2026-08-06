@@ -459,15 +459,27 @@ novo sem tratamento é erro de compilação, não card invisível.
 { "kind": "plano_sugerido", "estrategia": "avalanche", "aporteExtraMensal": 50000, "mesesAteQuitacao": 26, "dataLiberdade": "2026-05", "economia": 940000 }
 ```
 
-Ambos carregam um identificador que permite o deep link para a tela correspondente
-(`dividas/[id]`, `dividas/simulador`). Card é o ponto de entrada para a tela, não um substituto
-dela. `economia` é anulável, pelo mesmo motivo de `economiaVsMinimo` no M4.
+```json
+{ "kind": "divida_proposta", "dividaId": null, "dividaCredor": null, "credor": "Nubank", "valorCobrado": 150000, "dataOrigem": "2026-03-10", "tipo": "consumo", "taxaJurosMensal": null, "totalParcelas": null, "primeiroVencimento": null }
+```
 
-> **O modelo escolhe QUAL card; o backend preenche os NÚMEROS.** Todo valor destes cards é lido
-> do banco em `routers/chat.py::montar_cards`. O schema que o assistente responde não tem campo
-> para valor monetário — ele devolve, no máximo, um `dividaId` e o aporte que o próprio usuário
-> declarou. Número no texto sem card correspondente é **cortado no servidor**. Ver
-> `docs/features/005-dividas-no-chat.md` para as três camadas.
+Os três carregam um identificador que permite o deep link para a tela correspondente
+(`dividas/[id]`, `dividas/simulador`, `dividas/nova`). Card é o ponto de entrada para a tela, não um
+substituto dela. `economia` é anulável, pelo mesmo motivo de `economiaVsMinimo` no M4.
+
+> **O modelo escolhe QUAL card; o backend preenche os NÚMEROS.** Todo valor de `divida_resumo` e de
+> `plano_sugerido` é lido do banco em `routers/chat.py::montar_cards`. O schema que o assistente
+> responde não tem campo para valor monetário no que ele **afirma** — ele devolve, no máximo, um
+> `dividaId` e o aporte que o próprio usuário declarou. Número no texto sem card de banco é
+> **cortado no servidor**. Ver `docs/features/005-dividas-no-chat.md` para as três camadas.
+
+**`divida_proposta` é a exceção, e é de outra natureza.** Seus campos são o RASCUNHO do que a pessoa
+disse na conversa, para ela conferir num formulário (`guardrails.md`, 7.2) — não é dado apurado, não
+é afirmação, e não foi gravado. Todo campo é anulável: ausente significa "ela não disse", nunca zero.
+`dividaId` ausente é cadastro novo; presente é alteração daquela dívida, e aí vem também
+`dividaCredor`, **lido do banco**, dizendo qual dívida vai mudar. Ele é separado de `credor`, que é o
+valor proposto e pode ser justamente a correção do nome. Cada campo é saneado no servidor e
+revalidado na chegada à tela; `dividaCredor` não é campo de formulário e não viaja como parâmetro.
 
 #### `GET /v1/chat/messages`
 
@@ -483,10 +495,11 @@ Response `200`:
 Ordem **cronológica** — o app rola para o fim, não para o começo.
 
 Os cards vêm **remontados a cada leitura**, a partir do banco, e não servidos do JSON gravado:
-uma parcela paga ontem não pode reaparecer hoje com o saldo de ontem.
+uma parcela paga ontem não pode reaparecer hoje com o saldo de ontem. `divida_proposta` é a única
+exceção — ele não tem lastro no banco para remontar, e registro do que foi dito não envelhece.
 
-**Nenhum card dispara escrita sozinho.** Um card que sugere criar uma dívida abriria o formulário
-preenchido para o usuário confirmar (`guardrails.md`, 7.2) — esse `kind` ainda não existe.
+**Nenhum card dispara escrita sozinho.** `divida_proposta` abre o formulário preenchido, e a
+gravação acontece pela rota do cadastro manual, quando o usuário confirma (`guardrails.md`, 7.2).
 
 ---
 
@@ -559,6 +572,8 @@ existencial não têm o que exibir.*
 - [x] Os dois `422`: aporte que invade o mínimo existencial e plano que não quita
 - [~] M5: chat real com os `kind` `divida_resumo` e `plano_sugerido` — implementado e
       **exercitado com chamada real ao provedor**; falta ver no app
+- [~] M5: `divida_proposta` — o chat propõe cadastro e alteração, e o formulário confirma
+      (guardrail 7.2). Nenhuma rota de escrita nova: a gravação continua sendo a do cadastro manual
 - [x] `GET /v1/chat/messages`: o histórico sobrevive ao fechamento do app
 - [x] Camada de provedor de LLM (ADR 0007), com OpenAI padrão e Anthropic vivo no repositório
 - [x] Leitura de contrato **destravada**: exercitada de ponta a ponta com contrato sintético
@@ -574,7 +589,7 @@ existencial não têm o que exibir.*
 | M5 (chat real, histórico) | implementado; **exercitado com chamada real à OpenAI**, ainda não visto no app |
 | Leitura de contrato | **destravada** — contrato sintético lido com trecho literal nos sete campos |
 
-Suíte do backend: **202 testes**, verdes em SQLite e em Postgres, **sem tocar a rede**.
+Suíte do backend: **213 testes**, verdes em SQLite e em Postgres, **sem tocar a rede**.
 
 Nenhum endpoint da fila continua sem implementação. O que falta em todos é a mesma coisa:
 **ver funcionando no aplicativo, em aparelho**.

@@ -4,6 +4,7 @@ from assistente.base import (
     DividaDoContexto,
     ErroDeAssistente,
     PedidoDeCard,
+    PropostaDeDivida,
     RespostaAssistente,
 )
 from config import get_settings
@@ -14,6 +15,7 @@ __all__ = [
     "DividaDoContexto",
     "ErroDeAssistente",
     "PedidoDeCard",
+    "PropostaDeDivida",
     "RespostaAssistente",
     "obter_assistente",
 ]

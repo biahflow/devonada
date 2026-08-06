@@ -21,6 +21,12 @@ LIMITAÇÃO DECLARADA: ele reconhece pouca coisa. É de propósito — cada inte
 aqui é código escrito à mão. Fora do que reconhece, ele DIZ QUE NÃO SABE e
 aponta onde a informação está no app (guardrail 7.1: recusar é melhor que
 estimar).
+
+Ele também NÃO propõe cadastro (`divida_proposta`). Tirar "mil e quinhentos no
+Nubank" de uma frase exigiria um interpretador de dinheiro escrito à mão, e
+errar a leitura da fala da pessoa é pior que não propor: ela veria um valor que
+não disse já dentro do formulário. Sem chave de LLM, o caminho continua sendo
+a aba Dívidas.
 """
 
 PALAVRAS_DE_PLANO = ("plano", "quitar", "simul", "estrategia", "avalanche", "bola de neve")
