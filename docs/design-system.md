@@ -156,6 +156,19 @@ uma linha de explicação e um botão de ação. Vazio é oportunidade de orient
 **`ErrorState`** — mensagem do `ApiError` + botão "Tentar de novo". Distingue `status === 0`
 (sem conexão) de falha do servidor na copy.
 
+**`PercentInput`** — entrada de taxa de juros. Mantém **basis points inteiros** (`250` = 2,50%),
+formata via `formatBasisPoints` (`src/util/percent.ts`) e nunca chama `parseFloat`. Mesmo
+contrato do `CurrencyInput`, pelo mesmo motivo: taxa é dinheiro disfarçado.
+
+**`DateField`** — `@react-native-community/datetimepicker` exibindo `DD/MM/AAAA` e emitindo
+`IsoDate` puro. A conversão vive em `src/util/date.ts` e usa componentes **locais** de data —
+nunca `toISOString()`, que desloca o dia conforme o fuso. Nenhuma regra de data no cliente:
+"atrasada" e "vence em N dias" vêm do backend.
+
+**`OptionGroup`** — seletor em chips, genérico sobre um `Option<T>`. `accessibilityRole="radio"`
+em cada chip e `radiogroup` no contêiner. A descrição da opção selecionada aparece abaixo,
+para explicar a escolha sem poluir a lista.
+
 **`Badge`** — pílula `radius.pill`. Variante de criticidade mapeia `CriticidadeTipo`:
 
 | `tipo` | Fundo | Texto | Rótulo |

@@ -121,9 +121,11 @@ Response `200`:
 ### `POST /v1/dividas`
 Consumido por `createDebt()`.
 
-Request — só os quatro campos que o usuário informa:
+Request — os campos que o usuário informa. `taxaJurosMensal` é **opcional** e vem em basis
+points inteiros; quando o usuário não a informa, o campo é **omitido** do payload, nunca enviado
+como `0` (ausência e "juros zero" são afirmações diferentes):
 ```json
-{ "credor": "Banco Teste S/A", "valorCobrado": 150000, "dataOrigem": "2021-06-01", "tipo": "juros_abusivos" }
+{ "credor": "Banco Teste S/A", "valorCobrado": 150000, "dataOrigem": "2021-06-01", "tipo": "juros_abusivos", "taxaJurosMensal": 1250 }
 ```
 
 Response `201`: `{ "divida": Divida }` — com `id`, `valorCorrigido` e `possivelPrescricao`

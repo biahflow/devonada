@@ -55,32 +55,32 @@ reescrever tudo em M2.
 
 ---
 
-## M1 — CRUD de dívidas
+## M1 — CRUD de dívidas — front entregue, aguardando backend
 
 A prioridade declarada. Primeira vez que `src/api/debts.ts` sai do limbo.
+Spec completa em `docs/features/001-crud-de-dividas.md`.
 
-Depende de: `GET/PATCH/DELETE /v1/dividas/{id}`, `POST /v1/dividas/{id}/quitacao` e dos campos
-novos de `Divida` (`situacao`, `saldoDevedor`, `taxaJurosMensal`, `totalParcelas`,
-`parcelasPagas`, `proximoVencimento`) — `docs/api-contract.md`, seção 3.
-
-- [ ] Expandir `src/api/debts.ts`: `getDebt`, `updateDebt`, `quitarDebt`, `deleteDebt`.
-- [ ] Atualizar `Divida` em `src/api/types.ts` com os campos novos, **junto** com a atualização
-      de `docs/api-contract.md`.
-- [ ] Hooks: `useDividas`, `useDivida(id)`, `useCriarDivida`, `useAtualizarDivida`,
-      `useQuitarDivida`, com invalidação declarada no próprio hook.
-- [ ] **Lista** (`app/(tabs)/dividas/index.tsx`): item com credor, valor, `Badge` de
-      criticidade, próximo vencimento. Ordenação por criticidade, valor e vencimento.
-      Os quatro estados implementados.
-- [ ] **Detalhe** (`app/(tabs)/dividas/[id].tsx`): valores, `possivelPrescricao` como alerta
-      para investigar (nunca afirmação), ações de editar e quitar.
-- [ ] **Formulário** (`app/(tabs)/dividas/nova.tsx`): credor, `CurrencyInput` para valor,
-      seletor de data de origem, seletor de criticidade com a explicação de cada tipo vinda de
-      `docs/domain.md`. Erro por campo a partir do `422`.
-- [ ] Quitação e exclusão com diálogo de confirmação. (`guardrails.md`, seção 7.2)
-- [ ] Estado vazio da lista que orienta o primeiro cadastro em vez de só dizer "sem dados".
+- [x] `src/api/debts.ts` expandido: `getDebt`, `updateDebt`, `quitarDebt`, `deleteDebt`.
+- [x] `Divida` com os campos novos (`situacao`, `saldoDevedor`, `taxaJurosMensal`,
+      `totalParcelas`, `parcelasPagas`, `proximoVencimento`), **todos opcionais** — o front
+      tolera o backend atual e exibe "ainda não calculado" em vez de zero.
+- [x] Hooks em `src/hooks/useDividas.ts`, com a invalidação declarada dentro de cada mutação.
+- [x] **Lista** com credor, valor, `CriticidadeBadge` e vencimento; ordenação por prioridade,
+      valor e vencimento (`src/util/dividas.ts`, função pura e testada).
+- [x] **Detalhe** com `possivelPrescricao` como alerta para investigar, disclaimer jurídico e
+      ações de editar, quitar e excluir.
+- [x] **Cadastro e edição** compartilhando `DividaForm`, com `CurrencyInput`, `DateField`,
+      `OptionGroup` e `PercentInput` opcional.
+- [x] Quitação e exclusão com confirmação nativa. (`guardrails.md`, seção 7.2)
+- [x] Estado vazio que convida ao primeiro cadastro.
+- [ ] **Verificação em device bloqueada pelo backend.** Só lista e cadastro têm endpoint, e o
+      cadastro depende de `backend/models.py:11` trocar `id: int` por `id: str`. Detalhe,
+      edição, quitação e exclusão mostram `ErrorState` até `GET/PATCH/DELETE /v1/dividas/{id}`
+      e `POST /v1/dividas/{id}/quitacao` existirem — ver `docs/api-contract.md`, seção 3.
 
 **Sai com:** cadastrar, ver, editar, quitar e excluir uma dívida ponta a ponta contra o backend
-real, com os quatro estados verificáveis em cada tela.
+real, com os quatro estados verificáveis em cada tela. **Ainda não fechado** — o front está
+pronto; falta o backend.
 
 ---
 
