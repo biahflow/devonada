@@ -13,6 +13,8 @@ export type CriticidadeTipo =
   | 'juros_abusivos' // rotativo, cheque especial — atacar primeiro
   | 'consumo'; // varejo, cartão comum
 
+export type SituacaoDivida = 'ativa' | 'quitada' | 'renegociada';
+
 export interface Divida {
   id: Uuid;
   credor: string;
@@ -24,6 +26,21 @@ export interface Divida {
   valorCorrigido?: number;
   /** ALERTA para investigar, nunca uma afirmação de que prescreveu */
   possivelPrescricao?: boolean;
+
+  /* --- M1: opcionais até o backend passar a enviá-los. Ausente NÃO é zero:
+     a UI exibe "ainda não calculado", nunca R$ 0,00. --- */
+
+  situacao?: SituacaoDivida;
+  /** quanto ainda falta pagar, em centavos */
+  saldoDevedor?: number;
+  /**
+   * Basis points inteiros: 250 = 2,50% a.m. Taxa é dinheiro disfarçado —
+   * float aqui sofreria da mesma imprecisão que os centavos resolvem.
+   */
+  taxaJurosMensal?: number;
+  totalParcelas?: number;
+  parcelasPagas?: number;
+  proximoVencimento?: IsoDate;
 }
 
 /* ---------- Chat ---------- */
