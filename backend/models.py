@@ -8,7 +8,7 @@ class NovaDivida(BaseModel):
     tipo: str
 
 class Divida(NovaDivida):
-    id: int
+    id: str
     valorCorrigido: Optional[int] = None
     possivelPrescricao: Optional[bool] = None
 
