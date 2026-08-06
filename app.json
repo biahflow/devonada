@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "Buddy Financeiro",
+    "slug": "buddy-financeiro",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "buddyfinanceiro",
+    "splash": { "backgroundColor": "#F3F5F2" },
+    "ios": { "supportsTablet": true },
+    "android": { "adaptiveIcon": { "backgroundColor": "#F3F5F2" } }
+  }
+}

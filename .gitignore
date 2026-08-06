@@ -1,0 +1,38 @@
+# Dependências
+node_modules/
+
+# Expo
+.expo/
+.expo-shared/
+dist/
+web-build/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# Nativo
+ios/
+android/
+
+# Ambiente — nunca commitar. O modelo está em .env.example
+.env
+.env.local
+.env.*.local
+
+# Python / backend
+backend/venv/
+backend/.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Sistema e editor
+.DS_Store
+*.log
+npm-debug.*
+yarn-error.*
+.idea/
+.vscode/
