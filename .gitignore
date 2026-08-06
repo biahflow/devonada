@@ -36,3 +36,7 @@ npm-debug.*
 yarn-error.*
 .idea/
 .vscode/
+
+# Backend
+backend/.env
+backend/alembic/versions/__pycache__/

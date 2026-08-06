@@ -1,0 +1,114 @@
+import uuid
+from datetime import date, datetime
+
+from sqlalchemy import BigInteger, Boolean, Date, DateTime, Integer, String, Text, func
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+def novo_id() -> str:
+    return str(uuid.uuid4())
+
+
+class Divida(Base):
+    """
+    Uma obrigação financeira do usuário.
+
+    REGRA DE UNIDADE, válida em toda tabela deste arquivo:
+    - dinheiro é BigInteger em CENTAVOS;
+    - taxa e percentual são Integer em BASIS POINTS (250 = 2,50%).
+    Nenhuma coluna Numeric, nenhuma Float. A regra dos centavos vale no banco,
+    não só no app — é aqui que ela para de ser convenção e vira estrutura.
+    """
+
+    __tablename__ = "divida"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=novo_id)
+    # Vem do token, nunca do cliente. Filtrar por ele em TODA query é o que
+    # impede o retrofit de isolamento quando houver mais de um usuário.
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+
+    credor: Mapped[str] = mapped_column(String(200))
+    valor_cobrado: Mapped[int] = mapped_column(BigInteger)
+    data_origem: Mapped[date] = mapped_column(Date)
+    tipo: Mapped[str] = mapped_column(String(20))
+
+    taxa_juros_mensal: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    total_parcelas: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    parcelas_pagas: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    proximo_vencimento: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+    situacao: Mapped[str] = mapped_column(String(20), default="ativa")
+    valor_pago: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    data_quitacao: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+    # Vínculo com a extração que originou a dívida, quando veio de um contrato.
+    extracao_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    atualizado_em: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+    # Exclusão lógica: histórico financeiro não se destrói.
+    excluido_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class Perfil(Base):
+    """Renda e dependentes. Uma linha por tenant."""
+
+    __tablename__ = "perfil"
+
+    tenant_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    renda_mensal: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    dependentes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    atualizado_em: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class SaldoSnapshot(Base):
+    """
+    Foto do total devido no fim de cada mês.
+
+    Existe porque `evolucaoSaldo` precisa de histórico e não dá para inventar
+    retroativamente. Uma linha por tenant por mês, escrita na primeira consulta
+    do resumo naquele mês. O gráfico nasce vazio e ganha um ponto por mês de uso
+    — dado real, não estimado.
+    """
+
+    __tablename__ = "saldo_snapshot"
+
+    tenant_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    mes: Mapped[str] = mapped_column(String(7), primary_key=True)  # YYYY-MM
+    saldo: Mapped[int] = mapped_column(BigInteger)
+    atualizado_em: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class Extracao(Base):
+    """
+    Leitura de um contrato. O ARQUIVO NÃO É GUARDADO (ADR 0005) — persistem os
+    campos extraídos e os trechos curtos que os comprovam, em JSON.
+    """
+
+    __tablename__ = "extracao"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=novo_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+
+    status: Mapped[str] = mapped_column(String(20), default="processando")
+    erro: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # JSON serializado dos campos e alertas. Text em vez de JSONB porque o
+    # formato é do contrato de API e não é consultado por dentro.
+    campos_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    alertas_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    nome_arquivo: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    mime_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    arquivo_descartado: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
