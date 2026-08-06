@@ -334,11 +334,40 @@ class PlanoSugeridoCard(Camel):
     economia: int | None = None
 
 
+class DividaPropostaCard(Camel):
+    """
+    Rascunho de cadastro ou de alteração, para a pessoa confirmar na tela.
+
+    ÚNICO card cujos valores NÃO vêm do banco — vêm da fala dela na conversa
+    (guardrail 7.2: escrita reversível exige o formulário preenchido e o toque
+    dela). Nada aqui é afirmação do assistente, e nada aqui foi gravado.
+
+    `dividaId` ausente é cadastro novo; presente é alteração daquela dívida.
+    Todo campo é opcional: ausente significa "ela não disse", nunca zero.
+    """
+
+    kind: Literal["divida_proposta"] = "divida_proposta"
+    dividaId: str | None = None
+    # Nome ATUAL da dívida no banco, só na alteração. Serve para o card dizer
+    # qual dívida vai mudar — separado de `credor`, que é o valor PROPOSTO e
+    # pode ser justamente a correção do nome.
+    dividaCredor: str | None = None
+    credor: str | None = Field(default=None, min_length=1, max_length=200)
+    valorCobrado: int | None = Field(default=None, gt=0)
+    dataOrigem: date | None = None
+    tipo: CriticidadeTipo | None = None
+    taxaJurosMensal: int | None = Field(default=None, gt=0)
+    totalParcelas: int | None = Field(default=None, gt=0, le=480)
+    primeiroVencimento: date | None = None
+
+
 class MensagemChat(Camel):
     id: str
     role: Literal["user", "assistant"]
     content: str
-    cards: list[DividaResumoCard | PlanoSugeridoCard] = Field(default_factory=list)
+    cards: list[DividaResumoCard | PlanoSugeridoCard | DividaPropostaCard] = Field(
+        default_factory=list
+    )
     createdAt: datetime
 
 

@@ -8,13 +8,19 @@ import { ErrorState } from '../../../../src/components/ui/ErrorState';
 import { DividaForm } from '../../../../src/components/dividas/DividaForm';
 import { useAtualizarDivida, useDivida } from '../../../../src/hooks/useDividas';
 import { ApiError } from '../../../../src/api/client';
+import { paramsParaProposta, temProposta } from '../../../../src/util/proposta';
 import { spacing } from '../../../../src/theme/theme';
 
 export default function EditarDivida() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id: string }>();
+  const { id } = params;
   const router = useRouter();
   const { data, isPending, error, refetch } = useDivida(id);
   const atualizar = useAtualizarDivida(id);
+
+  // Rascunho vindo do chat (guardrail 7.2), já revalidado campo a campo.
+  const proposta = paramsParaProposta(params);
+  const veioDaConversa = temProposta(params);
 
   if (isPending) {
     return (
@@ -41,7 +47,15 @@ export default function EditarDivida() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <PageHeader eyebrow="Edição" title={divida.credor} description="Corrija o que mudou." />
+        <PageHeader
+          eyebrow="Edição"
+          title={divida.credor}
+          description={
+            veioDaConversa
+              ? 'Marquei o que entendi da nossa conversa. Confira antes de salvar.'
+              : 'Corrija o que mudou.'
+          }
+        />
 
         {atualizar.error ? (
           <Feedback
@@ -55,7 +69,9 @@ export default function EditarDivida() {
         ) : null}
 
         <DividaForm
-          inicial={divida}
+          // O campo proposto entra POR CIMA do que está salvo; o resto continua
+          // como está no banco. Nada disso é gravado até ela tocar em salvar.
+          inicial={{ ...divida, ...proposta }}
           submitLabel="Salvar alterações"
           submitting={atualizar.isPending}
           onSubmit={(input) => atualizar.mutate(input, { onSuccess: () => router.back() })}

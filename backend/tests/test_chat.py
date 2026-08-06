@@ -8,6 +8,7 @@ from assistente.base import (
     DividaDoContexto,
     ErroDeAssistente,
     PedidoDeCard,
+    PropostaDeDivida,
     RespostaAssistente,
 )
 from assistente.determinista import AssistenteDeterminista
@@ -273,3 +274,247 @@ class TestGuardrail71:
 
         with pytest.raises(ErroDeAssistente):
             AssistenteLLM(cliente=ClienteQueFalha()).responder("oi", _contexto("Nubank"), [])
+
+
+def _llm(resposta: dict):
+    from assistente.assistente_llm import AssistenteLLM
+
+    class ClienteFake:
+        def responder_json(self, **kwargs):
+            return resposta
+
+    return AssistenteLLM(cliente=ClienteFake())
+
+
+def _card_de_proposta(**proposta):
+    base = {
+        "credor": None,
+        "valorCobrado": None,
+        "dataOrigem": None,
+        "tipo": None,
+        "taxaJurosMensal": None,
+        "totalParcelas": None,
+        "primeiroVencimento": None,
+    }
+    base.update(proposta)
+    return {"tipo": "divida_proposta", "dividaId": None, "aporteExtraMensal": None, "proposta": base}
+
+
+def _assistente_fixo(monkeypatch, resposta: RespostaAssistente):
+    import routers.chat as rota_chat
+
+    class AssistenteFixo:
+        def responder(self, mensagem, contexto, historico):
+            return resposta
+
+    monkeypatch.setattr(rota_chat, "obter_assistente", lambda: AssistenteFixo())
+
+
+class TestRascunhoDoModelo:
+    """
+    O saneamento do `divida_proposta` (guardrail 7.3: resposta de modelo é
+    entrada não confiável, mesmo com schema).
+    """
+
+    def test_o_que_a_pessoa_disse_atravessa(self):
+        r = _llm(
+            {
+                "texto": "Posso abrir o cadastro com isto?",
+                "cards": [
+                    _card_de_proposta(
+                        credor="Nubank",
+                        valorCobrado=150000,
+                        dataOrigem="2026-03-10",
+                        tipo="juros_abusivos",
+                    )
+                ],
+            }
+        ).responder("devo mil e quinhentos no nubank desde março", _contexto("Outra"), [])
+
+        p = r.cards[0].proposta
+        assert (p.credor, p.valor_cobrado, p.tipo) == ("Nubank", 150000, "juros_abusivos")
+        assert p.data_origem == "2026-03-10"
+
+    def test_campo_invalido_cai_sozinho(self):
+        # Derrubar o card inteiro por causa de uma data torta perderia o credor
+        # e o valor que estão certos — e a pessoa digitaria tudo de novo.
+        r = _llm(
+            {
+                "texto": "Confere?",
+                "cards": [
+                    _card_de_proposta(
+                        credor="Nubank",
+                        valorCobrado=-500,
+                        dataOrigem="10/03/2026",
+                        tipo="cartao_de_credito",
+                        totalParcelas=1000,
+                    )
+                ],
+            }
+        ).responder("x", _contexto("Outra"), [])
+
+        p = r.cards[0].proposta
+        assert p.credor == "Nubank"
+        assert p.valor_cobrado is None
+        assert p.data_origem is None
+        assert p.tipo is None
+        assert p.total_parcelas is None
+
+    def test_data_que_nao_existe_no_calendario_cai(self):
+        r = _llm(
+            {
+                "texto": "Confere?",
+                "cards": [_card_de_proposta(credor="Nubank", dataOrigem="2026-02-31")],
+            }
+        ).responder("x", _contexto("Outra"), [])
+
+        assert r.cards[0].proposta.data_origem is None
+
+    def test_rascunho_vazio_nao_vira_card(self):
+        # Não ofereceria nada além do botão que já existe na aba Dívidas.
+        r = _llm({"texto": "Quer cadastrar?", "cards": [_card_de_proposta()]}).responder(
+            "x", _contexto("Nubank"), []
+        )
+        assert r.cards == []
+
+    def test_alteracao_de_divida_fora_do_contexto_derruba_o_card(self):
+        # Virar "cadastre outra" em silêncio seria pior que não propor nada.
+        card = _card_de_proposta(credor="Alheio")
+        card["dividaId"] = "id-de-outro-tenant"
+
+        r = _llm({"texto": "Confere?", "cards": [card]}).responder("x", _contexto("Nubank"), [])
+        assert r.cards == []
+
+    def test_rascunho_nao_licencia_numero_no_texto(self):
+        # Os valores dele são a fala da pessoa, não dado lido do banco: não dão
+        # procedência a número em prosa. Mas o rascunho SOBREVIVE à queda do
+        # texto — perdê-lo faria ela digitar de novo o que acabou de dizer.
+        r = _llm(
+            {
+                "texto": "Entendi R$ 1.500,00 no Nubank.",
+                "cards": [_card_de_proposta(credor="Nubank", valorCobrado=150000)],
+            }
+        ).responder("devo 1500 no nubank", _contexto("Outra"), [])
+
+        assert "1.500" not in r.content
+        assert "nada é salvo até você confirmar" in r.content
+        assert r.cards[0].proposta.valor_cobrado == 150000
+
+
+class TestPropostaNaRota:
+    """Guardrail 7.2: o chat propõe, o formulário confirma. Nada grava sozinho."""
+
+    def test_conversa_nao_escreve_divida_nenhuma(self, client, auth, monkeypatch):
+        _assistente_fixo(
+            monkeypatch,
+            RespostaAssistente(
+                content="Posso abrir o cadastro com isto?",
+                cards=[
+                    PedidoDeCard(
+                        tipo="divida_proposta",
+                        proposta=PropostaDeDivida(credor="Nubank", valor_cobrado=150000),
+                    )
+                ],
+            ),
+        )
+
+        card = _enviar(client, auth, "devo 1500 no nubank").json()["message"]["cards"][0]
+        assert card["kind"] == "divida_proposta"
+        assert card["credor"] == "Nubank"
+        assert card["valorCobrado"] == 150000
+        assert card["dividaId"] is None
+
+        # O que importa nesta feature inteira: a conversa NÃO gravou.
+        assert client.get("/v1/dividas", headers=auth).json()["dividas"] == []
+
+    def test_alteracao_se_identifica_pela_divida_do_banco(self, client, auth, monkeypatch):
+        d = _criar(client, auth, credor="Banco Teste S/A")
+        _assistente_fixo(
+            monkeypatch,
+            RespostaAssistente(
+                content="Anotei a mudança para você conferir.",
+                cards=[
+                    PedidoDeCard(
+                        tipo="divida_proposta",
+                        divida_id=d["id"],
+                        proposta=PropostaDeDivida(taxa_juros_mensal=250),
+                    )
+                ],
+            ),
+        )
+
+        card = _enviar(client, auth, "a taxa mudou para 2,5%").json()["message"]["cards"][0]
+        assert card["dividaId"] == d["id"]
+        # Quem diz QUAL dívida vai mudar é o banco.
+        assert card["dividaCredor"] == "Banco Teste S/A"
+        assert card["taxaJurosMensal"] == 250
+        # E nada mudou na dívida real.
+        assert (
+            client.get(f"/v1/dividas/{d['id']}", headers=auth).json()["divida"]["taxaJurosMensal"]
+            != 250
+        )
+
+    def test_correcao_do_nome_do_credor_sobrevive(self, client, auth, monkeypatch):
+        # `dividaCredor` nomeia a dívida atual; `credor` é o valor proposto —
+        # sobrescrever um pelo outro tornaria impossível corrigir o nome.
+        d = _criar(client, auth, credor="Banco Teste")
+        _assistente_fixo(
+            monkeypatch,
+            RespostaAssistente(
+                content="Confere?",
+                cards=[
+                    PedidoDeCard(
+                        tipo="divida_proposta",
+                        divida_id=d["id"],
+                        proposta=PropostaDeDivida(credor="Banco Teste S/A"),
+                    )
+                ],
+            ),
+        )
+
+        card = _enviar(client, auth, "o nome certo é Banco Teste S/A").json()["message"]["cards"][0]
+        assert card["dividaCredor"] == "Banco Teste"
+        assert card["credor"] == "Banco Teste S/A"
+
+    def test_divida_excluida_nao_vira_proposta_de_alteracao(self, client, auth, monkeypatch):
+        d = _criar(client, auth, credor="Banco Teste S/A")
+        client.delete(f"/v1/dividas/{d['id']}", headers=auth)
+        _assistente_fixo(
+            monkeypatch,
+            RespostaAssistente(
+                content="Confere?",
+                cards=[
+                    PedidoDeCard(
+                        tipo="divida_proposta",
+                        divida_id=d["id"],
+                        proposta=PropostaDeDivida(valor_cobrado=1000),
+                    )
+                ],
+            ),
+        )
+
+        assert _enviar(client, auth, "muda o valor").json()["message"]["cards"] == []
+
+    def test_rascunho_sobrevive_no_historico(self, client, auth, monkeypatch):
+        _assistente_fixo(
+            monkeypatch,
+            RespostaAssistente(
+                content="Confere?",
+                cards=[
+                    PedidoDeCard(
+                        tipo="divida_proposta",
+                        proposta=PropostaDeDivida(
+                            credor="Nubank", valor_cobrado=150000, data_origem="2026-03-10"
+                        ),
+                    )
+                ],
+            ),
+        )
+        _enviar(client, auth, "devo 1500 no nubank")
+
+        # Rascunho não é remontado do banco como saldo — ele não tem lastro lá,
+        # e registro do que foi dito na conversa não envelhece.
+        card = client.get(ROTA, headers=auth).json()["mensagens"][-1]["cards"][0]
+        assert card["credor"] == "Nubank"
+        assert card["valorCobrado"] == 150000
+        assert card["dataOrigem"] == "2026-03-10"

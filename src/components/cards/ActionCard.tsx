@@ -3,6 +3,7 @@ import { ValorJustoCard } from './ValorJustoCard';
 import { InfoCard } from './InfoCard';
 import { DividaResumoCard } from './DividaResumoCard';
 import { PlanoSugeridoCard } from './PlanoSugeridoCard';
+import { DividaPropostaCard } from './DividaPropostaCard';
 
 /**
  * Despacha o card certo pelo campo discriminante `kind`.
@@ -22,5 +23,7 @@ export function ActionCard({ card }: { card: ActionCardData }) {
       return <DividaResumoCard data={card} />;
     case 'plano_sugerido':
       return <PlanoSugeridoCard data={card} />;
+    case 'divida_proposta':
+      return <DividaPropostaCard data={card} />;
   }
 }

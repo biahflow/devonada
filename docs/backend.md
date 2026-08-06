@@ -17,7 +17,7 @@ docker compose up -d                      # Postgres na 5433
 source venv/bin/activate
 alembic upgrade head
 uvicorn main:app --host 0.0.0.0 --port 8001 --reload
-pytest                                     # 202 testes
+pytest                                     # 213 testes
 ```
 
 **Portas escolhidas por colisão, não por gosto:** a 8000 e a 5432 já são do stack do
@@ -176,23 +176,34 @@ prompt não é garantia, e contrato brasileiro escreve data no formato brasileir
 `assistente_llm.py` para qualquer provedor e `determinista.py` sem modelo nenhum.
 
 > **O modelo escolhe QUAL card; o backend preenche os NÚMEROS.** É a regra que organiza o pacote.
-> `PedidoDeCard` carrega um id e, no máximo, o aporte que o próprio usuário declarou — **não
-> existe campo para valor monetário**, não por confiança no modelo, mas porque o tipo não
-> permite. Quem preenche saldo, prazo e economia é `routers/chat.py::montar_cards`, lendo o banco.
+> `PedidoDeCard` carrega um id e, no máximo, o aporte que o próprio usuário declarou — no que o
+> modelo AFIRMA, **não existe campo para valor monetário**, não por confiança nele, mas porque o
+> tipo não permite. Quem preenche saldo, prazo e economia é `routers/chat.py::montar_cards`, lendo
+> o banco.
 
 Três camadas independentes sustentam o guardrail 7.1, porque prompt não é guardrail:
 
 | Camada | Onde | O que impede |
 |---|---|---|
-| Estrutural | `assistente/regras.py` | Schema sem campo de valor: o modelo não consegue emitir número |
+| Estrutural | `assistente/regras.py` | Schema sem campo de valor no que ele afirma: o modelo não consegue emitir número como fato |
 | Contexto | `routers/chat.py::_contexto` | O prompt recebe identificação, nunca valores |
-| Varredura | `assistente/assistente_llm.py` | Número no texto sem card derruba o texto, no servidor |
+| Varredura | `assistente/assistente_llm.py` | Número no texto sem card **de banco** derruba o texto, no servidor |
+
+**A exceção: `divida_proposta`.** `PropostaDeDivida` tem campo para valor porque é o RASCUNHO do que
+a pessoa disse, devolvido para ela confirmar num formulário (guardrail 7.2). Não é dado apurado, não
+é exibido como fato, e não chega ao banco: a gravação continua sendo `POST /v1/dividas`, disparada
+pela tela. Todo campo é saneado em `assistente_llm.py::_proposta` — resposta de modelo é entrada não
+confiável mesmo com schema — e campo inválido cai sozinho, sem derrubar os válidos ao lado. Este é
+também o único card **não remontado** do banco a cada leitura do histórico: ele não tem lastro lá, e
+registro do que foi dito não envelhece.
 
 **Limitações declaradas:**
 
 1. **O determinístico reconhece três intenções.** Credor citado pelo nome, pedido de plano e
    pedido de resumo. Fora disso, diz que não sabe. É o que roda na suíte (sem rede) e o fallback
-   quando não há chave.
+   quando não há chave. Ele **não propõe cadastro**: tirar "mil e quinhentos no Nubank" de uma
+   frase exigiria um interpretador de dinheiro escrito à mão, e errar a leitura da fala da pessoa
+   é pior que não propor.
 2. **A varredura de número é heurística.** Pega dígitos; não pega "mil e quinhentos" por extenso.
    A defesa estrutural é a primeira camada; a varredura é a segunda.
 3. **O modelo inventa navegação, não número.** Na primeira chamada real mandou o usuário a uma
@@ -223,7 +234,7 @@ Recurso de outro tenant devolve **404, nunca 403**: um 403 confirmaria que o id 
 > BUDDY_TEST_DATABASE_URL=postgresql+psycopg://buddy:buddy@localhost:5433/buddy_test pytest
 > ```
 >
-> Os 202 testes passam nos dois. Rode contra Postgres antes de qualquer release — SQLite não
+> Os 213 testes passam nos dois. Rode contra Postgres antes de qualquer release — SQLite não
 > pega divergência de dialeto (constraint que só o Postgres aplica, precisão de `BigInteger`,
 > comportamento de índice).
 

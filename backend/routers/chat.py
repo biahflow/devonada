@@ -2,6 +2,7 @@ import json
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -12,6 +13,7 @@ from assistente import (
     DividaDoContexto,
     ErroDeAssistente,
     PedidoDeCard,
+    PropostaDeDivida,
     obter_assistente,
 )
 from auth import tenant_atual
@@ -23,7 +25,7 @@ router = APIRouter(prefix="/v1/chat", tags=["Chat"])
 
 TETO_HISTORICO = 50
 
-Card = schemas.DividaResumoCard | schemas.PlanoSugeridoCard
+Card = schemas.DividaResumoCard | schemas.PlanoSugeridoCard | schemas.DividaPropostaCard
 
 
 def _contexto(db: Session, tenant: str) -> ContextoDoUsuario:
@@ -131,7 +133,79 @@ def montar_cards(db: Session, tenant: str, pedidos: list[PedidoDeCard]) -> list[
                 )
             )
 
+        elif pedido.tipo == "divida_proposta":
+            # O ÚNICO ramo sem banco de onde tirar valor: o rascunho é a fala
+            # da pessoa, e ela não está gravada em lugar nenhum. Por isso este
+            # card também não é remontado a cada leitura como os de cima — um
+            # saldo envelhece, o que foi dito na conversa não.
+            p = pedido.proposta
+            if p is None:
+                continue
+
+            divida_credor = None
+            if pedido.divida_id:
+                d = db.scalar(
+                    select(orm.Divida).where(
+                        orm.Divida.id == pedido.divida_id,
+                        orm.Divida.tenant_id == tenant,
+                        orm.Divida.excluido_em.is_(None),
+                    )
+                )
+                if d is None:
+                    continue
+                # Quem diz QUAL dívida vai mudar é o banco, não o nome que o
+                # modelo repetiu. `credor` segue sendo o valor proposto — ele
+                # pode ser justamente a correção do nome.
+                divida_credor = d.credor
+
+            try:
+                cards.append(
+                    schemas.DividaPropostaCard(
+                        dividaId=pedido.divida_id,
+                        dividaCredor=divida_credor,
+                        credor=p.credor,
+                        valorCobrado=p.valor_cobrado,
+                        dataOrigem=p.data_origem,  # type: ignore[arg-type]
+                        tipo=p.tipo,  # type: ignore[arg-type]
+                        taxaJurosMensal=p.taxa_juros_mensal,
+                        totalParcelas=p.total_parcelas,
+                        primeiroVencimento=p.primeiro_vencimento,  # type: ignore[arg-type]
+                    )
+                )
+            except ValidationError:
+                # Rascunho antigo que não passa na regra de hoje não vira card
+                # meio preenchido: não vira card.
+                continue
+
     return cards
+
+
+def _proposta_para_json(p: PropostaDeDivida | None) -> dict | None:
+    if p is None:
+        return None
+    return {
+        "credor": p.credor,
+        "valorCobrado": p.valor_cobrado,
+        "dataOrigem": p.data_origem,
+        "tipo": p.tipo,
+        "taxaJurosMensal": p.taxa_juros_mensal,
+        "totalParcelas": p.total_parcelas,
+        "primeiroVencimento": p.primeiro_vencimento,
+    }
+
+
+def _proposta_de_json(bruto: dict | None) -> PropostaDeDivida | None:
+    if not bruto:
+        return None
+    return PropostaDeDivida(
+        credor=bruto.get("credor"),
+        valor_cobrado=bruto.get("valorCobrado"),
+        data_origem=bruto.get("dataOrigem"),
+        tipo=bruto.get("tipo"),
+        taxa_juros_mensal=bruto.get("taxaJurosMensal"),
+        total_parcelas=bruto.get("totalParcelas"),
+        primeiro_vencimento=bruto.get("primeiroVencimento"),
+    )
 
 
 def _para_schema(db: Session, tenant: str, m: orm.MensagemChat) -> schemas.MensagemChat:
@@ -140,12 +214,17 @@ def _para_schema(db: Session, tenant: str, m: orm.MensagemChat) -> schemas.Mensa
 
     Os valores não são lidos do que foi gravado: uma parcela paga ontem faria a
     conversa exibir hoje um saldo que não existe mais.
+
+    A exceção é o rascunho de `divida_proposta`, que sai daqui como foi dito —
+    ele não tem lastro no banco para remontar, e registro de conversa não
+    envelhece.
     """
     pedidos = [
         PedidoDeCard(
             tipo=p["tipo"],
             divida_id=p.get("dividaId"),
             aporte_extra_mensal=p.get("aporteExtraMensal"),
+            proposta=_proposta_de_json(p.get("proposta")),
         )
         for p in json.loads(m.cards_json or "[]")
     ]
@@ -169,6 +248,7 @@ def _gravar(
                     "tipo": p.tipo,
                     "dividaId": p.divida_id,
                     "aporteExtraMensal": p.aporte_extra_mensal,
+                    "proposta": _proposta_para_json(p.proposta),
                 }
                 for p in pedidos
             ]

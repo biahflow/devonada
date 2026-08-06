@@ -161,13 +161,26 @@ O chat é a superfície mais perigosa do produto, porque texto livre parece auto
 
 | Camada | Onde | O que impede |
 |---|---|---|
-| Estrutural | `backend/assistente/regras.py` | O schema da resposta **não tem campo para valor**. O modelo não consegue emitir número. |
+| Estrutural | `backend/assistente/regras.py` | No que o modelo AFIRMA, o schema **não tem campo para valor**. Ele não consegue emitir número como fato. |
 | Contexto | `backend/routers/chat.py::_contexto` | O prompt recebe identificação de dívida, nunca valores. O que o modelo não vê, não repete errado. |
-| Varredura | `backend/assistente/assistente_llm.py` | Número no texto sem card derruba o texto, **no servidor**, antes de virar mensagem. |
+| Varredura | `backend/assistente/assistente_llm.py` | Número no texto sem card **de banco** derruba o texto, no servidor, antes de virar mensagem. |
 
 E `routers/chat.py::montar_cards` preenche cada card lendo o banco: **o modelo escolhe qual card;
 o backend diz quanto**. A varredura é heurística (pega dígito, não pega valor por extenso) — ela
 é a segunda camada, não a primeira.
+
+**A exceção declarada: `divida_proposta`.** Este card tem campo para valor, e é de outra natureza —
+ele carrega o RASCUNHO do que a pessoa disse na conversa, devolvido a ela para conferir num
+formulário (7.2 abaixo). Não é número apurado pelo modelo, não é exibido como fato, e não chega ao
+banco sem o toque dela. O que muda em consequência:
+
+- a varredura só considera sustentado o número em prosa quando há card **com procedência de banco**
+  (`divida_resumo`, `plano_sugerido`). Rascunho não licencia número no texto — e quando o texto cai,
+  o rascunho **sobrevive**, para a pessoa não redigitar o que acabou de dizer;
+- todo campo do rascunho é **saneado no servidor** (`assistente_llm.py::_proposta`) e **de novo na
+  chegada à tela** (`src/util/proposta.ts`), porque ele atravessa parâmetro de rota. Campo inválido
+  cai sozinho e o formulário abre vazio naquele campo;
+- a tela diz, com todas as letras, que aquilo é o que foi entendido e que **nada foi salvo**.
 
 ### 7.2 Autonomia por classe de ação
 
@@ -190,6 +203,12 @@ flowchart TD
 ```
 
 Nenhuma escrita acontece como efeito colateral silencioso de uma conversa.
+
+**Como a linha "escrita reversível" existe em código.** O assistente pede o card `divida_proposta`
+com o que a pessoa disse; o card abre `dividas/nova` (ou `dividas/[id]/editar`) já preenchido; a
+gravação só acontece quando ela toca em salvar, pela mesma rota do cadastro manual. O chat não tem
+caminho para `POST /v1/dividas` — não é uma rota que ele evita chamar, é uma rota que ele não
+alcança. Quitação e baixa de parcela continuam **sem** proposta: essas ficam na tela da dívida.
 
 ### 7.3 Entrada não confiável
 

@@ -27,6 +27,14 @@ const CARD_DIVIDA = {
   criticidade: 'juros_abusivos' as const,
 };
 
+const CARD_PROPOSTA = {
+  kind: 'divida_proposta' as const,
+  credor: 'Nubank',
+  valorCobrado: 150000,
+  dataOrigem: '2026-03-10',
+  tipo: 'consumo' as const,
+};
+
 const CARD_PLANO = {
   kind: 'plano_sugerido' as const,
   estrategia: 'avalanche' as const,
@@ -135,6 +143,100 @@ describe('tela do chat', () => {
       expect(screen.getByText(texto)).toBeTruthy();
       expect(/\d/.test(texto)).toBe(false);
     }
+  });
+
+  it('o card de proposta diz que nada foi salvo', async () => {
+    // É o único card cujos valores não vêm do banco: vêm da fala da pessoa.
+    // A tela precisa dizer isso com todas as letras (guardrails 7.2).
+    responderPorRota({
+      '/v1/chat/messages': { mensagens: [umaMensagem({ cards: [CARD_PROPOSTA] })] },
+    });
+    renderizarTela(<ChatScreen />);
+
+    await waitFor(() => expect(screen.getByText('Foi isto que eu entendi')).toBeTruthy());
+    expect(screen.getByText(/Nada foi salvo ainda/)).toBeTruthy();
+    expect(screen.getByText('R$ 1.500,00')).toBeTruthy();
+    expect(screen.getByText('10/03/2026')).toBeTruthy();
+  });
+
+  it('o card de proposta abre o cadastro com o rascunho, sem salvar nada', async () => {
+    responderPorRota({
+      '/v1/chat/messages': { mensagens: [umaMensagem({ cards: [CARD_PROPOSTA] })] },
+    });
+    renderizarTela(<ChatScreen />);
+
+    await waitFor(() => expect(screen.getByText('Foi isto que eu entendi')).toBeTruthy());
+    fireEvent.press(screen.getByLabelText('Conferir o cadastro proposto antes de salvar'));
+
+    expect(global.mockRouter.push).toHaveBeenCalledWith({
+      pathname: '/dividas/nova',
+      params: {
+        credor: 'Nubank',
+        valorCobrado: '150000',
+        dataOrigem: '2026-03-10',
+        tipo: 'consumo',
+      },
+    });
+    // Nenhuma escrita saiu do card: só houve a leitura do histórico.
+    expect(requestMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('proposta com dividaId abre a edição daquela dívida', async () => {
+    responderPorRota({
+      '/v1/chat/messages': {
+        mensagens: [
+          umaMensagem({
+            cards: [
+              {
+                kind: 'divida_proposta',
+                dividaId: 'divida-1',
+                dividaCredor: 'Nubank',
+                taxaJurosMensal: 250,
+              },
+            ],
+          }),
+        ],
+      },
+    });
+    renderizarTela(<ChatScreen />);
+
+    await waitFor(() => expect(screen.getByText('Foi isto que eu entendi')).toBeTruthy());
+    expect(screen.getByText('2,50%')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('Conferir a alteração proposta para Nubank'));
+
+    expect(global.mockRouter.push).toHaveBeenCalledWith({
+      pathname: '/dividas/[id]/editar',
+      params: { taxaJurosMensal: '250', id: 'divida-1' },
+    });
+  });
+
+  it('proposta de corrigir o nome do credor chega ao formulário', async () => {
+    // `dividaCredor` nomeia a dívida atual; `credor` é a correção proposta.
+    responderPorRota({
+      '/v1/chat/messages': {
+        mensagens: [
+          umaMensagem({
+            cards: [
+              {
+                kind: 'divida_proposta',
+                dividaId: 'divida-1',
+                dividaCredor: 'Banco Teste',
+                credor: 'Banco Teste S/A',
+              },
+            ],
+          }),
+        ],
+      },
+    });
+    renderizarTela(<ChatScreen />);
+
+    await waitFor(() => expect(screen.getByText('Novo credor')).toBeTruthy());
+    fireEvent.press(screen.getByLabelText('Conferir a alteração proposta para Banco Teste'));
+
+    expect(global.mockRouter.push).toHaveBeenCalledWith({
+      pathname: '/dividas/[id]/editar',
+      params: { credor: 'Banco Teste S/A', id: 'divida-1' },
+    });
   });
 
   it('enviar mensagem exibe o que a pessoa escreveu e a resposta', async () => {

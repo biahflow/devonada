@@ -61,7 +61,8 @@ export type ActionCardData =
   | ValorJustoCardData
   | InfoCardData
   | DividaResumoCardData
-  | PlanoSugeridoCardData;
+  | PlanoSugeridoCardData
+  | DividaPropostaCardData;
 
 export interface ValorJustoCardData {
   kind: 'valor_justo';
@@ -107,6 +108,37 @@ export interface PlanoSugeridoCardData {
   dataLiberdade: IsoMes;
   /** em centavos. Ausente = o cenário mínimo não quita, então não há economia a afirmar. */
   economia?: number | null;
+}
+
+/**
+ * Rascunho de cadastro ou de alteração, para o usuário confirmar (M5).
+ *
+ * ÚNICO card cujos valores NÃO vêm do banco: são o que a PESSOA disse na
+ * conversa, devolvido para ela conferir num formulário (`guardrails.md`, 7.2).
+ * Nada aqui é afirmação do assistente, e nada aqui foi gravado — a tela precisa
+ * dizer isso com todas as letras.
+ *
+ * `dividaId` ausente é cadastro novo; presente é alteração daquela dívida.
+ * Campo ausente significa "ela não disse", nunca zero.
+ */
+export interface DividaPropostaCardData {
+  kind: 'divida_proposta';
+  dividaId?: Uuid | null;
+  /**
+   * Nome ATUAL da dívida no banco, só na alteração. Diz qual dívida vai mudar —
+   * separado de `credor`, que é o valor proposto e pode ser justamente a
+   * correção do nome.
+   */
+  dividaCredor?: string | null;
+  credor?: string | null;
+  /** em centavos */
+  valorCobrado?: number | null;
+  dataOrigem?: IsoDate | null;
+  tipo?: CriticidadeTipo | null;
+  /** basis points inteiros */
+  taxaJurosMensal?: number | null;
+  totalParcelas?: number | null;
+  primeiroVencimento?: IsoDate | null;
 }
 
 export interface ChatMessage {

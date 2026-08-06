@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from typing import Literal, Protocol, runtime_checkable
 
 """
@@ -10,13 +10,20 @@ pacote inteiro:
 
     O ASSISTENTE ESCOLHE QUAL CARD MOSTRAR. O BACKEND PREENCHE OS NÚMEROS.
 
-Um `PedidoDeCard` carrega um id e, no máximo, um parâmetro de entrada que o
-usuário já forneceu. Não existe campo para valor monetário em lugar nenhum
-desta estrutura — não por confiança no modelo, mas porque o tipo não permite.
-Quem preenche saldo, prazo e juros é `routers/chat.py`, lendo o banco.
+Um `PedidoDeCard` carrega um id e, no máximo, parâmetros de entrada que o
+usuário já forneceu. Quem preenche saldo, prazo e juros é `routers/chat.py`,
+lendo o banco.
+
+A ÚNICA EXCEÇÃO, e o motivo dela. `PropostaDeDivida` tem campo para valor —
+porque é rascunho do que a PESSOA disse na conversa, devolvido a ela para
+conferência (guardrail 7.2). Não é número apurado pelo modelo, não é exibido
+como fato, e não chega ao banco: ele preenche um formulário que só grava
+quando o dedo dela toca em salvar. Mesmo precedente do `aporte_extra_mensal`
+abaixo. Todo o resto continua valendo: o que o modelo afirma como fato não
+tem campo onde caber.
 """
 
-TipoDeCard = Literal["divida_resumo", "plano_sugerido"]
+TipoDeCard = Literal["divida_resumo", "plano_sugerido", "divida_proposta"]
 
 
 @dataclass(frozen=True)
@@ -43,6 +50,31 @@ class ContextoDoUsuario:
 
 
 @dataclass(frozen=True)
+class PropostaDeDivida:
+    """
+    Rascunho de cadastro, montado com o que a pessoa disse na conversa.
+
+    TODO campo é opcional, e ausente significa "ela não disse" — nunca zero.
+    O que o modelo não ouviu, ele não preenche: o formulário abre com o campo
+    vazio, e ela completa. Deduzir aqui seria inventar dado financeiro em nome
+    de alguém.
+    """
+
+    credor: str | None = None
+    # Em centavos, como todo dinheiro do repositório.
+    valor_cobrado: int | None = None
+    data_origem: str | None = None
+    tipo: str | None = None
+    # Basis points inteiros: 250 = 2,50% a.m.
+    taxa_juros_mensal: int | None = None
+    total_parcelas: int | None = None
+    primeiro_vencimento: str | None = None
+
+    def vazia(self) -> bool:
+        return all(getattr(self, campo.name) is None for campo in fields(self))
+
+
+@dataclass(frozen=True)
 class PedidoDeCard:
     tipo: TipoDeCard
     divida_id: str | None = None
@@ -50,6 +82,9 @@ class PedidoDeCard:
     # conversa, em centavos. Ele não é exibido como fato — é entrada da
     # simulação, que o backend roda.
     aporte_extra_mensal: int | None = None
+    # Só em `divida_proposta`. Ver o cabeçalho do módulo: rascunho da fala da
+    # pessoa, não afirmação do modelo.
+    proposta: "PropostaDeDivida | None" = None
 
 
 @dataclass(frozen=True)
