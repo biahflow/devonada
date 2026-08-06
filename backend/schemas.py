@@ -18,6 +18,19 @@ SituacaoDivida = Literal["ativa", "quitada", "renegociada"]
 StatusExtracao = Literal["processando", "concluida", "falhou"]
 Confianca = Literal["alta", "media", "baixa"]
 
+# A MODALIDADE do crédito, que é coisa diferente de `CriticidadeTipo`: aquele
+# classifica pela consequência de não pagar, este diz que produto é. A revisão
+# de cobrança (M6) precisa do segundo — teto de juros de consignado só se aplica
+# a consignado, e nada em `Divida` dizia isso antes.
+ModalidadeCredito = Literal[
+    "consignado_inss",
+    "consignado_privado",
+    "cartao_consignado",
+    "pessoal",
+    "rotativo",
+    "financiamento",
+]
+
 
 class Camel(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
@@ -281,6 +294,22 @@ class CamposContrato(Camel):
     totalParcelas: CampoExtraido[int]
     cet: CampoExtraido[int]
 
+    # Os ENCARGOS, que existem para a revisão de cobrança (M6): é neles que mora
+    # a cobrança contestável de um consignado. Como todo campo daqui é
+    # `CampoExtraido`, `limpar_campos_sem_evidencia()` os alcança de graça — e o
+    # achado derivado deles nasce, portanto, com trecho literal do contrato.
+    # `default_factory` e não default direto: instância de modelo compartilhada
+    # entre objetos seria estado mutável comum. E ter default é o que faz um
+    # `campos_json` gravado ANTES do M6 continuar carregando — a coluna é texto,
+    # e extração antiga não tem estes campos.
+    modalidade: CampoExtraido[ModalidadeCredito] = Field(
+        default_factory=CampoExtraido[ModalidadeCredito]
+    )
+    tarifaCadastro: CampoExtraido[int] = Field(default_factory=CampoExtraido[int])
+    seguroPrestamista: CampoExtraido[int] = Field(default_factory=CampoExtraido[int])
+    iof: CampoExtraido[int] = Field(default_factory=CampoExtraido[int])
+    multaMoratoriaMensal: CampoExtraido[int] = Field(default_factory=CampoExtraido[int])
+
 
 class AlertaContrato(Camel):
     id: str
@@ -302,6 +331,50 @@ class RespostaExtracao(Camel):
     extracao: ExtracaoContrato
 
 
+class Achado(Camel):
+    """
+    Um ponto do contrato que vale contestar, com a fonte que o sustenta.
+
+    `valorContestavel` nulo é o achado que aparece na tela e NÃO entra na
+    subtração de `valorJusto` — quantificá-lo exigiria reamortizar o contrato,
+    o que seria estimativa disfarçada de apuração (ADR 0008).
+    `evidencia` é o trecho literal do contrato, ausente quando o achado não
+    nasceu da extração.
+    """
+
+    id: str
+    titulo: str
+    explicacao: str
+    fonte: str
+    comoConferir: str
+    valorContestavel: int | None = None
+    evidencia: str | None = None
+
+
+class RevisaoCobranca(Camel):
+    """
+    `valorJusto` é `valorCobrado` menos a soma dos achados COM valor.
+
+    Nulo quando nenhum achado tem valor — nunca igual a `valorCobrado`, porque
+    isso diria "conferimos e está tudo certo", afirmação que não temos como
+    fazer. `economia` não viaja: o cliente a calcula, e é a única subtração que
+    o guardrail 1.2 lhe permite.
+    """
+
+    dividaId: str
+    credor: str
+    valorCobrado: int
+    valorJusto: int | None = None
+    achados: list[Achado]
+    script: str | None = None
+    fundamentos: list[str]
+    baseLegalVigenteEm: str | None = None
+
+
+class RespostaRevisao(Camel):
+    revisao: RevisaoCobranca
+
+
 class SendMessageRequest(Camel):
     content: str
 
@@ -321,6 +394,28 @@ class DividaResumoCard(Camel):
     proximoVencimento: date | None = None
     situacao: SituacaoDivida
     criticidade: CriticidadeTipo
+
+
+class ValorJustoCard(Camel):
+    """
+    Os pontos contestáveis de uma dívida, dentro da conversa.
+
+    Mesmo regime do `divida_resumo`: o assistente escolheu QUAL dívida; quem
+    preenche os valores é a rota, chamando `domain/revisao.py`. A rota só emite
+    este card quando existe achado COM valor — sem `valorJusto` não há o que
+    mostrar aqui, e o card não sai (ADR 0008).
+
+    `dividaId` existe para o deep link até a tela de revisão, por campo tipado —
+    nunca id extraído do texto.
+    """
+
+    kind: Literal["valor_justo"] = "valor_justo"
+    dividaId: str
+    credor: str
+    valorCobrado: int
+    valorJusto: int
+    script: str
+    fundamentos: list[str]
 
 
 class PlanoSugeridoCard(Camel):

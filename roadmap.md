@@ -259,6 +259,51 @@ confirma. **Ainda não fechado** — falta o device.
 
 ---
 
+## M6 — Revisão de cobrança — entregue, aguardando validação em device
+
+Fecha a última pendência de contrato do projeto: o card `valor_justo` existia em
+`src/api/types.ts`, tinha componente pronto e exemplo no contrato **desde o primeiro commit**, e
+nenhum endpoint o produzia. Spec em `docs/features/006-revisao-de-cobranca.md`.
+
+O desbloqueio não foi ceder e inventar a regra — foi **redefinir o campo** (ADR 0008).
+`valorJusto` era "quanto o backend estima que a dívida deveria custar", e estimativa é justamente
+o que não tem fonte. Agora é subtração: `valorCobrado` menos a soma dos achados citáveis, cada um
+com artigo, súmula ou resolução no docstring. Sem achado, o número não sai.
+
+- [x] **Toda citação conferida no texto primário antes do código.** CDC e Lei 10.820 lidos
+      íntegros no Planalto. A verificação **derrubou três decisões do plano**: a margem
+      consignável saiu (incide sobre a soma das consignações, não sobre uma dívida), o achado de
+      juros acima do teto virou **sem valor** (quantificar exigiria reamortizar o contrato), e o
+      teto do consignado entrou **sem default** — não foi confirmável em fonte oficial.
+- [x] `backend/domain/revisao.py`, módulo puro, uma função por regra, `None` quando falta insumo.
+- [x] Cinco regras: multa acima de 2% (CDC 52 §1º), tarifa de cadastro repetida (STJ, Súmula 566),
+      seguro prestamista embutido (CDC 39, I; STJ, Tema 972), juros acima do teto do consignado
+      (CNPS) e CET não informado (CDC 52, II). As três primeiras somam; as duas últimas, não.
+- [x] `GET /v1/dividas/{id}/revisao`. **Nenhuma rota de escrita nova** — a revisão é leitura pura.
+- [x] Extração estendida com os encargos (`modalidade`, `tarifaCadastro`, `seguroPrestamista`,
+      `iof`, `multaMoratoriaMensal`). Como todos são `CampoExtraido`, o guardrail 8.1 os alcança
+      de graça: **achado derivado do contrato nasce com trecho literal**.
+- [x] Guardrail 8.1 **reaplicado na leitura**, não só antes de gravar — a garantia passa a valer
+      pela forma da função, não pela confiança em quem escreveu a linha do banco.
+- [x] Tetos móveis em config **datada e sem default**. Teto ausente ⇒ achado ausente. A data de
+      vigência viaja na resposta e a tela a exibe: teto velho fica visível ao usuário.
+- [x] Card `valor_justo` no chat, preenchido **pela rota** com a mesma `domain/revisao.py`. Ele
+      **não** sustenta número no texto livre — pode ser descartado, e número cujo card sumiu é o
+      modo de falha do guardrail 7.1.
+- [x] `script` de negociação por **template determinístico**, sem LLM (`guardrails.md`, seção 3).
+- [x] Tela com **dois vazios diferentes**: sem contrato lido leva ao envio; com contrato lido e
+      sem achado, diz o que sabemos conferir. "Nada encontrado" soaria como "está tudo certo".
+- [x] Testes de copy nos dois lados que **quebram** em "ilegal", "abusiv" ou "é seu direito" —
+      gêmeos do teste que quebra em "recomendada" no simulador.
+- [ ] **Validação em device pendente.** Legibilidade do trecho citado do contrato em tela pequena,
+      os cartões de achado empilhados, e o caminho card → tela de revisão exigem aparelho.
+
+**Sai com:** o usuário vendo, ponto a ponto, o que vale contestar no próprio contrato, com a fonte
+e o trecho de cada achado, e uma mensagem pronta para o credor. **Ainda não fechado** — falta o
+device.
+
+---
+
 ## Pós-MVP — direção, não compromisso
 
 - **Ingestão de dados de Open Finance** — extrato, saldo e cartão alimentando o contexto do
@@ -290,3 +335,8 @@ Por que a ordem não é negociável:
 - **M5 depois de M1–M4.** O assistente só tem o que dizer quando existe dado sobre o que falar.
   Essa é exatamente a tese do produto: contexto contínuo é o que separa um oráculo de dicas de
   um planejador financeiro.
+- **M6 por último, e não por acaso.** A revisão de cobrança depende do M1.5 de um jeito que era
+  óbvio desde o começo e mesmo assim não dava para antecipar: sem os encargos lidos do contrato,
+  não há achado com fonte, e sem achado o `valorJusto` continuaria sendo o palpite que ele nunca
+  chegou a ser. Construí-lo antes teria produzido exatamente o número inventado que o resto do
+  projeto existe para evitar.

@@ -19,10 +19,20 @@ TETO_HISTORICO = 10
 TETO_CREDOR = 200
 TETO_PARCELAS = 480
 
-# Só estes dois carregam número que o BANCO preencheu. É o que dá procedência
-# a um número no texto livre — ver a varredura no fim de `responder`.
+# Só estes dois SUSTENTAM um número no texto livre — ver a varredura no fim de
+# `responder`. O critério não é "carrega número do banco", é "vai existir na
+# tela com certeza".
+#
+# `valor_justo` carrega número do banco e mesmo assim fica de fora: a rota só o
+# emite quando há achado COM valor, então pedi-lo não garante que ele apareça.
+# Contá-lo aqui abriria a porta para um número no texto cujo card foi
+# descartado depois — que é exatamente o modo de falha do guardrail 7.1.
 CARDS_COM_PROCEDENCIA = ("divida_resumo", "plano_sugerido")
-TIPOS_VALIDOS = (*CARDS_COM_PROCEDENCIA, "divida_proposta")
+TIPOS_VALIDOS = (*CARDS_COM_PROCEDENCIA, "divida_proposta", "valor_justo")
+
+# Cards que exigem id de uma dívida do contexto. Como o contexto só tem dívidas
+# do tenant, esta é também a barreira de isolamento.
+EXIGEM_DIVIDA_DO_CONTEXTO = ("divida_resumo", "valor_justo")
 
 ISO_DATA = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -137,7 +147,7 @@ class AssistenteLLM:
             divida_id = item.get("dividaId")
             # Id que não é do contexto é descartado. O contexto só tem dívidas
             # do tenant, então isto também é a barreira de isolamento.
-            if tipo == "divida_resumo" and divida_id not in ids_validos:
+            if tipo in EXIGEM_DIVIDA_DO_CONTEXTO and divida_id not in ids_validos:
                 continue
             # Em `divida_proposta` o id é opcional — sem ele, é cadastro novo.
             # Mas id que veio e não confere derruba o CARD, não só o id:
@@ -154,7 +164,11 @@ class AssistenteLLM:
             cards.append(
                 PedidoDeCard(
                     tipo=tipo,
-                    divida_id=divida_id if tipo in ("divida_resumo", "divida_proposta") else None,
+                    divida_id=(
+                        divida_id
+                        if tipo in (*EXIGEM_DIVIDA_DO_CONTEXTO, "divida_proposta")
+                        else None
+                    ),
                     aporte_extra_mensal=aporte if isinstance(aporte, int) and aporte >= 0 else None,
                     proposta=proposta,
                 )

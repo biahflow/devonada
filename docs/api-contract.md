@@ -60,9 +60,10 @@ O front **não retenta `4xx`**; retenta `0` (sem conexão) e `5xx` no máximo du
 2. **LLM exige chave do provedor configurado** (`OPENAI_API_KEY` por padrão; ver ADR 0007). Sem
    ela, o chat responde `503` e a leitura de contrato responde `status: "falhou"`, ambos com
    frase útil — o app trata os dois estados e oferece o caminho manual.
-3. **`valor_justo` ainda não é calculado.** O card existe no contrato e no front desde o começo,
-   mas nenhum endpoint o produz: não há regra de valor justo com fonte citável ainda, e inventá-la
-   seria o oposto do que este produto faz.
+3. ~~`valor_justo` ainda não é calculado~~ — **resolvido no M6.** `GET /v1/dividas/{id}/revisao`
+   o produz, e o chat passou a emitir o card. O que mudou não foi a disposição de inventar a
+   regra: foi a definição do campo. `valorJusto` deixou de ser estimativa ("quanto deveria
+   custar", que não tem fonte) e passou a ser subtração dos achados citáveis. Ver ADR 0008.
 
 As limitações **declaradas** do cálculo (o que o backend deliberadamente não calcula, e por quê)
 estão em `docs/backend.md`, não aqui: elas não são divergências a corrigir, são decisões.
@@ -213,7 +214,13 @@ Response `200` com `status: "concluida"`:
       "tipo":            { "valor": "juros_abusivos",  "confianca": "media", "trecho": "Modalidade: crédito rotativo" },
       "taxaJurosMensal": { "valor": 1250,              "confianca": "alta",  "trecho": "Taxa de juros: 12,50% a.m.", "pagina": 2 },
       "totalParcelas":   { "valor": 12,                "confianca": "alta",  "trecho": "Em 12 parcelas" },
-      "cet":             { "valor": 18000,             "confianca": "baixa", "trecho": "CET: 180,00% a.a." }
+      "cet":             { "valor": 18000,             "confianca": "baixa", "trecho": "CET: 180,00% a.a." },
+
+      "modalidade":           { "valor": "consignado_inss", "confianca": "alta", "trecho": "Empréstimo consignado — benefício INSS" },
+      "tarifaCadastro":       { "valor": 50000,             "confianca": "alta", "trecho": "Tarifa de cadastro: R$ 500,00" },
+      "seguroPrestamista":    { "valor": 120000,            "confianca": "alta", "trecho": "Seguro prestamista: R$ 1.200,00" },
+      "iof":                  { "valor": 8000,              "confianca": "media","trecho": "IOF: R$ 80,00" },
+      "multaMoratoriaMensal": { "valor": 500,               "confianca": "alta", "trecho": "Multa por atraso: 5%" }
     },
     "alertas": [
       { "id": "…", "titulo": "Seguro prestamista embutido", "explicacao": "O contrato inclui um seguro que pode não ter sido oferecido de forma opcional.", "trecho": "…", "pagina": 3 }
@@ -229,7 +236,9 @@ Regras de forma — **não negociáveis, porque o front depende delas para não 
 | `valor: null` quando não encontrado | O front deixa o campo vazio. Zero seria uma afirmação falsa. |
 | `trecho` é texto **literal** do contrato | Sem ele o front **descarta o campo**, mesmo com valor. Ver `src/util/extracao.ts`. |
 | `confianca`: `alta \| media \| baixa` | `baixa` entra destacada para conferência do usuário. |
-| Monetário em centavos, taxa e CET em basis points | Mesma regra da seção 1. `cet` é anual. |
+| Monetário em centavos, taxa e CET em basis points | Mesma regra da seção 1. `cet` é anual. `multaMoratoriaMensal` também é bps. |
+| `modalidade` diz que PRODUTO é, não a criticidade | `tipo` classifica pela consequência de não pagar; `modalidade` diz se é consignado, rotativo, financiamento. A revisão (M6) precisa do segundo: teto de consignado só se aplica a consignado. |
+| Os encargos existem para o M6 | `tarifaCadastro`, `seguroPrestamista`, `iof` e `multaMoratoriaMensal` são a matéria-prima dos achados. Sem `trecho`, o campo é zerado e o achado não existe. |
 | `alertas[].explicacao` em tom de investigação | "Pode não ter sido oferecido de forma opcional", nunca "é ilegal". Guardrail 3. |
 
 `status: "falhou"` acompanha `erro` com mensagem em pt-BR para o usuário — qualidade de imagem,
@@ -503,6 +512,71 @@ gravação acontece pela rota do cadastro manual, quando o usuário confirma (`g
 
 ---
 
+### M6 — Revisão de cobrança
+
+Fecha o `valor_justo`, que existia no contrato e no front desde o primeiro commit sem nenhum
+produtor. Spec em `docs/features/006-revisao-de-cobranca.md`; a decisão, na **ADR 0008**.
+
+`valorJusto` **não é estimativa**: é `valorCobrado` menos a soma dos achados que têm valor, cada
+um com fonte legal própria. Nenhum achado com valor ⇒ `valorJusto: null` ⇒ nenhum card.
+
+#### `GET /v1/dividas/{id}/revisao`
+
+Leitura pura. **Nenhuma rota de escrita entrou com este milestone.**
+
+Response `200`:
+```json
+{
+  "revisao": {
+    "dividaId": "…",
+    "credor": "Banco Teste S/A",
+    "valorCobrado": 1500000,
+    "valorJusto": 1320000,
+    "achados": [
+      {
+        "id": "multa_acima_do_teto",
+        "titulo": "Multa de atraso acima do limite do CDC",
+        "explicacao": "O contrato prevê multa de 5% por atraso. O Código de Defesa do Consumidor limita a multa de mora a 2% do valor da prestação. Vale contestar a diferença.",
+        "fonte": "Código de Defesa do Consumidor, art. 52, §1º",
+        "comoConferir": "Procure no contrato a cláusula de multa por atraso e confira o percentual.",
+        "valorContestavel": 18000,
+        "evidencia": "Multa por atraso: 5% sobre o valor da parcela"
+      }
+    ],
+    "script": "Olá. Sou cliente e gostaria de rever alguns pontos…",
+    "fundamentos": ["Código de Defesa do Consumidor, art. 52, §1º"],
+    "baseLegalVigenteEm": "2025-03-25"
+  }
+}
+```
+
+Regras de forma — **não negociáveis**:
+
+| Regra | Motivo |
+|---|---|
+| `valorJusto: null` sem achado com valor | Igual a `valorCobrado` afirmaria "conferimos e está tudo certo". Não temos como afirmar isso. |
+| `valorJusto: null` se a soma alcança o cobrado | "Deveria custar nada" quase sempre é encargo lido errado. Os achados continuam; o número de destaque não sai. |
+| `valorContestavel: null` é achado **sem número** | Quantificá-lo exigiria reamortizar o contrato — estimativa disfarçada (ADR 0008). Ele aparece na tela e não soma. |
+| `evidencia` é trecho **literal** do contrato | `null` quando o achado não veio da extração. O guardrail 8.1 é reaplicado **na leitura**, não só antes de gravar. |
+| `economia` **não** viaja | O cliente a calcula. É a única subtração que o guardrail 1.2 lhe permite. |
+| Achado que depende de teto não configurado **não é produzido** | Teto do CNPS muda por resolução e vive em `.env`. Sem ele, `None` — nunca um teto chutado. |
+| `baseLegalVigenteEm` só quando algum achado dependeu de teto | A multa do CDC não envelhece; exibir vigência ao lado dela sugeriria que todos os achados envelhecem juntos. |
+| `script` montado por **template**, nunca por LLM | `guardrails.md`, seção 3: fundamento legal é curado no backend. |
+
+Dívida de outro tenant: **404, nunca 403**. Dívida sem contrato lido: `200` com `achados: []`.
+
+#### Card `valor_justo` no chat
+
+Mesmo regime do `divida_resumo`: o assistente escolhe **qual** dívida, e `montar_cards` preenche
+os números chamando a **mesma** `domain/revisao.py` da rota. Sem achado com valor, a rota não
+emite o card.
+
+`valor_justo` **não** sustenta número no texto livre (ao contrário de `divida_resumo` e
+`plano_sugerido`): como ele pode ser descartado, contá-lo abriria caminho para um número cujo
+card sumiu — o modo de falha exato do guardrail 7.1.
+
+---
+
 ## 4. Fila do backend
 
 > **Esta é a fila de trabalho canônica do backend.** `roadmap.md` aponta para cá e não repete a
@@ -580,6 +654,18 @@ existencial não têm o que exibir.*
 - [x] Camada de provedor de LLM (ADR 0007), com OpenAI padrão e Anthropic vivo no repositório
 - [x] Leitura de contrato **destravada**: exercitada de ponta a ponta com contrato sintético
 
+### Bloco 6 — M6 · revisão de cobrança
+*Destrava: o `valor_justo`, que estava no contrato e no front desde o primeiro commit sem
+nenhum produtor.*
+
+- [~] `GET /v1/dividas/{id}/revisao` — implementado; 404 (nunca 403) para id de outro tenant
+- [~] Card `valor_justo` no chat, com os números preenchidos pela rota
+- [x] `domain/revisao.py` com FONTE no docstring de cada regra, **conferida no texto primário**
+- [x] Encargos na extração: `modalidade`, `tarifaCadastro`, `seguroPrestamista`, `iof`,
+      `multaMoratoriaMensal` — todos sujeitos ao guardrail 8.1
+- [x] Tetos do consignado em config **datada e sem default**: teto ausente ⇒ achado ausente
+- [x] `script` de negociação por template determinístico, sem LLM
+
 ### Estado observado em device
 
 | Endpoint | Estado |
@@ -591,8 +677,9 @@ existencial não têm o que exibir.*
 | M5 (chat real, histórico) | implementado; **exercitado com chamada real à OpenAI**, ainda não visto no app |
 | M5 (`divida_proposta`) | idem — cadastro e alteração propostos por um modelo de verdade, sem gravar nada |
 | Leitura de contrato | **destravada** — contrato sintético lido com trecho literal nos sete campos |
+| M6 (`GET .../revisao`, card `valor_justo`) | implementado e coberto por teste; **ainda não visto no app** |
 
-Suíte do backend: **213 testes**, verdes em SQLite e em Postgres, **sem tocar a rede**.
+Suíte do backend: **260 testes**, verdes em SQLite e em Postgres, **sem tocar a rede**.
 
 Nenhum endpoint da fila continua sem implementação. O que falta em todos é a mesma coisa:
 **ver funcionando no aplicativo, em aparelho**.

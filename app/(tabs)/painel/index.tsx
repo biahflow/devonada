@@ -56,14 +56,9 @@ export default function Painel() {
     return (
       <Screen>
         {cabecalho}
+        {/* A saída para o 401 mora no próprio ErrorState desde que deixou de
+            existir só aqui — no chat ela faltava, e era lá que o 401 aparecia. */}
         <ErrorState error={error} onRetry={refetch} />
-        {/* Caminho de saída para o 401: sem token o app não fala com o
-            servidor, e o ErrorState sozinho não diz o que fazer a respeito. */}
-        <Button
-          label="Configurar conexão"
-          onPress={() => router.push('/painel/token')}
-          variant="ghost"
-        />
       </Screen>
     );
   }

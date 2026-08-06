@@ -15,6 +15,17 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * 401 aqui não é "sessão expirou": o beta usa um token estático, e o backend
+ * responde 401 tanto para token ausente quanto para token diferente do dele.
+ * Em ambos os casos a saída é a mesma — reconfigurar a conexão. O predicado
+ * mora junto do ApiError para que nenhuma tela precise comparar `status === 401`
+ * por conta própria e errar o número.
+ */
+export function isAuthError(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 401;
+}
+
 async function getToken(): Promise<string | null> {
   try {
     return await SecureStore.getItemAsync(TOKEN_KEY);

@@ -72,6 +72,12 @@ Todo número na tela veio de um campo tipado da API. Se um valor não veio, a UI
   arquivo só — e torna auditável, num `grep`, tudo que o app envia para fora.
 - **Token só em `expo-secure-store`.** Nunca em `AsyncStorage`, nunca em estado global
   serializado, nunca em log.
+- **Como o token do beta chega ao aparelho.** `npm run token:qr` lê `BUDDY_API_TOKEN` de
+  `backend/.env` e imprime um QR com um deep link (`buddyfinanceiro://painel/token?valor=…`;
+  use `-- --expo-go` em Expo Go). A câmera nativa do celular lê e o app salva. O QR **não**
+  imprime o token em texto. A tela só aceita o parâmetro em `__DEV__` — em produção, um link
+  qualquer poderia escolher com quem o app fala. O token continua existindo só em
+  `backend/.env` e no `expo-secure-store`; **não** entra no bundle.
 - **Modo de falha que isso previne:** uma chave de LLM no bundle é extraída em minutos e vira
   conta de milhares de reais no cartão do dono do repo.
 
@@ -88,6 +94,18 @@ O produto fala sobre dívida, prescrição e negociação. Isso é território s
 - **`possivelPrescricao` é um alerta para investigar, nunca uma afirmação.** A copy é
   "pode ter prescrito — vale checar", jamais "esta dívida prescreveu". O front nunca transforma
   o booleano em asserção.
+- **Todo `achado` da revisão de cobrança segue o mesmo regime** (M6). Copy correta: "a taxa
+  contratada está acima do teto vigente — vale contestar". Copy proibida: "esta cobrança é
+  ilegal", "isto é abusivo", "você tem direito a receber de volta". Quem decide se houve abuso é
+  o Judiciário; o produto aponta e cita.
+  - **Todo achado carrega a fonte** — artigo, súmula ou tema repetitivo, nomeado —, o trecho
+    literal do contrato quando veio da extração, e a **pergunta de fato** que só o usuário
+    responde ("você pôde escolher a seguradora?"). O achado nunca conclui no lugar dele.
+  - **Achado sem fonte não existe.** Teto que muda por resolução vive em configuração datada, sem
+    default: não configurado ⇒ o achado não é produzido. Ver ADR 0008.
+  - Os testes de copy em `backend/tests/test_revisao.py` e `src/test/screens/revisao.test.tsx`
+    **falham** se "ilegal", "abusiv" ou "é seu direito" aparecerem na tela. Regra que não quebra
+    nada quando violada não é guardrail.
 - **O app não redige petição nem instrui a não pagar.** Script de negociação (campo `script` de
   `ValorJustoCardData`) é gerado no backend, curado, e apresentado como sugestão editável.
 - **Fundamentos legais são texto vindo do backend** (`fundamentos`), curados. O front nunca

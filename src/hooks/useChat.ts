@@ -3,6 +3,22 @@ import { listarMensagens, sendMessage } from '../api/chat';
 import { ApiError } from '../api/client';
 import type { ChatMessage } from '../api/types';
 
+/**
+ * O erro cru viaja junto do texto de fallback porque as duas informações são
+ * necessárias e nenhuma substitui a outra: o `causa` carrega o status HTTP (é
+ * o que deixa a tela oferecer "Configurar conexão" num 401), e o `texto` cobre
+ * a falha que não é ApiError, cuja redação depende de onde ela aconteceu —
+ * carregar o histórico e enviar uma mensagem falham de formas diferentes.
+ */
+export interface ErroChat {
+  causa: unknown;
+  texto: string;
+}
+
+function erroChat(causa: unknown, fallback: string): ErroChat {
+  return { causa, texto: causa instanceof ApiError ? causa.message : fallback };
+}
+
 function localId(): string {
   return `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
@@ -23,7 +39,7 @@ export function useChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [sending, setSending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ErroChat | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -58,9 +74,7 @@ export function useChat() {
             createdAt: new Date().toISOString(),
           },
         ]);
-        setError(
-          e instanceof ApiError ? e.message : 'Não deu para carregar as conversas anteriores.',
-        );
+        setError(erroChat(e, 'Não deu para carregar as conversas anteriores.'));
       })
       .finally(() => {
         if (!controller.signal.aborted) setCarregando(false);
@@ -92,7 +106,7 @@ export function useChat() {
         const { message } = await sendMessage({ content: texto }, controller.signal);
         setMessages((prev) => [...prev, message]);
       } catch (e) {
-        setError(e instanceof ApiError ? e.message : 'Algo deu errado ao enviar. Tente de novo.');
+        setError(erroChat(e, 'Algo deu errado ao enviar. Tente de novo.'));
       } finally {
         setSending(false);
       }

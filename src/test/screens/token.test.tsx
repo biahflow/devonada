@@ -59,4 +59,38 @@ describe('tela de configuração de conexão', () => {
     renderizarTela(<ConfigurarToken />);
     expect(screen.getByLabelText('Token').props.secureTextEntry).toBe(true);
   });
+
+  /**
+   * Entrada por QR (`npm run token:qr`). Existe porque o token tem 43
+   * caracteres e digitá-lo no celular é o passo em que as pessoas desistem —
+   * ficando presas no 401 que diz "sessão expirou".
+   */
+  describe('token entregue por deep link', () => {
+    it('salva sozinho o valor que veio na URL', async () => {
+      global.definirParametrosDeRota({ valor: 'token-do-qr' });
+      renderizarTela(<ConfigurarToken />);
+
+      await waitFor(() => expect(setToken).toHaveBeenCalledWith('token-do-qr'));
+      expect(screen.getByText(/Token salvo/)).toBeTruthy();
+    });
+
+    it('sem o parâmetro, não salva nada', async () => {
+      renderizarTela(<ConfigurarToken />);
+      await waitFor(() => expect(screen.getByLabelText('Token')).toBeTruthy());
+      expect(setToken).not.toHaveBeenCalled();
+    });
+
+    it('não regrava o token da URL quando a tela renderiza de novo', async () => {
+      global.definirParametrosDeRota({ valor: 'token-do-qr' });
+      renderizarTela(<ConfigurarToken />);
+      await waitFor(() => expect(setToken).toHaveBeenCalledTimes(1));
+
+      // Apagar provoca novo render com o `valor` ainda na URL. Sem a trava, o
+      // efeito regravaria o token e desfaria o que a pessoa acabou de pedir.
+      fireEvent.press(screen.getByText('Apagar token salvo'));
+
+      await waitFor(() => expect(clearToken).toHaveBeenCalled());
+      expect(setToken).toHaveBeenCalledTimes(1);
+    });
+  });
 });

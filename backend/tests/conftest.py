@@ -67,8 +67,16 @@ def engine():
     # asserção de contagem em falso positivo.
     Base.metadata.drop_all(eng)
     Base.metadata.create_all(eng)
-    yield eng
-    Base.metadata.drop_all(eng)
+    try:
+        yield eng
+        Base.metadata.drop_all(eng)
+    finally:
+        # `dispose()` OBRIGATÓRIO, e o `finally` é o que garante que ele roda
+        # mesmo quando o teste falha. Um engine por teste que nunca devolve a
+        # conexão esgota o `max_connections` do Postgres — em SQLite em memória
+        # isso passava despercebido, e a suíte só quebrou quando cresceu o
+        # bastante para estourar o limite ("sorry, too many clients already").
+        eng.dispose()
 
 
 @pytest.fixture

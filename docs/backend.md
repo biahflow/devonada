@@ -17,7 +17,7 @@ docker compose up -d                      # Postgres na 5433
 source venv/bin/activate
 alembic upgrade head
 uvicorn main:app --host 0.0.0.0 --port 8001 --reload
-pytest                                     # 213 testes
+pytest                                     # 260 testes
 ```
 
 **Portas escolhidas por colisão, não por gosto:** a 8000 e a 5432 já são do stack do
@@ -71,6 +71,12 @@ cada rota. O cliente nunca envia tenant; ele vem do token.
 | Ordem da bola de neve | Menor saldo primeiro | — (idem; ver `domain.md`, seção 4) | `domain/simulacao.py` |
 | Orçamento da simulação | Mínimos iniciais + aporte, **com rolagem** | — (escolha de método, documentada) | `domain/simulacao.py` |
 | `economiaVsMinimo` | Juros do cenário mínimo − juros do cenário com aporte | — (diferença entre dois resultados do mesmo motor) | `domain/simulacao.py` |
+| Multa de atraso acima do teto | Teto de **2% do valor da prestação** | CDC, art. 52, §1º (redação da Lei 9.298/1996) | `domain/revisao.py` |
+| Tarifa de cadastro repetida | Devida **no início do relacionamento** | STJ, Súmula 566 | `domain/revisao.py` |
+| Seguro prestamista embutido | Consumidor não pode ser **compelido** a contratar | CDC, art. 39, I; STJ, Tema 972 | `domain/revisao.py` |
+| Juros acima do teto do consignado | Teto vigente do consignado | Resolução do CNPS (config datada) | `domain/revisao.py` |
+| CET não informado | Taxa efetiva anual é informação obrigatória | CDC, art. 52, II | `domain/revisao.py` |
+| `valorJusto` | `valorCobrado` − Σ achados **com valor** | — (subtração, não estimativa; ADR 0008) | `domain/revisao.py` |
 
 ### As limitações declaradas
 
@@ -95,6 +101,25 @@ Estão aqui porque escondê-las seria pior que tê-las.
 7. **Sem renda informada, o aporte não é checado contra o mínimo existencial** (M4). Não há o
    que comparar. Travar o simulador de quem não preencheu a renda tiraria a ferramenta de quem
    mais precisa dela; o painel já convida a informar.
+8. **A revisão não recalcula o contrato** (M6). Achado cujo valor exigiria reamortizar — juros
+   acima do teto, capitalização, comissão de permanência — aparece na tela **sem número** e não
+   entra em `valorJusto`. Arbitrar esse valor seria reintroduzir a estimativa que a ADR 0008
+   removeu.
+9. **Dívida sem contrato lido não produz achado** (M6). A revisão trabalha sobre os encargos que
+   a extração leu. Cadastro manual devolve `achados: []` e a tela leva ao envio do contrato.
+10. **A margem consignável ficou de fora** (M6). O limite da Lei 10.820/2003 (45% para
+    aposentadoria e pensão do RGPS, art. 6º, §5º, redação da Lei 14.601/2023; 40% para CLT,
+    art. 2º, §2º, I, redação da Lei 14.431/2022) incide sobre a **soma de todas** as
+    consignações do benefício, não sobre uma dívida — e o remédio é reduzir o desconto, não o
+    débito. Não pertence a `valorJusto`.
+11. **Teto de juros do consignado é responsabilidade do operador** (M6). Ele muda por resolução
+    do CNPS e vive em `.env`, **sem default**. Não configurado ⇒ o achado não existe. A data de
+    vigência viaja na resposta e aparece na tela, para o usuário ver a idade do número que
+    embasou o achado.
+12. **O indício de "relacionamento anterior" é estreito** (M6). Só sabemos de um contrato
+    anterior quando existe outra dívida do mesmo credor, mais antiga, cadastrada no app.
+    Relacionamento com a instituição é mais amplo — por isso o achado declara o indício e
+    devolve a conclusão ao usuário, condicionada.
 
 ### A simulação e o teto de 600 meses
 
@@ -189,6 +214,13 @@ Três camadas independentes sustentam o guardrail 7.1, porque prompt não é gua
 | Contexto | `routers/chat.py::_contexto` | O prompt recebe identificação, nunca valores |
 | Varredura | `assistente/assistente_llm.py` | Número no texto sem card **de banco** derruba o texto, no servidor |
 
+**O caso do `valor_justo` (M6).** Ele carrega número do banco e mesmo assim **não** sustenta um
+número no texto livre. O critério da varredura não é "carrega número do banco", é "vai existir na
+tela com certeza" — e a rota descarta o `valor_justo` quando não há achado com valor. Contá-lo
+como sustentação abriria caminho para um número cujo card sumiu depois, que é o modo de falha
+exato do guardrail 7.1. `CARDS_COM_PROCEDENCIA` continua sendo só `divida_resumo` e
+`plano_sugerido`.
+
 **A exceção: `divida_proposta`.** `PropostaDeDivida` tem campo para valor porque é o RASCUNHO do que
 a pessoa disse, devolvido para ela confirmar num formulário (guardrail 7.2). Não é dado apurado, não
 é exibido como fato, e não chega ao banco: a gravação continua sendo `POST /v1/dividas`, disparada
@@ -234,14 +266,22 @@ Recurso de outro tenant devolve **404, nunca 403**: um 403 confirmaria que o id 
 > BUDDY_TEST_DATABASE_URL=postgresql+psycopg://buddy:buddy@localhost:5433/buddy_test pytest
 > ```
 >
-> Os 213 testes passam nos dois. Rode contra Postgres antes de qualquer release — SQLite não
+> Os 260 testes passam nos dois. **A fixture `engine` precisa de `eng.dispose()` no `finally`**:
+> sem ele, um engine por teste esgota o `max_connections` do Postgres ("sorry, too many clients
+> already"). Em SQLite em memória isso passava despercebido, e a suíte só quebrou quando cresceu
+> o bastante para estourar o limite — no M6. É exatamente o tipo de divergência que rodar só em
+> SQLite esconde.
+>
+> Rode contra Postgres antes de qualquer release — SQLite não
 > pega divergência de dialeto (constraint que só o Postgres aplica, precisão de `BigInteger`,
 > comportamento de índice).
 
-> **O card `valor_justo` não é calculado por ninguém.** Ele existe no contrato e no front desde o
-> começo, mas nenhum endpoint o produz: não há regra de valor justo com fonte citável, e
-> inventá-la seria o oposto do que este backend faz. O chat deixou de ser mock no M5, mas não
-> passou a emitir esse card.
+> ~~**O card `valor_justo` não é calculado por ninguém.**~~ — **resolvido no M6.**
+> `GET /v1/dividas/{id}/revisao` o produz e o chat passou a emitir o card. Nenhuma regra foi
+> inventada: o que mudou foi a definição do campo. `valorJusto` deixou de ser estimativa — que
+> de fato não tem fonte — e passou a ser `valorCobrado` menos a soma dos achados citáveis, cada
+> um com artigo, súmula ou resolução no docstring. Ver **ADR 0008** e as limitações 8 a 12
+> acima.
 
 > **Auth é de beta: um token, um tenant.** Suficiente para um usuário; insuficiente no dia em que
 > houver dois. A troca por JWT não muda o cliente, que já manda `Bearer` e trata 401.

@@ -64,12 +64,22 @@ export type ActionCardData =
   | PlanoSugeridoCardData
   | DividaPropostaCardData;
 
+/**
+ * Os pontos contestáveis de uma dívida, dentro da conversa (M6).
+ *
+ * `valorJusto` NÃO é estimativa: é `valorCobrado` menos a soma dos achados que
+ * têm valor, cada um com fonte legal própria (ADR 0008). O backend só emite este
+ * card quando existe achado com valor — não há card dizendo "está tudo certo".
+ *
+ * `dividaId` existe para o deep link até a tela de revisão, por campo tipado.
+ */
 export interface ValorJustoCardData {
   kind: 'valor_justo';
+  dividaId: Uuid;
   credor: string;
   valorCobrado: number; // centavos
   valorJusto: number; // centavos, calculado no backend
-  /** mensagem pronta pra negociação (gerada no backend) */
+  /** mensagem pronta pra negociação (montada por template no backend) */
   script: string;
   /** fundamentos curados (ex.: artigos do CDC) — texto vindo do backend */
   fundamentos?: string[];
@@ -334,4 +344,56 @@ export interface RespostaSimulacao {
   /** ausente quando só uma estratégia foi pedida */
   comparacao?: ComparacaoEstrategias | null;
   dividasSemTaxa: DividaSemTaxa[];
+}
+
+// ---------------------------------------------------------------------------
+// M6 — Revisão de cobrança
+// ---------------------------------------------------------------------------
+
+/**
+ * Um ponto do contrato que vale contestar, com a fonte que o sustenta.
+ *
+ * `valorContestavel` ausente é o achado que aparece na tela e NÃO entra na
+ * subtração de `valorJusto`: quantificá-lo exigiria reamortizar o contrato, o
+ * que seria estimativa disfarçada de apuração (ADR 0008).
+ *
+ * `evidencia` é o trecho LITERAL do contrato. Ausente quando o achado não veio
+ * da leitura de um contrato.
+ *
+ * A copy destes campos vem do backend em tom de investigação. O front nunca a
+ * reescreve como afirmação — `guardrails.md`, seção 3.
+ */
+export interface Achado {
+  id: string;
+  titulo: string;
+  explicacao: string;
+  /** artigo de lei, súmula ou tema repetitivo — texto curado no backend */
+  fonte: string;
+  comoConferir: string;
+  /** em centavos. Ausente = achado sem número. */
+  valorContestavel?: number | null;
+  evidencia?: string | null;
+}
+
+/**
+ * A revisão de uma dívida.
+ *
+ * `valorJusto` é nulo quando nenhum achado tem valor — e nunca igual a
+ * `valorCobrado`, porque isso afirmaria "conferimos e está tudo certo".
+ * `economia` não vem do backend: o front a calcula, e é a única subtração que o
+ * guardrail 1.2 lhe permite.
+ */
+export interface RevisaoCobranca {
+  dividaId: Uuid;
+  credor: string;
+  /** em centavos */
+  valorCobrado: number;
+  /** em centavos. Ausente = nenhum achado com valor. */
+  valorJusto?: number | null;
+  achados: Achado[];
+  /** mensagem de negociação montada por template no backend */
+  script?: string | null;
+  fundamentos: string[];
+  /** data de vigência do teto que embasou algum achado (ISO). */
+  baseLegalVigenteEm?: IsoDate | null;
 }

@@ -29,9 +29,39 @@ O que o valor original vira depois da correção legítima aplicada pelo backend
 Opcional — pode não ter sido calculado ainda. **Nunca calculado no cliente.**
 
 ### valorJusto
-Quanto o backend estima que a dívida deveria custar, removendo cobranças indevidas.
-**Em centavos.** Aparece no `ValorJustoCard`, sempre acompanhado do disclaimer de estimativa
-educacional. Não é uma sentença: é um ponto de partida para negociar.
+**Não é estimativa.** É `valorCobrado` menos a soma dos [achados](#achado) que têm valor, cada um
+com fonte legal própria. **Em centavos**, calculado no backend (`domain/revisao.py`).
+
+A leitura antiga — "quanto o backend estima que a dívida deveria custar" — foi abandonada na
+**ADR 0008**: não existe lei que diga quanto uma dívida deveria custar, e produzir esse número
+seria inventar regra financeira. Hoje o campo só existe quando há do que subtrair.
+
+**Ausente (`null`) quando nenhum achado tem valor** — nunca igual a `valorCobrado`, porque isso
+afirmaria "conferimos e está tudo certo". Aparece no `ValorJustoCard` e na tela de revisão, sempre
+com o disclaimer de estimativa educacional. Continua não sendo sentença: é ponto de partida para
+negociar.
+
+### achado
+Um ponto concreto do contrato que **vale contestar**. Carrega sempre `fonte` (artigo, súmula ou
+resolução), `comoConferir` (a pergunta de fato que só o usuário responde) e, quando veio da
+leitura do contrato, `evidencia` — o trecho **literal**.
+
+Duas classes, e a diferença é o que separa um número de um alerta:
+
+- **com valor** (`valorContestavel`): o montante é direto no contrato — a multa em excesso, a
+  tarifa, o prêmio do seguro. Entra na subtração de `valorJusto`.
+- **sem valor**: quantificá-lo exigiria reamortizar o contrato inteiro. Aparece na tela, com
+  fonte, e **não** mexe no número.
+
+**Postura obrigatória:** achado é convite a investigar, jamais sentença — mesmo regime de
+`possivelPrescricao`. Copy correta: "vale contestar". Copy proibida: "é ilegal", "é abusivo",
+"você tem direito a receber de volta".
+
+### modalidade
+Que **produto de crédito** o contrato é: `consignado_inss`, `consignado_privado`,
+`cartao_consignado`, `pessoal`, `rotativo` ou `financiamento`. Coisa diferente de
+[`CriticidadeTipo`](#criticidade), que classifica pela consequência de não pagar. A revisão
+precisa da modalidade: teto de juros de consignado só se aplica a consignado.
 
 ### economia
 `valorCobrado − valorJusto`. A única subtração que o front faz, porque é a diferença literal
@@ -130,13 +160,15 @@ União discriminada por `kind` (`src/api/types.ts`). É o mecanismo pelo qual da
 entra na conversa. **Todo número que o assistente comunica vai num card**, nunca no texto livre
 da mensagem.
 
-Cards existentes: `valor_justo`, `info`, `divida_resumo`, `plano_sugerido` e `divida_proposta` — o
-rascunho que abre o formulário para o usuário confirmar, nunca uma gravação.
+Cards existentes: `valor_justo` (os pontos contestáveis de uma dívida, M6), `info`,
+`divida_resumo`, `plano_sugerido` e `divida_proposta` — o rascunho que abre o formulário para o
+usuário confirmar, nunca uma gravação.
 
 ### script
 Mensagem pronta de negociação, gerada no backend. Apresentada como sugestão copiável e
 editável, nunca como algo que o app envia sozinho.
 
 ### fundamentos
-Lista de embasamentos curados (por exemplo, artigos do CDC) que sustentam o valor justo.
-Texto vindo do backend — o front nunca compõe citação legal localmente.
+Lista de embasamentos curados (por exemplo, artigos do CDC) que sustentam o valor justo. São as
+`fonte` dos [achados](#achado), deduplicadas. Texto vindo do backend — o front nunca compõe
+citação legal localmente.

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ScrollView, View, Text, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Screen } from '../../../src/components/ui/Screen';
 import { PageHeader } from '../../../src/components/ui/PageHeader';
 import { Card } from '../../../src/components/ui/Card';
@@ -19,10 +19,30 @@ import { colors, spacing, typography } from '../../../src/theme/theme';
  */
 export default function ConfigurarToken() {
   const router = useRouter();
+  const { valor } = useLocalSearchParams<{ valor?: string }>();
   const [token, setValor] = useState('');
   const [erro, setErro] = useState<string | undefined>();
   const [salvo, setSalvo] = useState(false);
   const [salvando, setSalvando] = useState(false);
+  const jaAplicou = useRef(false);
+
+  /**
+   * Entrada por deep link (`npm run token:qr`): a câmera do celular abre esta
+   * tela já com o token, porque digitar 43 caracteres à mão não é um caminho
+   * que alguém percorre até o fim.
+   *
+   * Só em `__DEV__`. Um build de produção que aceitasse token por URL deixaria
+   * qualquer link definir com quem o app fala.
+   */
+  useEffect(() => {
+    if (!__DEV__ || !valor || jaAplicou.current) return;
+    jaAplicou.current = true;
+    setSalvando(true);
+    setToken(valor)
+      .then(() => setSalvo(true))
+      .catch(() => setErro('Não deu para guardar o token neste aparelho.'))
+      .finally(() => setSalvando(false));
+  }, [valor]);
 
   async function salvar() {
     const limpo = token.trim();
