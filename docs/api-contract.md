@@ -429,16 +429,72 @@ preenchido para o usuário confirmar. Ver `guardrails.md`, seção 7.2.
 
 ---
 
-## 4. Ordem de implementação sugerida para o backend
+## 4. Fila do backend
 
-Espelha `roadmap.md`. Cada bloco destrava as telas do milestone correspondente:
+> **Esta é a fila de trabalho canônica do backend.** `roadmap.md` aponta para cá e não repete a
+> lista — duas fontes divergem em uma semana.
+> Marcações: `[x]` feito e **visto funcionando no app** · `[~]` implementado mas ainda não
+> exercitado em device · `[ ]` a fazer.
+> A ordem é por desbloqueio: quanto mais tela cada bloco libera, mais cedo ele aparece.
 
-1. Persistência real + auth + validação de `tipo` + `id: str` — destrava tudo.
-2. `GET/PATCH/DELETE /v1/dividas/{id}` e `POST .../quitacao` — M1.
-2b. `POST /v1/contratos` e `GET /v1/contratos/{id}` — M1.5. Pode vir antes do M2: é o que remove
-   o atrito de digitar taxa de juros à mão, e alimenta o contexto dos agentes.
-3. `GET/PUT /v1/perfil` e `GET /v1/dividas/resumo` — M2. O perfil vem primeiro: sem renda, metade
-   do painel não tem o que exibir.
-4. Parcelas, pagamento, renegociação, lembretes — M3.
-5. `POST /v1/dividas/simulacoes` — M4.
-6. Chat real com os novos `kind` de card — M5.
+### Bloco 0 — fundação (destrava tudo o resto)
+
+- [x] `id: str` em `backend/models.py` — sem isso, `POST /v1/dividas` estourava `ValidationError`
+- [ ] **Persistência real** — hoje `dividas_db` é lista em memória e some a cada reload do uvicorn
+- [ ] **Autenticação** — o cliente envia `Authorization: Bearer`, o backend ignora
+- [ ] `tipo` validado como `Literal` dos quatro valores de `CriticidadeTipo` (seção 1.2)
+- [ ] CORS restrito — hoje `allow_origins=["*"]`
+
+### Bloco 1 — M1 · CRUD de dívidas
+*Destrava: detalhe, edição, quitação e exclusão. Quatro telas prontas esperando.*
+
+- [x] `GET /v1/dividas` — **visto funcionando no app**
+- [~] `POST /v1/dividas` — corrigido no Bloco 0, ainda não exercitado em device
+- [ ] `GET /v1/dividas/{id}` — seção 3, M1
+- [ ] `PATCH /v1/dividas/{id}` — seção 3, M1
+- [ ] `POST /v1/dividas/{id}/quitacao` — seção 3, M1
+- [ ] `DELETE /v1/dividas/{id}` — exclusão **lógica**, seção 3, M1
+- [ ] Campos novos de `Divida`: `situacao`, `saldoDevedor`, `taxaJurosMensal` (basis points),
+      `totalParcelas`, `parcelasPagas`, `proximoVencimento`
+
+### Bloco 2 — M2 · perfil de renda
+*Destrava: metade do painel. Vem antes do resumo — sem renda, comprometimento e mínimo
+existencial não têm o que exibir.*
+
+- [ ] `GET /v1/perfil` — seção 3, M2
+- [ ] `PUT /v1/perfil` — seção 3, M2
+- [ ] Cálculo do mínimo existencial a partir de renda e dependentes
+
+### Bloco 3 — M2 · resumo
+*Destrava: a outra metade do painel.*
+
+- [ ] `GET /v1/dividas/resumo` com `?mes=` — seção 3, M2
+- [ ] Agregados: totais, `custoMedioJurosMensal`, `porCriticidade`
+- [ ] `proximosVencimentos` com `situacao` derivada **no backend** (o fuso do aparelho não decide
+      o que está atrasado)
+- [ ] `evolucaoSaldo`, até 12 pontos
+
+### Bloco 4 — M1.5 · ingestão de contrato
+*Destrava: as duas telas de contrato. É o que remove o atrito de digitar a taxa de juros à mão.*
+
+- [ ] `POST /v1/contratos` — multipart, resposta `202`, seção M1.5
+- [ ] `GET /v1/contratos/{id}` — polling, seção M1.5
+- [ ] Extração com `valor`, `confianca` e **`trecho` literal** — sem trecho o front descarta o
+      campo, então extrair sem citar é trabalho perdido
+- [ ] Descarte do arquivo bruto após a extração (ADR 0005)
+
+### Bloco 5 — sem front construído ainda
+
+- [ ] M3: `GET /v1/dividas/{id}/parcelas`, `POST /v1/parcelas/{id}/pagamento`,
+      `POST /v1/dividas/{id}/renegociacao`, `GET /v1/lembretes`
+- [ ] M4: `POST /v1/dividas/simulacoes` — inclusive o campo `comparacao`, que vem calculado de
+      propósito para o front não replicar regra de negócio
+- [ ] M5: chat real com os `kind` `divida_resumo` e `plano_sugerido`
+
+### Estado observado em device
+
+| Endpoint | Estado |
+|---|---|
+| `GET /v1/dividas` | funcionando — lista carrega no app |
+| `POST /v1/chat/messages` | mock: ecoa a entrada e devolve card fixo |
+| todos os demais | não existem |

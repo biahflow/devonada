@@ -6,6 +6,13 @@
 > Marcações: `[x]` entregue · `[~]` parcial · `[ ]` pendente.
 > Princípio de ordem: **contrato e fundação antes de tela bonita.** Toda tela de dívida depende
 > de um endpoint que ainda não existe — construir a tela primeiro só produz mock que mente.
+>
+> **A fila de trabalho do backend é `docs/api-contract.md`, seção 4.** Este documento não a
+> repete: duas listas da mesma coisa divergem em uma semana.
+>
+> "Entregue" aqui significa **código pronto e gates verdes**, não validado em device. O que foi
+> visto funcionando de verdade está marcado explicitamente, tela a tela — os gates automáticos
+> provam que a tela renderiza e reage, **não** que ela está legível ou cabe na tela.
 
 ---
 
@@ -50,6 +57,9 @@ reescrever tudo em M2.
       `CurrencyInput` (a garantia de que o valor emitido nunca é fracionário). 13 passando.
 - [x] `.env.example` criado.
 
+- [x] **Validado em device.** As três abas navegam, a fonte Inter carregou e a safe area é
+      respeitada.
+
 **Saiu com:** navegação de três abas sobre o design system portado, `typecheck`, `lint` e
 `test` verdes, e o `CurrencyInput` provado por teste.
 
@@ -73,10 +83,15 @@ Spec completa em `docs/features/001-crud-de-dividas.md`.
       `OptionGroup` e `PercentInput` opcional.
 - [x] Quitação e exclusão com confirmação nativa. (`guardrails.md`, seção 7.2)
 - [x] Estado vazio que convida ao primeiro cadastro.
-- [ ] **Verificação em device bloqueada pelo backend.** Só lista e cadastro têm endpoint, e o
-      cadastro depende de `backend/models.py:11` trocar `id: int` por `id: str`. Detalhe,
-      edição, quitação e exclusão mostram `ErrorState` até `GET/PATCH/DELETE /v1/dividas/{id}`
-      e `POST /v1/dividas/{id}/quitacao` existirem — ver `docs/api-contract.md`, seção 3.
+Validação em device, tela a tela:
+
+- [x] **Lista** — carrega do backend e exibe as dívidas.
+- [~] **Cadastro** — `POST /v1/dividas` corrigido (`id: str`), ainda não exercitado no app.
+- [ ] **Detalhe** — depende de `GET /v1/dividas/{id}`.
+- [ ] **Edição** — depende de `PATCH /v1/dividas/{id}`.
+- [ ] **Quitação e exclusão** — dependem de `POST .../quitacao` e `DELETE`.
+
+Fila do backend em `docs/api-contract.md`, seção 4, Bloco 1.
 
 **Sai com:** cadastrar, ver, editar, quitar e excluir uma dívida ponta a ponta contra o backend
 real, com os quatro estados verificáveis em cada tela. **Ainda não fechado** — o front está
@@ -104,8 +119,8 @@ de cadastro e seguro prestamista embutido, que é exatamente onde mora a cobran�
 - [x] Tela de revisão campo a campo, com trecho citado e alertas de cláusula.
 - [x] `extracaoParaProposta` **descarta campo sem evidência**, mesmo trazendo valor.
 - [x] ADR 0005 e seção 8 de `docs/guardrails.md` escritos antes do código.
-- [ ] **Verificação em device bloqueada pelo backend.** `POST /v1/contratos` e
-      `GET /v1/contratos/{id}` não existem — ver `docs/api-contract.md`, seção M1.5.
+- [ ] **Validação em device bloqueada.** Nenhum dos dois endpoints existe — fila em
+      `docs/api-contract.md`, seção 4, Bloco 4.
 
 **Sai com:** enviar um contrato real de consignado, acompanhar a leitura, revisar os campos com
 os trechos citados e confirmar a criação da dívida. **Ainda não fechado** — falta o backend.
@@ -131,8 +146,8 @@ O que transforma uma lista num diagnóstico. Zero agregação no cliente: todo n
 - [x] **Paleta de gráfico validada por script, não estimada.** A proposta de uma cor por
       criticidade falhou no piso de distinção; a decisão e o motivo estão em
       `docs/design-system.md`, seção 4b.
-- [ ] **Verificação em device bloqueada pelo backend.** `GET /v1/dividas/resumo` e `/v1/perfil`
-      não existem — ver `docs/api-contract.md`, seção M2.
+- [ ] **Validação em device bloqueada.** Nenhum dos dois endpoints existe — fila em
+      `docs/api-contract.md`, seção 4, Blocos 2 e 3.
 
 **Sai com:** aba Painel exibindo apenas números vindos do backend — nenhuma soma, média ou
 percentual calculado em TypeScript. **Ainda não fechado** — falta o backend.
