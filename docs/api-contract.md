@@ -1,0 +1,349 @@
+# Contrato de API — o que o front espera do backend
+
+> Documento vivo. Esta é a **especificação que o backend precisa satisfazer** para que as telas
+> do `roadmap.md` funcionem. Escrito da perspectiva do cliente: o front é o consumidor, e este
+> arquivo é o pedido.
+> Quando o contrato mudar, `src/api/types.ts` e este documento mudam **no mesmo commit**.
+
+---
+
+## 1. Regras transversais
+
+- **Base URL** em `EXPO_PUBLIC_API_BASE_URL`. Todas as rotas são versionadas sob `/v1/`.
+- **Auth:** `Authorization: Bearer <token>`. O token guarda o `tenant_id`; **o cliente nunca
+  envia tenant** em query, body ou header. Ver `guardrails.md`, seção 6.
+- **Todo valor monetário é inteiro em centavos.** `150000` significa R$ 1.500,00. Nunca float,
+  nunca string. Vale para request e response.
+- **Datas em ISO 8601.** Data pura: `"2024-03-15"`. Instante: `"2024-03-15T13:45:00Z"`.
+- **`id` é UUID em string.** O front tipa como `Uuid = string`.
+- **Content-Type `application/json`** nos dois sentidos.
+- **Nenhum cálculo é delegado ao cliente.** Se um número aparece na tela, ele veio pronto num
+  campo desta especificação. Ver ADR 0003.
+- Campos opcionais são omitidos ou `null`; o front trata os dois como ausência e exibe
+  "ainda não calculado", nunca zero.
+
+### 1.1 Formato de erro
+
+`src/api/client.ts` normaliza qualquer falha em `ApiError { status, message, body }`. Ele
+procura um campo `message` na resposta e o exibe **direto ao usuário**. Portanto:
+
+```json
+{ "message": "Não encontramos essa dívida.", "campo": "id" }
+```
+
+- `message` é obrigatório em toda resposta de erro, em **pt-BR**, redigido para o usuário final
+  — não é `stack trace` nem string técnica.
+- `message` **nunca contém dado sensível** (valor, CPF, nome de credor). Ver `guardrails.md`,
+  seção 5.
+- Em `422`, inclua `campo` com o nome do campo inválido, para o front destacá-lo no formulário.
+
+| Status | Quando usar | O que o front faz |
+|---|---|---|
+| `400` / `422` | payload inválido | erro por campo no formulário |
+| `401` | token ausente, inválido ou expirado | limpa o token e vai para o login |
+| `403` | autenticado, sem permissão | banner de erro |
+| `404` | recurso inexistente ou de outro tenant | estado vazio da tela |
+| `409` | conflito de estado (ex.: quitar dívida já quitada) | banner + revalidação |
+| `5xx` | falha do servidor | banner + retry manual |
+
+O front **não retenta `4xx`**; retenta `0` (sem conexão) e `5xx` no máximo duas vezes.
+
+### 1.2 Divergências conhecidas com o backend atual
+
+> Estas divergências existem hoje em `backend/` e precisam ser resolvidas pelo dono do
+> repositório. Agentes **não** editam `backend/` — só reportam.
+
+1. **`id` tipado como `int`.** `backend/models.py:11` declara `id: int`, mas
+   `backend/routers/dividas.py:20` gera `str(uuid.uuid4())` e o passa em `id=id_gerado` na
+   linha 26. Pydantic v2 não coage UUID em string para `int`, então `POST /v1/dividas` estoura
+   `ValidationError` na primeira chamada.
+   O front espera `Uuid` (string) e o `TUTORIAL_API.md` documenta `id: str` — o código divergiu
+   do próprio tutorial. Correção: `id: str`.
+2. **`tipo` sem validação.** É `str` livre no backend e `CriticidadeTipo` (quatro valores) no
+   front. Um valor fora da enumeração quebra o render do badge de criticidade sem erro de rede.
+   Correção: `Literal["essencial", "com_garantia", "juros_abusivos", "consumo"]`.
+3. **Sem persistência.** `dividas_db` é uma lista em memória; some a cada reload do uvicorn.
+   Aceitável para desenvolvimento, bloqueante a partir de M1.
+4. **Auth ignorada.** O backend aceita o header `Authorization` mas não o valida, e `CORS` está
+   com `allow_origins=["*"]`. Bloqueante antes de qualquer dado real.
+5. **`/v1/chat/messages` é mock.** Ecoa o input e devolve sempre o mesmo `card_valor_justo`
+   hardcoded. Suficiente para M0–M4; M5 depende do fluxo real.
+
+---
+
+## 2. Endpoints existentes
+
+### `GET /` — health check
+```json
+{ "status": "ok" }
+```
+
+### `POST /v1/chat/messages`
+Consumido por `src/api/chat.ts`.
+
+Request:
+```json
+{ "content": "Recebi uma cobrança de R$ 1.500 do Banco Teste" }
+```
+
+Response `200`:
+```json
+{
+  "message": {
+    "id": "6f1e...",
+    "role": "assistant",
+    "content": "Vamos olhar essa cobrança com calma.",
+    "cards": [
+      {
+        "kind": "valor_justo",
+        "credor": "Banco Teste S/A",
+        "valorCobrado": 150000,
+        "valorJusto": 90000,
+        "script": "Olá, gostaria de negociar...",
+        "fundamentos": ["CDC art. 42", "CDC art. 51"]
+      }
+    ],
+    "createdAt": "2024-03-15T13:45:00Z"
+  }
+}
+```
+
+`cards` é opcional. **Todo número comunicado ao usuário vai num card**, nunca no `content`.
+
+### `GET /v1/dividas`
+Consumido por `listDebts()` em `src/api/debts.ts`.
+
+Response `200`:
+```json
+{ "dividas": [ { "id": "...", "credor": "...", "valorCobrado": 150000, "dataOrigem": "2021-06-01", "tipo": "juros_abusivos", "valorCorrigido": 165000, "possivelPrescricao": false } ] }
+```
+
+### `POST /v1/dividas`
+Consumido por `createDebt()`.
+
+Request — só os quatro campos que o usuário informa:
+```json
+{ "credor": "Banco Teste S/A", "valorCobrado": 150000, "dataOrigem": "2021-06-01", "tipo": "juros_abusivos" }
+```
+
+Response `201`: `{ "divida": Divida }` — com `id`, `valorCorrigido` e `possivelPrescricao`
+já calculados pelo servidor.
+
+---
+
+## 3. Endpoints por milestone
+
+### M1 — CRUD de dívidas
+
+#### `GET /v1/dividas/{id}`
+Response `200`: `{ "divida": Divida }`. `404` se não existir ou for de outro tenant —
+**nunca `403`**, para não revelar a existência do recurso.
+
+#### `PATCH /v1/dividas/{id}`
+Aceita subconjunto de `{ credor, valorCobrado, dataOrigem, tipo }`. Response `200`:
+`{ "divida": Divida }` com os derivados recalculados.
+
+#### `POST /v1/dividas/{id}/quitacao`
+Marca como quitada. Request `{ "dataQuitacao": "2024-03-15", "valorPago": 90000 }`.
+Response `200`: `{ "divida": Divida }`. `409` se já estiver quitada.
+
+#### `DELETE /v1/dividas/{id}`
+Exclusão **lógica**. Response `204`. Dívida excluída some de `GET /v1/dividas` mas não é
+apagada do banco — histórico financeiro não se destrói.
+
+A partir de M1, `Divida` ganha campos:
+
+```ts
+situacao: 'ativa' | 'quitada' | 'renegociada';
+saldoDevedor?: number;   // centavos
+taxaJurosMensal?: number; // basis points (250 = 2,50% a.m.) — inteiro, nunca float
+totalParcelas?: number;
+parcelasPagas?: number;
+proximoVencimento?: IsoDate;
+```
+
+> **Por que basis points:** taxa é dinheiro disfarçado. `2.5` como float sofre do mesmo problema
+> de precisão que os centavos resolvem. Inteiro em centésimos de ponto percentual mantém a
+> aritmética exata em toda a stack.
+
+---
+
+### M2 — Painel de endividamento
+
+#### `GET /v1/dividas/resumo`
+
+Query opcional: `?mes=2024-03` (default: mês corrente).
+
+Response `200`:
+```json
+{
+  "resumo": {
+    "totalDevido": 4850000,
+    "totalQuitadoNoAno": 320000,
+    "quantidadeDividas": 7,
+    "custoMedioJurosMensal": 380,
+    "rendaMensal": 550000,
+    "comprometimentoRenda": 2200,
+    "minimoExistencial": 180000,
+    "margemDisponivel": 90000,
+    "porCriticidade": [
+      { "tipo": "juros_abusivos", "total": 2100000, "quantidade": 2 },
+      { "tipo": "com_garantia",   "total": 1900000, "quantidade": 1 },
+      { "tipo": "consumo",        "total": 850000,  "quantidade": 4 }
+    ],
+    "proximosVencimentos": [
+      { "dividaId": "...", "credor": "Nubank", "valor": 45000, "vencimento": "2024-03-20", "situacao": "pendente" }
+    ],
+    "evolucaoSaldo": [
+      { "mes": "2023-10", "saldo": 5400000 },
+      { "mes": "2023-11", "saldo": 5210000 }
+    ]
+  }
+}
+```
+
+Unidades, sem exceção:
+
+| Campo | Unidade |
+|---|---|
+| `totalDevido`, `totalQuitadoNoAno`, `rendaMensal`, `minimoExistencial`, `margemDisponivel`, `total`, `valor`, `saldo` | centavos |
+| `custoMedioJurosMensal`, `comprometimentoRenda` | basis points (`2200` = 22,00%) |
+| `quantidadeDividas`, `quantidade` | contagem |
+
+`rendaMensal`, `comprometimentoRenda`, `minimoExistencial` e `margemDisponivel` são opcionais —
+se o usuário ainda não informou a renda, vêm ausentes e o painel exibe um convite a preencher,
+não um zero.
+
+`evolucaoSaldo` traz no máximo 12 pontos, do mais antigo ao mais recente. O front só desenha.
+
+---
+
+### M3 — Plano de pagamento
+
+#### `GET /v1/dividas/{id}/parcelas`
+
+Response `200`:
+```json
+{
+  "parcelas": [
+    { "id": "...", "numero": 3, "total": 12, "valor": 45000, "vencimento": "2024-03-20", "situacao": "pendente", "pagoEm": null, "valorPago": null }
+  ]
+}
+```
+
+`situacao`: `'pendente' | 'paga' | 'atrasada'`. "Atrasada" é derivada da data pelo **backend** —
+o front não compara datas para decidir isso, senão o fuso do aparelho vira fonte de divergência.
+
+#### `POST /v1/parcelas/{id}/pagamento`
+Request `{ "pagoEm": "2024-03-18", "valorPago": 45000 }`. Response `200`: `{ "parcela": Parcela }`.
+`409` se já estiver paga.
+
+O front faz atualização otimista aqui (o rollback é trivial) e invalida `['dividas']` inteiro
+no sucesso, porque o resumo do painel também muda.
+
+#### `POST /v1/dividas/{id}/renegociacao`
+Request:
+```json
+{ "novoValor": 90000, "novoTotalParcelas": 10, "novaTaxaJurosMensal": 150, "primeiroVencimento": "2024-04-10", "observacao": "Acordo por telefone" }
+```
+Response `200`: `{ "divida": Divida }` com `situacao: "renegociada"` e novas parcelas geradas.
+As parcelas antigas são preservadas no histórico, não apagadas.
+
+#### `GET /v1/lembretes`
+Alimenta o agendamento local de `expo-notifications`.
+
+Response `200`:
+```json
+{ "lembretes": [ { "id": "...", "dividaId": "...", "parcelaId": "...", "titulo": "Nubank vence em 3 dias", "corpo": "Parcela 3 de 12 — R$ 450,00", "dispararEm": "2024-03-17T12:00:00Z" } ] }
+```
+
+O texto do lembrete vem **pronto do backend**, já formatado, para não haver formatação de moeda
+duplicada entre servidor e cliente. Tom obrigatoriamente neutro — ver `guardrails.md`, seção 4.
+
+---
+
+### M4 — Simulador de quitação
+
+#### `POST /v1/dividas/simulacoes`
+
+O endpoint que sustenta o guardrail: **a matemática de amortização acontece aqui, não no app.**
+
+Request:
+```json
+{ "aporteExtraMensal": 50000, "estrategias": ["avalanche", "bola_de_neve"], "dividasIds": null }
+```
+
+- `aporteExtraMensal`: centavos que o usuário consegue pagar além das parcelas mínimas.
+- `estrategias`: quais simular. O front sempre pede as duas, para comparar.
+- `dividasIds`: `null` significa todas as dívidas ativas.
+
+Response `200`:
+```json
+{
+  "simulacoes": [
+    {
+      "estrategia": "avalanche",
+      "mesesAteQuitacao": 26,
+      "dataLiberdade": "2026-05",
+      "totalJurosPagos": 780000,
+      "totalPago": 5630000,
+      "economiaVsMinimo": 940000,
+      "ordemPagamento": [
+        { "dividaId": "...", "credor": "Cartão X", "posicao": 1, "quitadaEm": "2024-08", "jurosPagos": 120000 }
+      ],
+      "evolucaoSaldo": [ { "mes": "2024-03", "saldo": 4850000 } ]
+    },
+    { "estrategia": "bola_de_neve", "...": "mesma forma" }
+  ],
+  "comparacao": {
+    "melhorEstrategia": "avalanche",
+    "diferencaJuros": 130000,
+    "diferencaMeses": 2
+  }
+}
+```
+
+`comparacao` vem calculada pelo servidor **de propósito**: se o front subtraísse
+`totalJurosPagos` das duas simulações, teria replicado uma regra de negócio. A diferença é a
+mensagem central da tela — ela precisa ter uma única origem.
+
+`economiaVsMinimo` compara o cenário com aporte extra contra o cenário de pagar só o mínimo.
+É o número que justifica o esforço para o usuário.
+
+`422` se `aporteExtraMensal` invadir o mínimo existencial, com `message` explicando — o produto
+não sugere plano que comprometa o básico.
+
+---
+
+### M5 — Dívidas dentro do chat
+
+Novos `kind` em `ActionCardData`. O mecanismo de união discriminada em `src/api/types.ts` já
+suporta; basta acrescentar os tipos e o caso no dispatcher `ActionCard`.
+
+```json
+{ "kind": "divida_resumo", "dividaId": "...", "credor": "Nubank", "saldoDevedor": 320000, "proximoVencimento": "2024-03-20", "situacao": "ativa", "criticidade": "juros_abusivos" }
+```
+
+```json
+{ "kind": "plano_sugerido", "estrategia": "avalanche", "aporteExtraMensal": 50000, "mesesAteQuitacao": 26, "dataLiberdade": "2026-05", "economia": 940000, "simulacaoId": "..." }
+```
+
+Ambos carregam um identificador que permite o deep link para a tela correspondente
+(`app/dividas/[id].tsx`, `app/dividas/simulador.tsx`). Card é o ponto de entrada para a tela,
+não um substituto dela.
+
+**Nenhum card dispara escrita sozinho.** Um card que sugere criar uma dívida abre o formulário
+preenchido para o usuário confirmar. Ver `guardrails.md`, seção 7.2.
+
+---
+
+## 4. Ordem de implementação sugerida para o backend
+
+Espelha `roadmap.md`. Cada bloco destrava as telas do milestone correspondente:
+
+1. Persistência real + auth + validação de `tipo` + `id: str` — destrava tudo.
+2. `GET/PATCH/DELETE /v1/dividas/{id}` e `POST .../quitacao` — M1.
+3. `GET /v1/dividas/resumo` — M2.
+4. Parcelas, pagamento, renegociação, lembretes — M3.
+5. `POST /v1/dividas/simulacoes` — M4.
+6. Chat real com os novos `kind` de card — M5.
