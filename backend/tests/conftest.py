@@ -21,26 +21,35 @@ from main import app  # noqa: E402
 from orm import Base  # noqa: E402
 
 """
-DIVERGÊNCIA CONHECIDA: os testes rodam em SQLite; produção é Postgres.
+A suíte roda em SQLite por padrão — rápido e sem infraestrutura.
 
-O ORM usa só tipos portáveis (String, BigInteger, Integer, Date, DateTime,
-Boolean, Text), então o comportamento é equivalente para o que estes testes
-verificam — regras de dinheiro, auth e isolamento por tenant. O que SQLite NÃO
-pega é divergência de dialeto: constraint que só o Postgres aplica, precisão de
-BigInteger, comportamento de índice.
+Para rodar contra o MESMO banco da produção, aponte a variável:
 
-Está registrado em docs/backend.md. Rodar a suíte contra Postgres antes de
-qualquer release é o passo que fecha essa lacuna.
+    BUDDY_TEST_DATABASE_URL=postgresql+psycopg://buddy:buddy@localhost:5433/buddy_test pytest
+
+SQLite não pega divergência de dialeto: constraint que só o Postgres aplica,
+precisão de BigInteger, comportamento de índice. Rodar contra Postgres antes de
+release é o que fecha essa lacuna — e por isso a troca é uma variável de
+ambiente, não uma edição de código.
 """
+
+URL_TESTE = os.environ.get("BUDDY_TEST_DATABASE_URL")
 
 
 @pytest.fixture
 def engine():
-    eng = create_engine(
-        "sqlite+pysqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
+    if URL_TESTE:
+        eng = create_engine(URL_TESTE, poolclass=StaticPool)
+    else:
+        eng = create_engine(
+            "sqlite+pysqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+
+    # Base limpa a cada teste: resíduo de um teste anterior transformaria
+    # asserção de contagem em falso positivo.
+    Base.metadata.drop_all(eng)
     Base.metadata.create_all(eng)
     yield eng
     Base.metadata.drop_all(eng)

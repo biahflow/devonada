@@ -122,11 +122,17 @@ Recurso de outro tenant devolve **404, nunca 403**: um 403 confirmaria que o id 
 
 ## Dívida técnica conhecida
 
-> **Os testes rodam em SQLite; produção é Postgres.** O ORM usa só tipos portáveis, então o
-> comportamento é equivalente para o que a suíte verifica — regras de dinheiro, auth e
-> isolamento. O que SQLite **não** pega é divergência de dialeto: constraint que só o Postgres
-> aplica, precisão de `BigInteger`, comportamento de índice. Rodar a suíte contra Postgres antes
-> de qualquer release fecha essa lacuna.
+> **A suíte roda em SQLite por padrão, e passa igual contra Postgres.** SQLite é o default por
+> ser rápido e não exigir infraestrutura; para rodar contra o mesmo banco da produção:
+>
+> ```bash
+> docker exec buddy-postgres psql -U buddy -d postgres -c "CREATE DATABASE buddy_test;"
+> BUDDY_TEST_DATABASE_URL=postgresql+psycopg://buddy:buddy@localhost:5433/buddy_test pytest
+> ```
+>
+> Os 68 testes passam nos dois. Rode contra Postgres antes de qualquer release — SQLite não
+> pega divergência de dialeto (constraint que só o Postgres aplica, precisão de `BigInteger`,
+> comportamento de índice).
 
 > **`/v1/chat/messages` ainda é mock.** Devolve um card fixo, sem LLM. O chat real é o Bloco 5.
 > Ganhou auth como todas as outras rotas.
