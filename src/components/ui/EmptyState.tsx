@@ -10,9 +10,20 @@ interface Props {
   icon?: keyof typeof Feather.glyphMap;
   actionLabel?: string;
   onAction?: () => void;
+  /** Caminho alternativo. Vazio nunca deve ter uma saída só. */
+  secondaryLabel?: string;
+  onSecondary?: () => void;
 }
 
-export function EmptyState({ title, description, icon = 'inbox', actionLabel, onAction }: Props) {
+export function EmptyState({
+  title,
+  description,
+  icon = 'inbox',
+  actionLabel,
+  onAction,
+  secondaryLabel,
+  onSecondary,
+}: Props) {
   return (
     <View style={styles.container}>
       <View style={styles.frame}>
@@ -29,6 +40,14 @@ export function EmptyState({ title, description, icon = 'inbox', actionLabel, on
             onPress={onAction}
             variant="secondary"
             style={styles.action}
+          />
+        ) : null}
+        {secondaryLabel && onSecondary ? (
+          <Button
+            label={secondaryLabel}
+            onPress={onSecondary}
+            variant="ghost"
+            style={styles.secondary}
           />
         ) : null}
       </View>
@@ -61,4 +80,5 @@ const styles = StyleSheet.create({
   title: { ...typography.title, color: colors.ink, textAlign: 'center' },
   description: { ...typography.caption, color: colors.inkSoft, textAlign: 'center' },
   action: { marginTop: spacing.md, alignSelf: 'stretch' },
+  secondary: { alignSelf: 'stretch' },
 });

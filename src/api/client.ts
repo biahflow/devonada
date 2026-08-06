@@ -59,6 +59,11 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
     throw new ApiError(0, 'Sem conexão com o servidor. Confira sua internet e tente de novo.', e);
   }
 
+  return parseResposta<T>(res);
+}
+
+/** Corpo e erro são normalizados no mesmo lugar para JSON e para multipart. */
+async function parseResposta<T>(res: Response): Promise<T> {
   const text = await res.text();
   const data = text ? safeJson(text) : undefined;
 
@@ -71,6 +76,52 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
   }
 
   return data as T;
+}
+
+interface ArquivoUpload {
+  uri: string;
+  nome: string;
+  mimeType: string;
+}
+
+/**
+ * Upload multipart. Vive aqui, e não numa chamada solta, porque o egress único
+ * é guardrail (docs/guardrails.md, seção 2) — e documento sensível é o último
+ * lugar onde abrir exceção.
+ *
+ * NÃO defina Content-Type manualmente: o runtime precisa gerar o boundary do
+ * multipart. Definir a mão produz um corpo que o servidor não consegue separar.
+ */
+export async function upload<T>(
+  path: string,
+  arquivo: ArquivoUpload,
+  opts: { signal?: AbortSignal } = {},
+): Promise<T> {
+  const token = await getToken();
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const form = new FormData();
+  // O React Native aceita este formato de "arquivo" no FormData; não é um Blob.
+  form.append('arquivo', {
+    uri: arquivo.uri,
+    name: arquivo.nome,
+    type: arquivo.mimeType,
+  } as unknown as Blob);
+
+  let res: Response;
+  try {
+    res = await fetch(`${env.apiBaseUrl}${path}`, {
+      method: 'POST',
+      headers,
+      body: form,
+      signal: opts.signal,
+    });
+  } catch (e) {
+    throw new ApiError(0, 'Sem conexão com o servidor. Confira sua internet e tente de novo.', e);
+  }
+
+  return parseResposta<T>(res);
 }
 
 function safeJson(text: string): unknown {

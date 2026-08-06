@@ -25,7 +25,11 @@ export default function ListaDividas() {
       title="Suas dívidas"
       description="Um retrato honesto do que existe hoje, sem susto."
       action={
-        <Button label="Nova" onPress={() => router.push('/dividas/nova')} variant="secondary" />
+        <Button
+          label="Ler contrato"
+          onPress={() => router.push('/dividas/contrato')}
+          variant="secondary"
+        />
       }
     />
   );
@@ -55,9 +59,11 @@ export default function ListaDividas() {
         <EmptyState
           icon="file-text"
           title="Nenhuma dívida cadastrada"
-          description="Comece pela que mais te preocupa. Dá para editar tudo depois."
-          actionLabel="Cadastrar primeira dívida"
-          onAction={() => router.push('/dividas/nova')}
+          description="Mande o contrato e eu preencho para você conferir. Ou cadastre à mão, se preferir."
+          actionLabel="Ler um contrato"
+          onAction={() => router.push('/dividas/contrato')}
+          secondaryLabel="Cadastrar à mão"
+          onSecondary={() => router.push('/dividas/nova')}
         />
       </Screen>
     );
