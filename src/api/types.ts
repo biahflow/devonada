@@ -8,10 +8,10 @@ export type IsoDate = string;
 
 /** Triagem por criticidade (Fase 1). */
 export type CriticidadeTipo =
-  | 'essencial'      // água, luz, aluguel — nunca sacrificar
-  | 'com_garantia'   // financiamento de casa/carro — risco de perder o bem
+  | 'essencial' // água, luz, aluguel — nunca sacrificar
+  | 'com_garantia' // financiamento de casa/carro — risco de perder o bem
   | 'juros_abusivos' // rotativo, cheque especial — atacar primeiro
-  | 'consumo';       // varejo, cartão comum
+  | 'consumo'; // varejo, cartão comum
 
 export interface Divida {
   id: Uuid;
@@ -37,7 +37,7 @@ export interface ValorJustoCardData {
   kind: 'valor_justo';
   credor: string;
   valorCobrado: number; // centavos
-  valorJusto: number;   // centavos, calculado no backend
+  valorJusto: number; // centavos, calculado no backend
   /** mensagem pronta pra negociação (gerada no backend) */
   script: string;
   /** fundamentos curados (ex.: artigos do CDC) — texto vindo do backend */

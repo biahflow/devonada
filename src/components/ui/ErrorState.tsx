@@ -1,0 +1,83 @@
+import { View, Text, StyleSheet } from 'react-native';
+import Feather from '@expo/vector-icons/Feather';
+import { ApiError } from '../../api/client';
+import { Button } from './Button';
+import { colors, radius, spacing, typography } from '../../theme/theme';
+
+interface Props {
+  error: unknown;
+  onRetry?: () => void;
+}
+
+/**
+ * Distingue "sem conexão" (ApiError.status 0) de falha do servidor, porque a
+ * ação do usuário é diferente em cada caso. Este é o único componente de ui/
+ * que conhece um tipo da camada de api/ — o formato do erro é, aqui,
+ * informação de apresentação.
+ */
+function describe(error: unknown): { title: string; message: string } {
+  if (error instanceof ApiError) {
+    if (error.status === 0) {
+      return {
+        title: 'Sem conexão',
+        message: 'Confira sua internet e tente de novo. Nada do que você fez foi perdido.',
+      };
+    }
+    if (error.status >= 500) {
+      return {
+        title: 'O servidor tropeçou',
+        message: 'Não foi culpa sua. Tente de novo em instantes.',
+      };
+    }
+    return { title: 'Não deu certo', message: error.message };
+  }
+  return { title: 'Não deu certo', message: 'Algo saiu do esperado. Tente de novo.' };
+}
+
+export function ErrorState({ error, onRetry }: Props) {
+  const { title, message } = describe(error);
+
+  return (
+    <View style={styles.container} accessibilityRole="alert">
+      <View style={styles.iconCircle}>
+        <Feather name="cloud-off" size={24} color={colors.inkSoft} />
+      </View>
+      <Text style={styles.title} accessibilityRole="header">
+        {title}
+      </Text>
+      <Text style={styles.message}>{message}</Text>
+      {onRetry ? (
+        <Button
+          label="Tentar de novo"
+          onPress={onRetry}
+          variant="secondary"
+          style={styles.action}
+        />
+      ) : null}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    padding: spacing.xl,
+  },
+  iconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.pill,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
+  },
+  title: { ...typography.title, color: colors.ink, textAlign: 'center' },
+  message: { ...typography.caption, color: colors.inkSoft, textAlign: 'center' },
+  action: { marginTop: spacing.md, alignSelf: 'stretch' },
+});

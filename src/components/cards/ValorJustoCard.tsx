@@ -46,7 +46,9 @@ export function ValorJustoCard({ data }: { data: ValorJustoCardData }) {
       {data.fundamentos && data.fundamentos.length > 0 && (
         <View style={styles.fundamentos}>
           {data.fundamentos.map((f, i) => (
-            <Text key={i} style={styles.fundamento}>• {f}</Text>
+            <Text key={i} style={styles.fundamento}>
+              • {f}
+            </Text>
           ))}
         </View>
       )}
@@ -57,9 +59,7 @@ export function ValorJustoCard({ data }: { data: ValorJustoCardData }) {
         style={{ marginTop: spacing.sm }}
       />
 
-      <Text style={styles.disclaimer}>
-        Estimativa educacional. Não é aconselhamento jurídico.
-      </Text>
+      <Text style={styles.disclaimer}>Estimativa educacional. Não é aconselhamento jurídico.</Text>
     </View>
   );
 }
@@ -73,8 +73,18 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.sm,
   },
-  eyebrow: { ...typography.caption, color: colors.inkSoft, textTransform: 'uppercase', letterSpacing: 0.5 },
-  comparativo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.sm },
+  eyebrow: {
+    ...typography.caption,
+    color: colors.inkSoft,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  comparativo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.sm,
+  },
   coluna: { gap: 2 },
   legenda: { ...typography.caption, color: colors.inkSoft },
   cobrado: { ...typography.numeric, color: colors.inkSoft, textDecorationLine: 'line-through' },
@@ -90,5 +100,10 @@ const styles = StyleSheet.create({
   },
   fundamentos: { gap: 2, marginTop: spacing.xs },
   fundamento: { ...typography.caption, color: colors.inkSoft },
-  disclaimer: { ...typography.caption, color: colors.inkSoft, textAlign: 'center', marginTop: spacing.xs },
+  disclaimer: {
+    ...typography.caption,
+    color: colors.inkSoft,
+    textAlign: 'center',
+    marginTop: spacing.xs,
+  },
 });

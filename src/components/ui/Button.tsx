@@ -1,17 +1,41 @@
 import { Pressable, Text, StyleSheet, ActivityIndicator, type ViewStyle } from 'react-native';
 import { colors, radius, spacing, typography } from '../../theme/theme';
 
+type Variant = 'primary' | 'secondary' | 'danger' | 'ghost';
+
 interface Props {
   label: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary';
+  variant?: Variant;
   loading?: boolean;
   disabled?: boolean;
   style?: ViewStyle;
+  accessibilityHint?: string;
 }
 
-export function Button({ label, onPress, variant = 'primary', loading, disabled, style }: Props) {
-  const isPrimary = variant === 'primary';
+const container: Record<Variant, ViewStyle> = {
+  primary: { backgroundColor: colors.primary },
+  secondary: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.primarySoft },
+  danger: { backgroundColor: colors.danger },
+  ghost: { backgroundColor: 'transparent' },
+};
+
+const labelColor: Record<Variant, string> = {
+  primary: colors.onPrimary,
+  secondary: colors.primary,
+  danger: colors.onPrimary,
+  ghost: colors.inkSoft,
+};
+
+export function Button({
+  label,
+  onPress,
+  variant = 'primary',
+  loading,
+  disabled,
+  style,
+  accessibilityHint,
+}: Props) {
   const inactive = disabled || loading;
 
   return (
@@ -19,20 +43,20 @@ export function Button({ label, onPress, variant = 'primary', loading, disabled,
       onPress={onPress}
       disabled={inactive}
       accessibilityRole="button"
+      accessibilityState={{ disabled: !!inactive, busy: !!loading }}
+      accessibilityHint={accessibilityHint}
       style={({ pressed }) => [
         styles.base,
-        isPrimary ? styles.primary : styles.secondary,
+        container[variant],
         inactive && styles.inactive,
         pressed && styles.pressed,
         style,
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={isPrimary ? colors.userBubbleText : colors.primary} />
+        <ActivityIndicator color={labelColor[variant]} />
       ) : (
-        <Text style={[styles.label, isPrimary ? styles.labelPrimary : styles.labelSecondary]}>
-          {label}
-        </Text>
+        <Text style={[styles.label, { color: labelColor[variant] }]}>{label}</Text>
       )}
     </Pressable>
   );
@@ -46,11 +70,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
   },
-  primary: { backgroundColor: colors.primary },
-  secondary: { backgroundColor: colors.primarySoft },
   inactive: { opacity: 0.5 },
   pressed: { opacity: 0.85 },
   label: { ...typography.bodyStrong },
-  labelPrimary: { color: colors.userBubbleText },
-  labelSecondary: { color: colors.primary },
 });

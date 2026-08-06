@@ -75,5 +75,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sendDisabled: { opacity: 0.5 },
-  sendText: { ...typography.bodyStrong, color: colors.userBubbleText },
+  sendText: { ...typography.bodyStrong, color: colors.onPrimary },
 });

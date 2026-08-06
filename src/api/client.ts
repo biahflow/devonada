@@ -64,7 +64,7 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
 
   if (!res.ok) {
     const message =
-      (data && typeof data === 'object' && 'message' in data && typeof data.message === 'string')
+      data && typeof data === 'object' && 'message' in data && typeof data.message === 'string'
         ? data.message
         : `Erro ${res.status}.`;
     throw new ApiError(res.status, message, data);

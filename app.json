@@ -6,8 +6,20 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "scheme": "buddyfinanceiro",
-    "splash": { "backgroundColor": "#F3F5F2" },
-    "ios": { "supportsTablet": true },
-    "android": { "adaptiveIcon": { "backgroundColor": "#F3F5F2" } }
+    "splash": {
+      "backgroundColor": "#F3F5F2"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#F3F5F2"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font"
+    ]
   }
 }
