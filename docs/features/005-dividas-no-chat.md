@@ -141,9 +141,16 @@ faz "o modelo escolhe o quê, o backend diz quanto" ser verdade em código, não
 - [ ] **Não validado em device.** Rolagem do chat com card, teclado sobre o composer,
       legibilidade dos cards em tela pequena e o caminho card → formulário preenchido exigem
       aparelho.
-- [ ] **`divida_proposta` não exercitado com chamada real ao provedor.** A rota, o saneamento e a
-      tela estão cobertos por teste com cliente falso; a leitura de "devo mil e quinhentos no
-      Nubank" por um modelo de verdade depende de chave.
+- [x] **`divida_proposta` exercitado com chamada real** ao `gpt-5-mini`, contra Postgres:
+      "devo mil e quinhentos no cartão do Nubank, é rotativo" voltou `credor: "Nubank"`,
+      `valorCobrado: 150000` (centavos) e `tipo: "juros_abusivos"`; "a taxa do Banco Teste mudou
+      para 2,5% ao mês" voltou `dividaId`, `dividaCredor` do banco e `taxaJurosMensal: 250`.
+      `GET /v1/dividas` depois das duas: **nada gravado**, e a taxa real intacta em 400 bps.
+      O histórico devolveu os dois rascunhos idênticos.
+- [x] **Regressão do schema conferida por request.** O objeto aninhado `proposta` foi aceito pelo
+      `strict` da OpenAI — `divida_resumo` continua voltando normalmente. Era o risco que os testes
+      com cliente falso não veem: schema recusado derrubaria o chat inteiro em `503`, não só a
+      proposta.
 - [x] Documentos canônicos atualizados no mesmo commit.
 
 ## Riscos e modos de falha
@@ -161,7 +168,13 @@ faz "o modelo escolhe o quê, o backend diz quanto" ser verdade em código, não
 - **O rascunho pode entender errado.** É o risco que a copy administra em vez de esconder: o card
   diz "foi isto que eu entendi", a tela repete o aviso, e nada é gravado antes da confirmação. O
   modo de falha que sobra é ela confirmar sem conferir — por isso o rascunho nunca preenche campo
-  que não foi dito, em vez de "chutar para ajudar".
+  que não foi dito, em vez de "chutar para ajudar". Conferido com chamada real: "acho que devo umas
+  duas mil pila no Bradesco, mas não lembro desde quando" voltou `valorCobrado: 200000` — o que ela
+  disse, sem precisão inventada — com `dataOrigem` e `tipo` **nulos**.
+- **Mês sem dia não vira data** (observado na chamada real). "desde março de 2026" voltou
+  `dataOrigem: null`, porque o contrato exige `AAAA-MM-DD` e escolher o dia 1º seria inventar o que
+  ela não disse. O campo abre vazio e ela completa no formulário — é o comportamento certo, e fica
+  declarado para ninguém tratar como bug depois.
 - **Custo por mensagem.** Toda mensagem é uma chamada paga. Não há cache nem limite por usuário
   neste milestone.
 - **O histórico cresce sem poda.** O teto é de leitura (50 mensagens); nada apaga mensagem antiga

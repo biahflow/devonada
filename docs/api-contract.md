@@ -573,7 +573,9 @@ existencial não têm o que exibir.*
 - [~] M5: chat real com os `kind` `divida_resumo` e `plano_sugerido` — implementado e
       **exercitado com chamada real ao provedor**; falta ver no app
 - [~] M5: `divida_proposta` — o chat propõe cadastro e alteração, e o formulário confirma
-      (guardrail 7.2). Nenhuma rota de escrita nova: a gravação continua sendo a do cadastro manual
+      (guardrail 7.2). Nenhuma rota de escrita nova: a gravação continua sendo a do cadastro manual.
+      **Exercitado com chamada real**: valor em centavos, criticidade classificada, campo não dito
+      nulo, e `GET /v1/dividas` inalterado depois da conversa. Falta ver no app
 - [x] `GET /v1/chat/messages`: o histórico sobrevive ao fechamento do app
 - [x] Camada de provedor de LLM (ADR 0007), com OpenAI padrão e Anthropic vivo no repositório
 - [x] Leitura de contrato **destravada**: exercitada de ponta a ponta com contrato sintético
@@ -587,6 +589,7 @@ existencial não têm o que exibir.*
 | M3 (parcelas, pagamento, renegociação, lembretes) | idem |
 | M4 (`POST /v1/dividas/simulacoes`) | idem — inclusive os dois `422`, conferidos por request |
 | M5 (chat real, histórico) | implementado; **exercitado com chamada real à OpenAI**, ainda não visto no app |
+| M5 (`divida_proposta`) | idem — cadastro e alteração propostos por um modelo de verdade, sem gravar nada |
 | Leitura de contrato | **destravada** — contrato sintético lido com trecho literal nos sete campos |
 
 Suíte do backend: **213 testes**, verdes em SQLite e em Postgres, **sem tocar a rede**.
