@@ -124,6 +124,10 @@ export default function DetalheDivida() {
 
         <View style={styles.acoes}>
           <Button
+            label="Ver plano de pagamento"
+            onPress={() => router.push(`/dividas/${divida.id}/plano`)}
+          />
+          <Button
             label="Editar"
             onPress={() => router.push(`/dividas/${divida.id}/editar`)}
             variant="secondary"
@@ -132,6 +136,7 @@ export default function DetalheDivida() {
             <Button
               label="Marcar como quitada"
               onPress={confirmarQuitacao}
+              variant="secondary"
               loading={quitar.isPending}
             />
           ) : null}

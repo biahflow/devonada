@@ -47,6 +47,8 @@ interface Erros {
   valorCobrado?: string;
   dataOrigem?: string;
   tipo?: string;
+  totalParcelas?: string;
+  primeiroVencimento?: string;
 }
 
 /**
@@ -59,6 +61,10 @@ export function DividaForm({ inicial, submitLabel, submitting, onSubmit }: Props
   const [dataOrigem, setDataOrigem] = useState(inicial?.dataOrigem);
   const [tipo, setTipo] = useState<CriticidadeTipo | undefined>(inicial?.tipo);
   const [taxaJurosMensal, setTaxaJurosMensal] = useState(inicial?.taxaJurosMensal ?? 0);
+  const [totalParcelas, setTotalParcelas] = useState(
+    inicial?.totalParcelas ? String(inicial.totalParcelas) : '',
+  );
+  const [primeiroVencimento, setPrimeiroVencimento] = useState(inicial?.primeiroVencimento);
   const [erros, setErros] = useState<Erros>({});
 
   function submeter() {
@@ -67,6 +73,20 @@ export function DividaForm({ inicial, submitLabel, submitting, onSubmit }: Props
     if (valorCobrado <= 0) encontrados.valorCobrado = 'Informe o valor cobrado.';
     if (!dataOrigem) encontrados.dataOrigem = 'Informe quando a dívida começou.';
     if (!tipo) encontrados.tipo = 'Escolha uma classificação.';
+
+    // Os dois andam juntos: o backend rejeita um sem o outro, então avisamos
+    // antes de gastar uma ida à rede.
+    const parcelas = Number.parseInt(totalParcelas, 10);
+    const temParcelas = totalParcelas.trim().length > 0;
+    if (temParcelas && (!parcelas || parcelas < 1)) {
+      encontrados.totalParcelas = 'Informe um número de parcelas válido.';
+    }
+    if (temParcelas && parcelas >= 1 && !primeiroVencimento) {
+      encontrados.primeiroVencimento = 'Informe quando vence a primeira parcela.';
+    }
+    if (!temParcelas && primeiroVencimento) {
+      encontrados.totalParcelas = 'Informe em quantas parcelas ficou.';
+    }
 
     setErros(encontrados);
     if (Object.keys(encontrados).length > 0) return;
@@ -79,6 +99,7 @@ export function DividaForm({ inicial, submitLabel, submitting, onSubmit }: Props
       // 0 significa "não informado" — enviar 0 faria o backend tratar como
       // taxa zero, que é uma afirmação diferente de ausência.
       ...(taxaJurosMensal > 0 ? { taxaJurosMensal } : {}),
+      ...(temParcelas && primeiroVencimento ? { totalParcelas: parcelas, primeiroVencimento } : {}),
     });
   }
 
@@ -123,6 +144,25 @@ export function DividaForm({ inicial, submitLabel, submitting, onSubmit }: Props
         onChangeValue={setTaxaJurosMensal}
         optional
         hint="Se souber. Sem ela o simulador não consegue ordenar por juros."
+      />
+
+      <FormField
+        label="Em quantas parcelas"
+        value={totalParcelas}
+        onChangeText={setTotalParcelas}
+        keyboardType="number-pad"
+        error={erros.totalParcelas}
+        optional
+        placeholder="12"
+        hint="Com isto e a data abaixo, monto o carnê para você acompanhar."
+      />
+
+      <DateField
+        label="Primeiro vencimento"
+        value={primeiroVencimento}
+        onChangeValue={setPrimeiroVencimento}
+        error={erros.primeiroVencimento}
+        optional
       />
 
       <Button label={submitLabel} onPress={submeter} loading={submitting} style={styles.submit} />

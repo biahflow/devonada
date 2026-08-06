@@ -9,8 +9,11 @@ import type { Divida, IsoDate, Uuid } from './types';
 
 export type NovaDivida = Pick<
   Divida,
-  'credor' | 'valorCobrado' | 'dataOrigem' | 'tipo' | 'taxaJurosMensal'
->;
+  'credor' | 'valorCobrado' | 'dataOrigem' | 'tipo' | 'taxaJurosMensal' | 'totalParcelas'
+> & {
+  /** Anda junto com `totalParcelas`: o backend rejeita um sem o outro. */
+  primeiroVencimento?: IsoDate;
+};
 
 /** PATCH aceita qualquer subconjunto dos campos que o usuário informa. */
 export type PatchDivida = Partial<NovaDivida>;

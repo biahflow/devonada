@@ -14,6 +14,19 @@ jest.mock('@expo/vector-icons/Feather', () => {
 });
 
 /**
+ * Notificações. O módulo nativo não resolve sob jest, e o que os testes
+ * verificam é a LÓGICA de agendamento (hora válida, instante local), não a API
+ * do sistema operacional. Disparo real só se confirma em aparelho.
+ */
+jest.mock('expo-notifications', () => ({
+  getPermissionsAsync: jest.fn().mockResolvedValue({ granted: false, canAskAgain: true }),
+  requestPermissionsAsync: jest.fn().mockResolvedValue({ granted: true }),
+  scheduleNotificationAsync: jest.fn().mockResolvedValue('id'),
+  cancelAllScheduledNotificationsAsync: jest.fn().mockResolvedValue(undefined),
+  SchedulableTriggerInputTypes: { DATE: 'date' },
+}));
+
+/**
  * Navegação. Os testes de tela verificam o que o usuário LÊ, não para onde o
  * app navega — por isso as funções são espiões vazios. `mockRouter` fica
  * exposto para o teste que precise afirmar que uma ação leva a algum lugar.

@@ -142,4 +142,56 @@ export interface PerfilFinanceiro {
   /** em centavos. Ausente = não informado, nunca zero. */
   rendaMensal?: number;
   dependentes?: number;
+  /** `HH:MM` local. O aparelho compõe o instante; o servidor só guarda a preferência. */
+  horaLembrete?: string;
+  diasAntecedenciaLembrete?: number;
+}
+
+/* ---------- Plano de pagamento (M3) ---------- */
+
+export type SituacaoParcela = 'pendente' | 'paga' | 'atrasada';
+
+export interface Parcela {
+  id: Uuid;
+  numero: number;
+  total: number;
+  /** em centavos */
+  valor: number;
+  vencimento: IsoDate;
+  /** Derivada no BACKEND — o fuso do aparelho não decide o que está atrasado. */
+  situacao: SituacaoParcela;
+  pagoEm?: IsoDate | null;
+  valorPago?: number | null;
+}
+
+export interface PagamentoInput {
+  pagoEm: IsoDate;
+  /** em centavos */
+  valorPago: number;
+}
+
+export interface RenegociacaoInput {
+  /** em centavos */
+  novoValor: number;
+  novoTotalParcelas: number;
+  /** basis points */
+  novaTaxaJurosMensal?: number;
+  primeiroVencimento: IsoDate;
+  observacao?: string;
+}
+
+/**
+ * Um aviso a agendar no aparelho.
+ *
+ * `dataLembrete` é DATA, não instante: o servidor decide o quê e o qual dia; o
+ * aparelho compõe a hora local. Título e corpo vêm prontos para não haver
+ * formatação de moeda duplicada entre servidor e cliente.
+ */
+export interface Lembrete {
+  id: string;
+  dividaId: Uuid;
+  parcelaId: Uuid;
+  titulo: string;
+  corpo: string;
+  dataLembrete: IsoDate;
 }

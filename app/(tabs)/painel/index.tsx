@@ -14,6 +14,7 @@ import { MoneyText } from '../../../src/components/ui/MoneyText';
 import { LinhaEvolucao } from '../../../src/components/charts/LinhaEvolucao';
 import { BarrasCriticidade } from '../../../src/components/charts/BarrasCriticidade';
 import { SeletorDeMes } from '../../../src/components/painel/SeletorDeMes';
+import { CardLembretes } from '../../../src/components/painel/CardLembretes';
 import { useResumo } from '../../../src/hooks/usePainel';
 import { mesAtual } from '../../../src/util/mes';
 import { formatBasisPoints } from '../../../src/util/percent';
@@ -167,6 +168,8 @@ export default function Painel() {
           <Text style={styles.tituloSecao}>Evolução do saldo devedor</Text>
           <LinhaEvolucao pontos={resumo.evolucaoSaldo} largura={larguraGrafico} />
         </Card>
+
+        <CardLembretes onConfigurar={() => router.push('/painel/renda')} />
 
         <Card>
           <Text style={styles.tituloSecao}>Próximos vencimentos</Text>

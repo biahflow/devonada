@@ -26,9 +26,20 @@ describe('tela de cadastro de dívida', () => {
     expect(requestMock).not.toHaveBeenCalled();
   });
 
-  it('marca a taxa de juros como opcional', () => {
+  it('marca os campos não obrigatórios como opcionais', () => {
+    // Taxa, número de parcelas e primeiro vencimento.
     renderizarTela(<NovaDivida />);
-    expect(screen.getByText('Opcional')).toBeTruthy();
+    expect(screen.getAllByText('Opcional')).toHaveLength(3);
+  });
+
+  it('exige a data quando o número de parcelas é informado', () => {
+    renderizarTela(<NovaDivida />);
+    fireEvent.changeText(screen.getByLabelText('Credor'), 'Nubank');
+    fireEvent.changeText(screen.getByLabelText('Valor cobrado'), '1000');
+    fireEvent.changeText(screen.getByLabelText('Em quantas parcelas'), '12');
+    fireEvent.press(screen.getByText('Salvar dívida'));
+
+    expect(screen.getByText('Informe quando vence a primeira parcela.')).toBeTruthy();
   });
 });
 
