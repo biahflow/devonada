@@ -174,6 +174,19 @@ origem (PDF, câmera, galeria) e devolve o arquivo ou `null`. `ActionSheetIOS` n
 Android. Permissão de câmera pedida **no contexto**, ao escolher a câmera — pedir antes de haver
 motivo é o caminho mais curto para o usuário negar.
 
+**`AporteExtra`** (`dividas/`) — quanto o usuário consegue pagar por mês além das parcelas
+mínimas. **Slider e `CurrencyInput` sobre o mesmo estado em centavos inteiros**: arrastar serve
+para explorar o efeito, digitar serve para o valor exato, e os dois são o mesmo número. O slider
+(`@react-native-community/slider`) anda em passos de R$ 10,00 — nenhum caminho produz
+fracionário. Os dois controles têm `accessibilityLabel` **distintos**: dois controles com o mesmo
+nome fazem o leitor de tela anunciar a mesma coisa duas vezes sem dizer qual é qual. O teto do
+slider é `margemDisponivel` quando o usuário informou a renda; sem ela, um teto fixo. Isso é
+limite de **controle**, não número exibido como fato — o campo continua aceitando valor acima.
+
+**`CartaoEstrategia`** (`dividas/`) — uma estratégia de quitação simulada, tocável para
+selecionar (`accessibilityRole="radio"`). Nunca rotula uma das duas como "a certa": a copy da
+comparação é quem explica que a estratégia sustentável vale mais que a ótima no papel.
+
 **`CampoRevisao`** (`dividas/`) — campo proposto por extração de contrato, com `Badge` de
 confiança e o trecho citado. Sem trecho, **não exibe valor**: número sem evidência é palpite do
 modelo. O trecho é texto puro, nunca marcação — conteúdo de documento é entrada não confiável.

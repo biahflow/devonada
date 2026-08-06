@@ -1,8 +1,10 @@
 # Roadmap — front do Buddy Financeiro
 
 > Atualizado em 06/08/2026. Sequência de construção, **não cronograma**.
-> Escopo: o cliente Expo / React Native. O backend é desenvolvido separadamente; o que cada
-> milestone exige dele está em `docs/api-contract.md`.
+> Escopo: o cliente Expo / React Native. O **backend faz parte do repositório** e é desenvolvido
+> junto a partir do M3 — o que cada milestone exige dele está em `docs/api-contract.md`, que
+> continua sendo a fila canônica. (M0–M2 foram construídos com o backend ainda por fazer, e é
+> por isso que ainda esperam device.)
 > Marcações: `[x]` entregue · `[~]` parcial · `[ ]` pendente.
 > Princípio de ordem: **contrato e fundação antes de tela bonita.** Toda tela de dívida depende
 > de um endpoint que ainda não existe — construir a tela primeiro só produz mock que mente.
@@ -182,28 +184,38 @@ dispara na data e no horário escolhidos. **Ainda não fechado** — falta o dev
 
 ---
 
-## M4 — Simulador de quitação
+## M4 — Simulador de quitação — entregue, aguardando validação em device
 
-Depende de: `POST /v1/dividas/simulacoes`. É o milestone que prova o ADR 0003 — a matemática de
-amortização acontece no servidor, e o app continua sendo só a superfície.
+Segundo milestone em que o backend veio junto. É o que prova o ADR 0003: a amortização de
+avalanche e bola de neve é a maior tentação de cálculo local do produto, e o guardrail 1.2 a
+proíbe pelo nome. Spec em `docs/features/004-simulador-de-quitacao.md`.
 
-- [ ] `src/api/simulacoes.ts` + `useSimulacao(params)`, com a chave de cache incluindo os
-      parâmetros.
-- [ ] Slider de aporte extra mensal, em centavos, com o valor exibido por `MoneyText`.
-      `debounce` antes de disparar a chamada.
-- [ ] Comparação **avalanche vs. bola de neve** lado a lado: meses até a quitação, total de
-      juros, data de liberdade.
-- [ ] A diferença entre as duas vem de `comparacao` no payload — o front não subtrai os dois
-      resultados, porque isso seria replicar regra de negócio.
-- [ ] Ordem de pagamento sugerida, dívida a dívida, com o mês previsto de quitação de cada uma.
-- [ ] **Data de liberdade** como número de destaque, em `display` e `accent`.
-- [ ] Copy que apresenta as duas estratégias sem eleger vencedora: a ótima no papel não vale
-      nada se o usuário abandona o plano. (`docs/domain.md`, seção 4)
-- [ ] Tratar o `422` de aporte que invade o mínimo existencial com uma explicação acolhedora,
-      não com erro genérico.
+- [x] **Backend:** `backend/domain/simulacao.py` (motor puro) e `POST /v1/dividas/simulacoes`.
+      Cada escolha de método — ordem da fila, rolagem do mínimo liberado, juros antes do
+      pagamento — está declarada no docstring, porque nenhuma delas vem de lei.
+- [x] `src/api/simulacoes.ts` + `useSimulacao(aporte)`, com a chave de cache incluindo o
+      parâmetro e `keepPreviousData` para o número não sumir enquanto o novo carrega.
+- [x] **Slider e `CurrencyInput` juntos** para o aporte extra, sobre o mesmo estado em centavos
+      inteiros, com atalhos e `debounce` de 400 ms. O roadmap previa só o slider; digitar o
+      valor exato entrou porque arrastar não acerta um centavo.
+- [x] Comparação **avalanche vs. bola de neve** lado a lado: meses até a quitação, total de
+      juros, economia contra o cenário mínimo.
+- [x] A diferença entre as duas vem de `comparacao` no payload — o front não subtrai os dois
+      resultados.
+- [x] Ordem de pagamento sugerida, dívida a dívida, com o mês previsto de quitação de cada uma.
+- [x] **Data de liberdade** como número de destaque, em `display` e `accent`.
+- [x] Copy que apresenta as duas estratégias sem eleger vencedora, coberta por teste que falha
+      se alguém escrever "recomendada" na tela.
+- [x] Os dois `422` tratados com `Feedback` `warning` e a frase do backend, não com erro
+      genérico: aporte que invade o mínimo existencial e plano que não quita.
+- [x] Dívida **sem taxa conhecida** entra sem juros projetados e é **nomeada na tela** — o prazo
+      seria otimista em silêncio. Decisão registrada em `docs/backend.md`, limitação 5.
+- [ ] **Validação em device pendente.** Conforto do slider, os dois cartões lado a lado em tela
+      pequena e o teclado sobre o campo de aporte exigem aparelho.
 
 **Sai com:** as duas estratégias comparadas na mesma tela, com a diferença em reais e em meses
-explicitada, e nenhuma operação aritmética de amortização no código do app.
+explicitada, e nenhuma operação aritmética de amortização no código do app. **Ainda não
+fechado** — falta o device.
 
 ---
 
@@ -251,7 +263,9 @@ Por que a ordem não é negociável:
   existir dívida persistida com `situacao`, `saldoDevedor` e `taxaJurosMensal`. Construir o
   painel primeiro produz uma tela alimentada por mock — bonita, e mentirosa.
 - **M4 por último entre as features.** Um simulador sem dívidas reais é uma demo de calculadora.
-  Com dívidas reais, é o argumento de valor do produto.
+  Com dívidas reais, é o argumento de valor do produto. Ele também depende do M3 de um jeito que
+  não era óbvio no início: saldo e parcela mínima de cada dívida saem das **parcelas reais**, e
+  sem elas a simulação teria de arbitrar uma prestação.
 - **M5 depois de M1–M4.** O assistente só tem o que dizer quando existe dado sobre o que falar.
   Essa é exatamente a tese do produto: contexto contínuo é o que separa um oráculo de dicas de
   um planejador financeiro.

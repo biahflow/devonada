@@ -195,3 +195,71 @@ export interface Lembrete {
   corpo: string;
   dataLembrete: IsoDate;
 }
+
+/* ---------- Simulador de quitação (M4) ---------- */
+
+export type EstrategiaQuitacao = 'avalanche' | 'bola_de_neve';
+
+export interface SimulacaoParams {
+  /** em centavos, além das parcelas mínimas */
+  aporteExtraMensal: number;
+  /** o app sempre pede as duas: a comparação é a mensagem da tela */
+  estrategias: EstrategiaQuitacao[];
+  /** `null` significa todas as dívidas ativas */
+  dividasIds: Uuid[] | null;
+}
+
+export interface ItemOrdemPagamento {
+  dividaId: Uuid;
+  credor: string;
+  posicao: number;
+  quitadaEm: IsoMes;
+  /** em centavos */
+  jurosPagos: number;
+}
+
+/**
+ * Uma estratégia simulada. NENHUM destes números é calculado aqui — amortização
+ * é regra de negócio, e o guardrail 1.2 proíbe rodá-la no cliente pelo nome.
+ */
+export interface Simulacao {
+  estrategia: EstrategiaQuitacao;
+  mesesAteQuitacao: number;
+  dataLiberdade: IsoMes;
+  /** em centavos */
+  totalJurosPagos: number;
+  totalPago: number;
+  /**
+   * Ausente quando o cenário de pagar só o mínimo não quita — sem o outro lado
+   * da comparação não há economia a afirmar, e a tela exibe "ainda não
+   * calculado".
+   */
+  economiaVsMinimo?: number | null;
+  ordemPagamento: ItemOrdemPagamento[];
+  evolucaoSaldo: PontoEvolucao[];
+}
+
+/**
+ * A diferença entre as duas estratégias, calculada no backend de propósito: se
+ * o app subtraísse `totalJurosPagos` de uma da outra, teria replicado uma regra
+ * de negócio — e essa diferença é a mensagem central da tela.
+ */
+export interface ComparacaoEstrategias {
+  melhorEstrategia: EstrategiaQuitacao;
+  /** em centavos */
+  diferencaJuros: number;
+  diferencaMeses: number;
+}
+
+/** Dívida que entrou na simulação sem taxa conhecida — nenhum juro foi projetado sobre ela. */
+export interface DividaSemTaxa {
+  dividaId: Uuid;
+  credor: string;
+}
+
+export interface RespostaSimulacao {
+  simulacoes: Simulacao[];
+  /** ausente quando só uma estratégia foi pedida */
+  comparacao?: ComparacaoEstrategias | null;
+  dividasSemTaxa: DividaSemTaxa[];
+}

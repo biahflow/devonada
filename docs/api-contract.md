@@ -50,24 +50,20 @@ O front **não retenta `4xx`**; retenta `0` (sem conexão) e `5xx` no máximo du
 
 ### 1.2 Divergências conhecidas com o backend atual
 
-> Estas divergências existem hoje em `backend/` e precisam ser resolvidas pelo dono do
-> repositório. Agentes **não** editam `backend/` — só reportam.
+> **O backend faz parte do repositório e é desenvolvido por agentes também** — ver `CLAUDE.md` e
+> `docs/backend.md`. A versão anterior desta seção dizia o contrário e listava cinco divergências
+> que já não existem (`id: int`, `tipo` sem validação, sem persistência, auth ignorada). Todas
+> foram resolvidas no Bloco 0 da fila. O que sobrou está abaixo.
 
-1. **`id` tipado como `int`.** `backend/models.py:11` declara `id: int`, mas
-   `backend/routers/dividas.py:20` gera `str(uuid.uuid4())` e o passa em `id=id_gerado` na
-   linha 26. Pydantic v2 não coage UUID em string para `int`, então `POST /v1/dividas` estoura
-   `ValidationError` na primeira chamada.
-   O front espera `Uuid` (string) e o `TUTORIAL_API.md` documenta `id: str` — o código divergiu
-   do próprio tutorial. Correção: `id: str`.
-2. **`tipo` sem validação.** É `str` livre no backend e `CriticidadeTipo` (quatro valores) no
-   front. Um valor fora da enumeração quebra o render do badge de criticidade sem erro de rede.
-   Correção: `Literal["essencial", "com_garantia", "juros_abusivos", "consumo"]`.
-3. **Sem persistência.** `dividas_db` é uma lista em memória; some a cada reload do uvicorn.
-   Aceitável para desenvolvimento, bloqueante a partir de M1.
-4. **Auth ignorada.** O backend aceita o header `Authorization` mas não o valida, e `CORS` está
-   com `allow_origins=["*"]`. Bloqueante antes de qualquer dado real.
-5. **`/v1/chat/messages` é mock.** Ecoa o input e devolve sempre o mesmo `card_valor_justo`
-   hardcoded. Suficiente para M0–M4; M5 depende do fluxo real.
+1. **`/v1/chat/messages` é mock.** Ecoa o input e devolve sempre o mesmo `card_valor_justo`
+   hardcoded, sem LLM. Suficiente para M0–M4; M5 depende do fluxo real.
+2. **Auth é de beta: um token, um tenant.** Suficiente para um usuário, insuficiente no dia em
+   que houver dois. A troca por JWT não muda o cliente, que já manda `Bearer` e trata `401`.
+3. **Leitura de contrato exige `ANTHROPIC_API_KEY`.** Sem ela o upload responde
+   `status: "falhou"` com frase útil — o app já trata esse estado e oferece o cadastro manual.
+
+As limitações **declaradas** do cálculo (o que o backend deliberadamente não calcula, e por quê)
+estão em `docs/backend.md`, não aqui: elas não são divergências a corrigir, são decisões.
 
 ---
 
@@ -404,19 +400,40 @@ Response `200`:
     "melhorEstrategia": "avalanche",
     "diferencaJuros": 130000,
     "diferencaMeses": 2
-  }
+  },
+  "dividasSemTaxa": [ { "dividaId": "...", "credor": "Financeira Y" } ]
 }
 ```
 
 `comparacao` vem calculada pelo servidor **de propósito**: se o front subtraísse
 `totalJurosPagos` das duas simulações, teria replicado uma regra de negócio. A diferença é a
-mensagem central da tela — ela precisa ter uma única origem.
+mensagem central da tela — ela precisa ter uma única origem. É **nula** quando só uma estratégia
+foi pedida: com uma só não há comparação, e inventar uma seria pior que omiti-la.
 
 `economiaVsMinimo` compara o cenário com aporte extra contra o cenário de pagar só o mínimo.
-É o número que justifica o esforço para o usuário.
+É o número que justifica o esforço para o usuário. É **nulo** quando o cenário mínimo não quita
+dentro do teto — o que acontece de verdade com juros altos, em que pagar só o mínimo nunca fecha
+a dívida. Sem o outro lado da comparação não há economia a afirmar, e o app exibe "ainda não
+calculado".
 
-`422` se `aporteExtraMensal` invadir o mínimo existencial, com `message` explicando — o produto
-não sugere plano que comprometa o básico.
+`dividasSemTaxa` lista as dívidas que entraram na simulação **sem taxa conhecida**. Elas são
+amortizadas normalmente, mas nenhum juro é projetado sobre elas, e na avalanche vão para o fim
+da fila — taxa desconhecida não justifica prioridade. O prazo devolvido é, portanto, otimista
+para quem tem dívida assim, e a tela **nomeia essas dívidas** em vez de esconder o efeito.
+
+Dois `422`, ambos com `campo: "aporteExtraMensal"`:
+
+- **aporte que invade o mínimo existencial** — o produto não sugere plano que comprometa o
+  básico. Só é verificável com renda informada no perfil; sem ela a simulação segue, e isso está
+  declarado em `docs/backend.md`;
+- **plano que não quita** — quando o pagamento não cobre nem os juros, o saldo só cresce. Um
+  prazo devolvido nesse caso seria ficção.
+
+Saldo e parcela mínima de cada dívida saem das **parcelas reais** (M3). Dívida sem cronograma
+entra com o valor cobrado e parcela mínima **zero**: nenhum valor de prestação é inventado.
+
+A simulação **não escreve nada** — é leitura, apesar do `POST`, que existe pelo payload
+estruturado.
 
 ---
 
@@ -499,13 +516,16 @@ existencial não têm o que exibir.*
 - [x] Arquivo lido em memória e nunca gravado em disco (ADR 0005)
 - [ ] **Exige `ANTHROPIC_API_KEY`.** Sem ela o upload responde "falhou" com mensagem útil
 
-### Bloco 5 — sem front construído ainda
+### Bloco 5 — M3 e M4 implementados, M5 a fazer
 
 - [~] M3: `GET /v1/dividas/{id}/parcelas`, `POST /v1/parcelas/{id}/pagamento`,
       `POST /v1/dividas/{id}/renegociacao`, `GET /v1/lembretes` — implementados e exercitados
       por request; falta ver no app
-- [ ] M4: `POST /v1/dividas/simulacoes` — inclusive o campo `comparacao`, que vem calculado de
-      propósito para o front não replicar regra de negócio
+- [~] M4: `POST /v1/dividas/simulacoes` — implementado e exercitado por request; falta ver no app
+- [x] `comparacao` calculada no servidor, para o front não replicar regra de negócio
+- [x] `dividasSemTaxa` na resposta: dívida sem taxa amortiza sem juros projetados, e a tela
+      nomeia quais foram — o prazo exibido seria otimista em silêncio
+- [x] Os dois `422`: aporte que invade o mínimo existencial e plano que não quita
 - [ ] M5: chat real com os `kind` `divida_resumo` e `plano_sugerido`
 
 ### Estado observado em device
@@ -514,7 +534,10 @@ existencial não têm o que exibir.*
 |---|---|
 | `GET /v1/dividas` | funcionando — lista carrega no app |
 | Blocos 0 a 4 | implementados e exercitados por request real; **ainda não vistos no app** |
-| M3 (parcelas, pagamento, renegociação, lembretes) | idem — 116 testes, dos quais 116 passam contra Postgres |
+| M3 (parcelas, pagamento, renegociação, lembretes) | idem |
+| M4 (`POST /v1/dividas/simulacoes`) | idem — inclusive os dois `422`, conferidos por request |
 | `POST /v1/chat/messages` | mock: card fixo, sem LLM. Ganhou auth |
 | Leitura de contrato | implementada, **bloqueada** por falta de `ANTHROPIC_API_KEY` |
-| Bloco 5 (M3/M4/M5) | não existe |
+| M5 (chat real) | não existe |
+
+Suíte do backend: **156 testes**, verdes em SQLite e em Postgres.

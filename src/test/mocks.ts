@@ -1,5 +1,11 @@
 import type { ExtracaoContrato } from '../api/contratos';
-import type { Divida, PerfilFinanceiro, ResumoDividas } from '../api/types';
+import type {
+  Divida,
+  PerfilFinanceiro,
+  RespostaSimulacao,
+  ResumoDividas,
+  Simulacao,
+} from '../api/types';
 
 /**
  * Fábricas de dado de teste. Cada uma monta um objeto plausível e aceita
@@ -37,6 +43,48 @@ export function umResumo(over: Partial<ResumoDividas> = {}): ResumoDividas {
 
 export function umPerfil(over: Partial<PerfilFinanceiro> = {}): PerfilFinanceiro {
   return { rendaMensal: 550000, dependentes: 1, ...over };
+}
+
+export function umaSimulacao(over: Partial<Simulacao> = {}): Simulacao {
+  return {
+    estrategia: 'avalanche',
+    mesesAteQuitacao: 26,
+    dataLiberdade: '2028-10',
+    totalJurosPagos: 780000,
+    totalPago: 5630000,
+    economiaVsMinimo: 940000,
+    ordemPagamento: [
+      {
+        dividaId: 'divida-1',
+        credor: 'Cartão X',
+        posicao: 1,
+        quitadaEm: '2026-12',
+        jurosPagos: 120000,
+      },
+    ],
+    evolucaoSaldo: [
+      { mes: '2026-08', saldo: 4850000 },
+      { mes: '2026-09', saldo: 4610000 },
+    ],
+    ...over,
+  };
+}
+
+export function umaResposta(over: Partial<RespostaSimulacao> = {}): RespostaSimulacao {
+  return {
+    simulacoes: [
+      umaSimulacao(),
+      umaSimulacao({
+        estrategia: 'bola_de_neve',
+        mesesAteQuitacao: 28,
+        dataLiberdade: '2028-12',
+        totalJurosPagos: 910000,
+      }),
+    ],
+    comparacao: { melhorEstrategia: 'avalanche', diferencaJuros: 130000, diferencaMeses: 2 },
+    dividasSemTaxa: [],
+    ...over,
+  };
 }
 
 export function umaExtracao(over: Partial<ExtracaoContrato> = {}): ExtracaoContrato {

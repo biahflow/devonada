@@ -17,7 +17,7 @@ docker compose up -d                      # Postgres na 5433
 source venv/bin/activate
 alembic upgrade head
 uvicorn main:app --host 0.0.0.0 --port 8001 --reload
-pytest                                     # 68 testes
+pytest                                     # 156 testes
 ```
 
 **Portas escolhidas por colisão, não por gosto:** a 8000 e a 5432 já são do stack do
@@ -37,7 +37,7 @@ orm.py          tabelas SQLAlchemy
 schemas.py      contrato de API em Pydantic — espelha src/api/types.ts
 auth.py         Bearer → tenant_id
 domain/         REGRAS DE NEGÓCIO puras, com fonte citada
-routers/        dividas · resumo · perfil · contratos · chat
+routers/        dividas · resumo · simulacoes · parcelas · perfil · lembretes · contratos · chat
 extracao/       base.py (Protocol) · anthropic_extrator.py · factory
 alembic/        migrations
 tests/          pytest
@@ -65,8 +65,12 @@ cada rota. O cliente nunca envia tenant; ele vem do token.
 | `custoMedioJurosMensal` | Média das taxas **ponderada pelo saldo** | — (escolha de método, documentada) | `domain/resumo.py` |
 | Valor da parcela | Divisão inteira com a **sobra na última** | — (aritmética; a soma tem de fechar) | `domain/parcelas.py` |
 | `situacao` da parcela | Vencimento < hoje e não paga | — (derivada no servidor, nunca no cliente) | `domain/parcelas.py` |
+| Ordem da avalanche | Maior taxa primeiro; **sem taxa por último** | — (definição corrente da estratégia) | `domain/simulacao.py` |
+| Ordem da bola de neve | Menor saldo primeiro | — (idem; ver `domain.md`, seção 4) | `domain/simulacao.py` |
+| Orçamento da simulação | Mínimos iniciais + aporte, **com rolagem** | — (escolha de método, documentada) | `domain/simulacao.py` |
+| `economiaVsMinimo` | Juros do cenário mínimo − juros do cenário com aporte | — (diferença entre dois resultados do mesmo motor) | `domain/simulacao.py` |
 
-### Quatro limitações declaradas
+### As limitações declaradas
 
 Estão aqui porque escondê-las seria pior que tê-las.
 
@@ -79,6 +83,28 @@ Estão aqui porque escondê-las seria pior que tê-las.
    parcelas pendentes do mês. A estimativa `valorCobrado / totalParcelas` sobrevive só para
    dívida cadastrada sem cronograma.
 4. ~~`proximosVencimentos` volta vazio~~ — **resolvido no M3.** Lista as próximas parcelas reais.
+5. **A simulação não projeta juros sobre dívida sem taxa** (M4). Ela é amortizada normalmente e
+   vai para o fim da fila da avalanche, mas o prazo devolvido é **otimista** para quem tem
+   dívida assim. Por isso a resposta carrega `dividasSemTaxa` e a tela nomeia quais foram — a
+   alternativa, arbitrar uma taxa, é a mesma classe de erro do `* 1.1`.
+6. **Dívida sem cronograma entra na simulação com parcela mínima zero** (M4). Ela só recebe
+   pagamento quando chega à frente da fila. Inventar uma prestação a partir do valor cobrado
+   produziria justamente o número que o usuário levaria a sério.
+7. **Sem renda informada, o aporte não é checado contra o mínimo existencial** (M4). Não há o
+   que comparar. Travar o simulador de quem não preencheu a renda tiraria a ferramenta de quem
+   mais precisa dela; o painel já convida a informar.
+
+### A simulação e o teto de 600 meses
+
+`domain/simulacao.py` devolve `None` — e a rota responde `422` — quando o plano **não quita**:
+seja porque o pagamento não cobre nem os juros do mês (o saldo para de cair, e nenhum mês
+seguinte seria diferente), seja porque a amortização não cabe no teto de 600 meses. Um prazo
+devolvido nesses casos seria ficção, e a mensagem de recusa é mais útil ao usuário que um número
+inventado.
+
+O motor roda em `Decimal` de reais durante o laço e só converte para centavos na saída: os juros
+de um mês raramente caem em centavo inteiro, e arredondar a cada iteração acumularia o erro por
+dezenas de meses.
 
 ### `evolucaoSaldo` acumula a partir de hoje
 
@@ -131,7 +157,7 @@ Recurso de outro tenant devolve **404, nunca 403**: um 403 confirmaria que o id 
 > BUDDY_TEST_DATABASE_URL=postgresql+psycopg://buddy:buddy@localhost:5433/buddy_test pytest
 > ```
 >
-> Os 68 testes passam nos dois. Rode contra Postgres antes de qualquer release — SQLite não
+> Os 156 testes passam nos dois. Rode contra Postgres antes de qualquer release — SQLite não
 > pega divergência de dialeto (constraint que só o Postgres aplica, precisão de `BigInteger`,
 > comportamento de índice).
 

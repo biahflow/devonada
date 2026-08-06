@@ -101,6 +101,14 @@ export default function ListaDividas() {
           <DividaListItem divida={item} onPress={() => router.push(`/dividas/${item.id}`)} />
         )}
         ItemSeparatorComponent={() => <View style={styles.separador} />}
+        ListFooterComponent={
+          <Button
+            label="Simular quitação"
+            onPress={() => router.push('/dividas/simulador')}
+            variant="secondary"
+            style={styles.rodape}
+          />
+        }
         contentContainerStyle={styles.lista}
         onRefresh={refetch}
         refreshing={isRefetching}
@@ -125,4 +133,5 @@ const styles = StyleSheet.create({
   chipLabel: { ...typography.caption, color: colors.inkSoft },
   chipLabelAtivo: { ...typography.caption, color: colors.primaryDeep },
   separador: { height: spacing.md },
+  rodape: { marginTop: spacing.lg },
 });

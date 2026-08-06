@@ -191,6 +191,72 @@ class RespostaResumo(Camel):
     resumo: ResumoDividas
 
 
+EstrategiaQuitacao = Literal["avalanche", "bola_de_neve"]
+
+
+class SimulacaoInput(Camel):
+    aporteExtraMensal: int = Field(ge=0)
+    # O front sempre pede as duas: a comparação é a mensagem da tela.
+    estrategias: list[EstrategiaQuitacao] = Field(min_length=1, max_length=2)
+    # None significa todas as dívidas ativas.
+    dividasIds: list[str] | None = None
+
+
+class ItemOrdemPagamento(Camel):
+    dividaId: str
+    credor: str
+    posicao: int
+    quitadaEm: str  # YYYY-MM
+    jurosPagos: int
+
+
+class Simulacao(Camel):
+    estrategia: EstrategiaQuitacao
+    mesesAteQuitacao: int
+    dataLiberdade: str  # YYYY-MM
+    totalJurosPagos: int
+    totalPago: int
+    # Nulo quando o cenário de pagar só o mínimo não quita dentro do teto: sem
+    # o outro lado da comparação, não há economia a afirmar.
+    economiaVsMinimo: int | None = None
+    ordemPagamento: list[ItemOrdemPagamento]
+    evolucaoSaldo: list[PontoEvolucao]
+
+
+class ComparacaoEstrategias(Camel):
+    """
+    A diferença entre as duas estratégias, CALCULADA AQUI de propósito.
+
+    Se o front subtraísse `totalJurosPagos` de uma simulação da outra, teria
+    replicado uma regra de negócio — e a diferença é justamente a mensagem
+    central da tela. Ela precisa ter uma única origem.
+    """
+
+    melhorEstrategia: EstrategiaQuitacao
+    diferencaJuros: int
+    diferencaMeses: int
+
+
+class DividaSemTaxa(Camel):
+    """
+    Dívida que entrou na simulação sem taxa conhecida.
+
+    Ela é amortizada normalmente, mas NENHUM juro é projetado sobre ela, e na
+    avalanche vai para o fim da fila. A tela nomeia essas dívidas: um prazo
+    calculado sem os juros de parte do endividamento é otimista, e o usuário
+    tem de saber disso para decidir se completa o cadastro.
+    """
+
+    dividaId: str
+    credor: str
+
+
+class RespostaSimulacao(Camel):
+    simulacoes: list[Simulacao]
+    comparacao: ComparacaoEstrategias | None = None
+    dividasSemTaxa: list[DividaSemTaxa]
+
+
 class CampoExtraido[T](Camel):
     """
     Todo campo extraído carrega a evidência que o sustenta.

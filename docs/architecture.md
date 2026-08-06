@@ -71,18 +71,30 @@ como paga, por exemplo). Nunca em criação de recurso, onde o `id` só existe d
 
 ```
 app/
-  _layout.tsx                 QueryClientProvider, SafeArea, fontes, tema
+  _layout.tsx                    QueryClientProvider, SafeArea, fontes, tema
   (tabs)/
-    _layout.tsx               três abas
-    index.tsx                 Chat
+    _layout.tsx                  três abas
+    index.tsx                    Chat
     dividas/
-      index.tsx               lista
-      [id].tsx                detalhe
-      nova.tsx                formulário de criação
-    painel.tsx                painel de endividamento
-  dividas/[id]/plano.tsx      cronograma de parcelas (M3)
-  dividas/simulador.tsx       simulador de quitação (M4)
+      _layout.tsx                pilha da aba
+      index.tsx                  lista
+      nova.tsx                   formulário de criação
+      simulador.tsx              simulador de quitação (M4)
+      [id]/index.tsx             detalhe
+      [id]/editar.tsx            edição
+      [id]/plano.tsx             cronograma de parcelas (M3)
+      [id]/renegociar.tsx        registro de acordo (M3)
+      contrato/index.tsx         envio de contrato (M1.5)
+      contrato/[id].tsx          revisão da extração (M1.5)
+    painel/
+      _layout.tsx                pilha da aba
+      index.tsx                  painel de endividamento
+      renda.tsx                  perfil de renda (M2)
+      token.tsx                  configuração de conexão
 ```
+
+Tudo vive **dentro de `(tabs)/`**: uma rota fora do grupo perde a barra de abas, e sair do
+simulador ou do plano levaria o usuário para fora da navegação em vez de voltar para a lista.
 
 Rota é a unidade de deep link: um card do chat consegue apontar para `dividas/[id]` sem
 conhecer a pilha de navegação. Isso é o que viabiliza M5.

@@ -160,6 +160,19 @@ export default function Painel() {
         </Card>
 
         <Card>
+          <Text style={styles.tituloSecao}>E se você pagar um pouco a mais?</Text>
+          <Text style={styles.conviteTexto}>
+            Duas formas de atacar as dívidas, com a data de liberdade de cada uma.
+          </Text>
+          <Button
+            label="Simular quitação"
+            onPress={() => router.push('/dividas/simulador')}
+            variant="secondary"
+            style={styles.acaoSimulador}
+          />
+        </Card>
+
+        <Card>
           <Text style={styles.tituloSecao}>Onde está concentrado</Text>
           <BarrasCriticidade itens={resumo.porCriticidade} />
         </Card>
@@ -212,6 +225,7 @@ const styles = StyleSheet.create({
   convite: { gap: spacing.sm },
   conviteTitulo: { ...typography.bodyStrong, color: colors.ink },
   conviteTexto: { ...typography.caption, color: colors.inkSoft },
+  acaoSimulador: { marginTop: spacing.md },
   vencimento: {
     flexDirection: 'row',
     justifyContent: 'space-between',
