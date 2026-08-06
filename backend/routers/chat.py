@@ -1,44 +1,48 @@
-from fastapi import APIRouter
-from pydantic import BaseModel
-import uuid
 import datetime
+import uuid
 
-# Usamos o modelo SendMessageRequest que criamos no models.py
-from models import SendMessageRequest
+from fastapi import APIRouter, Depends
+
+import schemas
+from auth import tenant_atual
 
 router = APIRouter(prefix="/v1", tags=["Chat"])
 
+
 @router.post("/chat/messages")
-def enviar_mensagem(req: SendMessageRequest):
+def enviar_mensagem(req: schemas.SendMessageRequest, _: str = Depends(tenant_atual)):
     """
-    Simula o Langchain recebendo uma mensagem do usuário 
-    e devolvendo a resposta da IA.
+    AINDA É MOCK. Devolve um card fixo, sem LLM.
+
+    Fica assim de propósito: o chat real é o Bloco 5 e depende dos novos `kind`
+    de card do M5. O que mudou aqui é só que a rota agora exige auth, como todas
+    as outras — deixá-la aberta seria uma porta sem tranca no meio da casa.
     """
-    
-    # Aqui, futuramente, você chamará o Langchain enviando o req.content
-    # e ele processará a resposta. Por enquanto, criamos uma resposta fixa.
-    
-    # Vamos simular que o assistente identificou a dívida e sugeriu um "Valor Justo"
-    card_valor_justo = {
+    card = {
         "kind": "valor_justo",
         "credor": "Banco Teste S/A",
-        "valorCobrado": 150000, # 1500,00 reais em centavos
-        "valorJusto": 90000,    # 900,00 reais
-        "script": "Olá! Verifiquei que meu saldo devedor principal é R$ 900,00. Gostaria de quitar à vista por esse valor. Podemos fechar acordo?",
+        "valorCobrado": 150000,
+        "valorJusto": 90000,
+        "script": (
+            "Olá! Verifiquei que meu saldo devedor principal é R$ 900,00. "
+            "Gostaria de quitar à vista por esse valor. Podemos fechar acordo?"
+        ),
         "fundamentos": [
-            "Art. 39, V, do CDC (Vantagem manifestamente excessiva)",
-            "Art. 42 do CDC (Cobrança abusiva)"
-        ]
+            "Art. 39, V, do CDC (vantagem manifestamente excessiva)",
+            "Art. 42 do CDC (cobrança abusiva)",
+        ],
     }
-    
-    # Resposta simulada do modelo de IA (Assistant)
-    resposta_ia = {
-        "id": str(uuid.uuid4()),
-        "role": "assistant",
-        "content": f"Você disse: '{req.content}'.\n\nComo seu assistente, eu analisei essa situação e criei uma estratégia para você renegociar essa dívida pagando um valor justo. Veja o card abaixo!",
-        "cards": [card_valor_justo],
-        "createdAt": datetime.datetime.now().isoformat()
+
+    return {
+        "message": {
+            "id": str(uuid.uuid4()),
+            "role": "assistant",
+            "content": (
+                f"Você disse: '{req.content}'.\n\n"
+                "Ainda estou em modo de demonstração — este card é um exemplo fixo, "
+                "não uma análise da sua dívida."
+            ),
+            "cards": [card],
+            "createdAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        }
     }
-    
-    # O aplicativo espera `{ message: {...} }`
-    return {"message": resposta_ia}
