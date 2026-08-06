@@ -164,14 +164,15 @@ Prioridade de cobertura, nesta ordem: `src/util/money.ts` (dinheiro), `src/api/c
 
 ## 8. Dívida técnica conhecida
 
-> `SafeAreaView` importado de `react-native` está deprecado e não dá controle fino de notch.
-> Troca por `react-native-safe-area-context` faz parte de M0.
+> `.npmrc` tem `legacy-peer-deps=true`, que silencia conflito de peer dependency. Ele já
+> escondeu três problemas reais em M0 (reanimated 4 sem `react-native-worklets`,
+> `react-test-renderer` fora de versão com o React, e `jest` 30 sobre o ecossistema 29 do
+> `jest-expo`). Ao adicionar dependência, confira a resolução manualmente com `npm ls`.
 
-> Não há ESLint, Prettier nem suíte de testes configurados. A única verificação hoje é
-> `npm run typecheck`. Também entra em M0.
-
-> O repositório não está sob controle de versão (`git init` ainda não foi feito). Isso precisa
-> ser resolvido antes de qualquer trabalho paralelo entre agentes.
+> Versões que **não** podem ser atualizadas sem verificação: `eslint` fixo em `^9` (a 10 quebra
+> o `eslint-plugin-react` que vem no `eslint-config-expo`), `jest` em `^29` (o `jest-expo` 57
+> traz o ecossistema 29) e `@testing-library/react-native` em `^13` (a 14.0.1 tem um import
+> quebrado para um módulo `test-renderer` inexistente).
 
 ---
 

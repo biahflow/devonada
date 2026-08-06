@@ -21,36 +21,37 @@
 - [x] Contrato de dívidas em `src/api/types.ts` e `src/api/debts.ts`.
 - [~] `src/api/debts.ts` existe mas **não é importado por nenhuma UI**. É o ponto de partida
       de M1.
-- [ ] Repositório ainda não está sob controle de versão. `git init` antes de qualquer trabalho
-      paralelo.
+- [x] Repositório sob controle de versão.
 
 ---
 
-## M0 — Fundação do front
+## M0 — Fundação do front — entregue
 
 Nada de dívidas ainda. Este milestone existe porque construir quatro telas sobre um
 `App.tsx` single-screen sem navegação, sem cache e sem componentes de estado significa
 reescrever tudo em M2.
 
-- [ ] Migrar para **expo-router** com a estrutura de rotas de `docs/architecture.md`, seção 3.
-      Três abas: Chat · Dívidas · Painel. (ADR 0001)
-- [ ] `react-native-safe-area-context` no lugar do `SafeAreaView` deprecado do `react-native`.
-- [ ] **TanStack Query**: `QueryClientProvider` no layout raiz, política de retry alinhada ao
-      `ApiError` (nunca em `4xx`; até duas vezes em `0` e `5xx`). (ADR 0002)
-- [ ] Fonte **Inter** via `expo-font`, com fallback de sistema durante o carregamento.
-- [ ] `@expo/vector-icons` (Feather).
-- [ ] Atualizar `src/theme/theme.ts` para a paleta híbrida e acrescentar `shadow`, `display` e
+- [x] Migrado para **expo-router** com a estrutura de rotas de `docs/architecture.md`, seção 3.
+      Três abas: Chat · Dívidas · Painel. `App.tsx` removido; a entrada é `expo-router/entry`.
+      (ADR 0001)
+- [x] `react-native-safe-area-context` no lugar do `SafeAreaView` deprecado do `react-native`.
+- [x] **TanStack Query**: `QueryClientProvider` em `app/_layout.tsx`, com a política de retry
+      alinhada ao `ApiError` (nunca em `4xx`; até duas vezes em `0` e `5xx`). (ADR 0002)
+- [x] Fonte **Inter** via `@expo-google-fonts/inter`, com fallback de sistema se o
+      carregamento falhar.
+- [x] `@expo/vector-icons` (Feather).
+- [x] `src/theme/theme.ts` na paleta híbrida, com `shadow`, `fontFamily`, `display` e
       `eyebrow`. (ADR 0004, `docs/design-system.md`)
-- [ ] Construir os componentes de `docs/design-system.md`: `Screen`, `PageHeader`, `Card`,
-      `FormField`, `CurrencyInput`, `Feedback`, `LoadingState`, `EmptyState`, `ErrorState`,
-      `Badge`, `MoneyText`. Estender `Button` com `danger` e `ghost`.
-- [ ] ESLint + Prettier + Jest + React Native Testing Library, com scripts `lint` e `test`.
-- [ ] Primeiros testes: `formatBRL` (incluindo negativo, zero e milhar) e `CurrencyInput`
-      (a garantia de que a entrada nunca vira float).
-- [ ] Criar `.env.example` — `README.md:32` já manda copiá-lo e ele não existe.
+- [x] Componentes de `docs/design-system.md`: `Screen`, `PageHeader`, `Card`, `FormField`,
+      `CurrencyInput`, `Feedback`, `LoadingState`, `EmptyState`, `ErrorState`, `Badge` /
+      `CriticidadeBadge`, `MoneyText`. `Button` com `danger` e `ghost`.
+- [x] ESLint + Prettier + Jest + React Native Testing Library, com scripts `lint` e `test`.
+- [x] Testes: `formatBRL` (zero, centavo isolado, milhar, negativo, float acidental) e
+      `CurrencyInput` (a garantia de que o valor emitido nunca é fracionário). 13 passando.
+- [x] `.env.example` criado.
 
-**Sai com:** navegação de três abas rodando com o design system portado, `npm run lint`,
-`npm test` e `npm run typecheck` verdes, e o `CurrencyInput` provado por teste.
+**Saiu com:** navegação de três abas sobre o design system portado, `typecheck`, `lint` e
+`test` verdes, e o `CurrencyInput` provado por teste.
 
 ---
 

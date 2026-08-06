@@ -38,4 +38,6 @@ arquitetura, contrato de API ou Definition of Done mudar, atualize somente
 npm install
 npm start           # Expo dev server
 npm run typecheck   # tsc --noEmit
+npm run lint        # eslint
+npm test            # jest
 ```

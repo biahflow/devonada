@@ -104,6 +104,8 @@ npm start           # Expo dev server (Expo Go ou simulador)
 npm run android
 npm run ios
 npm run typecheck   # tsc --noEmit
+npm run lint        # eslint
+npm test            # jest
 ```
 
 Backend (rodado pelo dono do repositório, a partir de `backend/` com o venv ativo):

@@ -25,10 +25,14 @@ Ver ADR 0004.
 | `primarySoft` | `#D6EEE2` | superfícies verdes suaves, anel de foco (pine-100) |
 | `primarySurface` | `#EDF7F2` | badge e fundo de ícone ativo (pine-50) |
 | `primaryDeep` | `#123126` | painel escuro, header de destaque (pine-900) |
+| `onPrimary` | `#FFFFFF` | texto e ícone sobre superfície primária |
 | `accent` | `#C9A24B` | **acento**: progresso, economia, data de liberdade |
 | `accentSoft` | `#F7EFD9` | fundo de badge de conquista |
 | `border` | `#E2E7E3` | bordas de card e campo |
+| `neutralSurface` | `#EEF1EE` | badge neutro |
 | `danger` | `#A5493D` | erro e ação destrutiva — **e nada além disso** |
+| `dangerSurface` | `#FBEAE6` | fundo suave de erro e de "juros altos" |
+| `dangerBorder` | `#F0C9C1` | borda do banner de erro |
 | `warning` | `#B07D2B` | atraso, atenção factual, sem alarme |
 | `success` | `#2F6F5E` | confirmação (o verde sereno original) |
 
@@ -78,27 +82,28 @@ Nunca use sombra dura ou borda grossa para separar superfícies.
 
 ## 3. Tipografia
 
-**Inter**, carregada via `expo-font` em M0. Fallback para a fonte de sistema enquanto carrega.
+**Inter**, carregada via `@expo-google-fonts/inter` em `app/_layout.tsx`. Se a fonte falhar, o
+app sobe mesmo assim com a fonte de sistema — segurar a splash para sempre seria pior.
 
-A escala de `theme.ts` permanece, com dois acréscimos:
+Com fontes customizadas o React Native **não deriva peso a partir de `fontWeight`** de forma
+confiável entre plataformas. Por isso cada peso é uma família própria, exposta em `fontFamily`:
 
 ```ts
-typography = {
-  body:       { fontSize: 16, lineHeight: 24 },
-  bodyStrong: { fontSize: 16, lineHeight: 24, fontWeight: '600' },
-  title:      { fontSize: 20, lineHeight: 28, fontWeight: '700' },
-  caption:    { fontSize: 13, lineHeight: 18 },
-  numeric:    { fontSize: 20, lineHeight: 26, fontWeight: '700' },
-  display:    { fontSize: 28, lineHeight: 34, fontWeight: '700', letterSpacing: -0.8 },
-  eyebrow:    { fontSize: 11, lineHeight: 14, fontWeight: '700', letterSpacing: 1.6 },
+fontFamily = {
+  regular: 'Inter_400Regular',
+  medium:  'Inter_600SemiBold',
+  bold:    'Inter_700Bold',
 }
 ```
 
+A escala de `theme.ts` usa essas famílias no lugar de `fontWeight`, e ganha `display` e
+`eyebrow`. `numeric` e `MoneyText` aplicam `fontVariant: ['tabular-nums']` para os dígitos não
+dançarem entre linhas numa coluna de valores.
+
 - `display` é o número grande do painel e do simulador. Tracking negativo, como no Biahflow.
-- `eyebrow` é o rótulo acima do título, em maiúsculas e `primary`. Aplique `textTransform:
-  'uppercase'` no componente, não no texto da string — a copy fica legível no código.
-- `numeric` é para valor monetário em linha. Use `fontVariant: ['tabular-nums']` sempre que
-  houver coluna de números, para os dígitos não dançarem entre linhas.
+- `eyebrow` é o rótulo acima do título, em maiúsculas e `primary`. O `textTransform:
+  'uppercase'` fica no componente, não no texto da string — a copy segue legível no código.
+- `numeric` é para valor monetário em linha, sempre via `MoneyText`.
 
 ---
 
@@ -106,10 +111,9 @@ typography = {
 
 `src/components/ui/`. Um componente aqui **não importa de `src/api/`** — recebe dado por prop.
 
-### Já existem
+### `Button`
 
-**`Button`** — `variant: 'primary' | 'secondary'`, `loading`, `disabled`, `minHeight: 48`.
-M0 acrescenta `danger` e `ghost`:
+`variant: 'primary' | 'secondary' | 'danger' | 'ghost'`, `loading`, `disabled`, `minHeight: 48`.
 
 | Variante | Fundo | Texto | Uso |
 |---|---|---|---|
@@ -118,10 +122,11 @@ M0 acrescenta `danger` e `ghost`:
 | `danger` | `danger` | branco | excluir, apagar — sempre com confirmação |
 | `ghost` | transparente | `inkSoft` | ação terciária, cancelar |
 
-### A construir em M0
+### Demais componentes
 
 **`Screen`** — wrapper de tela: `SafeAreaView` do `react-native-safe-area-context`, fundo
-`background`, padding horizontal `spacing.lg`. Toda rota começa por ele.
+`background`, padding horizontal `spacing.lg` (removível com `flush` para listas que sangram
+até a borda). Toda rota começa por ele.
 
 **`PageHeader`** — `eyebrow` opcional + título (`title` ou `display`) + descrição em `inkSoft`
 + slot de ação à direita. Cabeçalho de toda tela que não é o chat.
