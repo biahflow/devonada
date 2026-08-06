@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
 import { ApiError } from '../../api/client';
+import { env } from '../../config/env';
 import { Button } from './Button';
 import { colors, radius, spacing, typography } from '../../theme/theme';
 
@@ -21,6 +22,18 @@ function describe(error: unknown): { title: string; message: string } {
       return {
         title: 'Sem conexão',
         message: 'Confira sua internet e tente de novo. Nada do que você fez foi perdido.',
+      };
+    }
+    if (error.status === 404) {
+      // 404 tem dois sentidos reais: o recurso sumiu, ou o app está falando com
+      // um servidor que não é o do Buddy. A dica de ambiente só existe em
+      // desenvolvimento — foi o que faltou para diagnosticar rápido quando outro
+      // projeto ocupou a porta 8000 e respondeu 404 em tudo.
+      return {
+        title: 'Não encontramos isso',
+        message: __DEV__
+          ? `Pode ter sido removido, ou o app não está falando com o servidor certo.\n\nAPI: ${env.apiBaseUrl}`
+          : 'Pode ter sido removido, ou o app não está conseguindo falar com o servidor certo.',
       };
     }
     if (error.status >= 500) {

@@ -6,6 +6,16 @@ module.exports = [
   ...expoConfig,
   ...tseslint.configs.recommended,
   {
+    // Setup e testes rodam em Node sob jest: globais de teste e require() são
+    // o idioma correto ali, não uma exceção sendo aberta no código do app.
+    files: ['jest.setup.js', '**/*.test.ts', '**/*.test.tsx'],
+    languageOptions: { globals: { jest: 'readonly', require: 'readonly' } },
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+      'no-undef': 'off',
+    },
+  },
+  {
     files: ['**/*.ts', '**/*.tsx'],
     rules: {
       // Guardrail: valor monetário é centavo inteiro. `any` costuma ser a porta
