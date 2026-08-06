@@ -5,6 +5,8 @@
  */
 export type Uuid = string;
 export type IsoDate = string;
+/** Mês no formato `YYYY-MM`. */
+export type IsoMes = string;
 
 /** Triagem por criticidade (Fase 1). */
 export type CriticidadeTipo =
@@ -82,4 +84,62 @@ export interface SendMessageRequest {
 
 export interface SendMessageResponse {
   message: ChatMessage;
+}
+
+/* ---------- Painel de endividamento (M2) ---------- */
+
+export interface TotalPorCriticidade {
+  tipo: CriticidadeTipo;
+  /** em centavos */
+  total: number;
+  quantidade: number;
+}
+
+export interface VencimentoProximo {
+  dividaId: Uuid;
+  credor: string;
+  /** em centavos */
+  valor: number;
+  vencimento: IsoDate;
+  /** derivado no BACKEND — o fuso do aparelho não decide o que está atrasado */
+  situacao: 'pendente' | 'paga' | 'atrasada';
+}
+
+export interface PontoEvolucao {
+  mes: IsoMes;
+  /** em centavos */
+  saldo: number;
+}
+
+/**
+ * Agregados do painel. TODOS calculados no backend — o app não soma coluna,
+ * não tira média e não deriva percentual (docs/adr/0003).
+ *
+ * Os campos ligados a renda são opcionais: ausentes significam "o usuário ainda
+ * não informou", e a UI convida a preencher em vez de exibir zero.
+ */
+export interface ResumoDividas {
+  /** em centavos */
+  totalDevido: number;
+  totalQuitadoNoAno: number;
+  quantidadeDividas: number;
+  /** basis points (380 = 3,80% a.m.) */
+  custoMedioJurosMensal?: number;
+
+  rendaMensal?: number;
+  /** basis points (2200 = 22,00% da renda) */
+  comprometimentoRenda?: number;
+  minimoExistencial?: number;
+  margemDisponivel?: number;
+
+  porCriticidade: TotalPorCriticidade[];
+  proximosVencimentos: VencimentoProximo[];
+  /** no máximo 12 pontos, do mais antigo ao mais recente */
+  evolucaoSaldo: PontoEvolucao[];
+}
+
+export interface PerfilFinanceiro {
+  /** em centavos. Ausente = não informado, nunca zero. */
+  rendaMensal?: number;
+  dependentes?: number;
 }
