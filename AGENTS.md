@@ -26,8 +26,7 @@ arquitetura, contrato de API ou Definition of Done mudar, atualize somente
 
 ## Antes de abrir pull request
 
-- `npm run typecheck` passa.
-- Lint e testes aplicáveis passam (`docs/engineering-conventions.md`).
+- Os quatro gates passam: `typecheck`, `lint`, `test` e `bundle:check`.
 - Nenhuma verificação de qualidade foi desativada para concluir a tarefa.
 - Doc afetado foi atualizado no mesmo commit.
 - O template `.github/pull_request_template.md` está preenchido.
@@ -37,7 +36,11 @@ arquitetura, contrato de API ou Definition of Done mudar, atualize somente
 ```bash
 npm install
 npm start           # Expo dev server
-npm run typecheck   # tsc --noEmit
-npm run lint        # eslint
-npm test            # jest
+npm run typecheck    # tsc --noEmit
+npm run lint         # eslint
+npm test             # jest — inclui os testes de tela
+npm run bundle:check # expo export: prova que o grafo inteiro compila
 ```
+
+Nenhum desses gates prova que a tela está legível ou cabe no aparelho. Isso exige validação
+humana em device — não afirme que testou o que não dá para testar daqui.

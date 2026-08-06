@@ -103,10 +103,28 @@ npm install
 npm start           # Expo dev server (Expo Go ou simulador)
 npm run android
 npm run ios
-npm run typecheck   # tsc --noEmit
-npm run lint        # eslint
-npm test            # jest
+npm run typecheck    # tsc --noEmit
+npm run lint         # eslint
+npm test             # jest — inclui os testes de tela
+npm run bundle:check # expo export: prova que o grafo inteiro compila
 ```
+
+### O que cada gate pega — e o que nenhum deles pega
+
+| Gate | Pega |
+|---|---|
+| `typecheck` | prop renomeada, tipo divergente do contrato, união não exaustiva |
+| `lint` | regra de hook violada, `any`, `setState` em efeito |
+| `test` | **lógica e comportamento de tela**: ordenação errada, estado não tratado, copy que sumiu |
+| `bundle:check` | import quebrado, módulo que não resolve em arquivo que nenhum teste importa |
+
+As duas primeiras categorias se sobrepõem menos do que parece: renomear prop é `typecheck`;
+inverter uma ordem de prioridade passa por ele intacto e só o teste de tela vê.
+
+> **Nenhum gate prova que a tela está legível, bonita ou que cabe no aparelho.** Eles provam que
+> ela renderiza e reage. Layout, contraste percebido, comportamento de teclado e safe area em
+> aparelho com notch **exigem validação humana em device** — um agente não consegue fazer isso e
+> não deve afirmar que fez.
 
 Backend (rodado pelo dono do repositório, a partir de `backend/` com o venv ativo):
 
@@ -132,8 +150,10 @@ Uma tarefa só entra em execução quando:
 
 ## Definition of Done
 
-- [ ] `npm run typecheck` passa.
-- [ ] Lint e testes aplicáveis passam. Nenhuma verificação foi desativada.
+- [ ] Os quatro gates passam: `typecheck`, `lint`, `test` e `bundle:check`.
+- [ ] Nenhuma verificação foi desativada para concluir a tarefa.
+- [ ] Tela nova tem teste em `src/test/screens/` cobrindo os quatro estados.
+- [ ] O que **não** foi validado em device está dito explicitamente no relato.
 - [ ] Os quatro estados de tela estão implementados e verificáveis.
 - [ ] Nenhum valor monetário é calculado no cliente.
 - [ ] Nenhum dado financeiro ou pessoal aparece em log, analytics ou crash report.

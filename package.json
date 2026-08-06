@@ -11,7 +11,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "bundle:check": "expo export --platform ios --output-dir .expo/bundle-check --clear"
   },
   "jest": {
     "preset": "jest-expo",

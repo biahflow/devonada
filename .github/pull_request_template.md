@@ -32,6 +32,11 @@ O que muda, do ponto de vista do usuário.
 - [ ] `npm run typecheck`
 - [ ] `npm run lint`
 - [ ] `npm test`
-- [ ] Os quatro estados de tela verificados (carregando, erro, vazio, conteúdo)
-- [ ] Testado em iOS
-- [ ] Testado em Android
+- [ ] `npm run bundle:check`
+- [ ] Tela nova tem teste em `src/test/screens/` cobrindo os quatro estados
+
+Validação humana — os gates acima **não** substituem isto:
+
+- [ ] Aberto em iOS
+- [ ] Aberto em Android
+- [ ] Layout, legibilidade e safe area conferidos em aparelho real

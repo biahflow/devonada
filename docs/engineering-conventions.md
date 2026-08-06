@@ -97,9 +97,27 @@ Repetido aqui porque é a regra mais violada por descuido:
 
 ## 7. Testes
 
-Jest + React Native Testing Library, a configurar em M0.
+Jest + React Native Testing Library.
 
-- Arquivo ao lado do código: `money.test.ts` junto de `money.ts`.
+**Duas camadas, dois lugares:**
+
+| Camada | Onde | O que prova |
+|---|---|---|
+| Unidade | ao lado do código (`money.test.ts` junto de `money.ts`) | função pura e componente isolado |
+| Tela | `src/test/screens/` | a rota inteira: quatro estados, com a API mockada |
+
+> **Teste de tela NÃO fica dentro de `app/`.** Todo arquivo ali é uma rota para o expo-router.
+> Os testes importam a rota por caminho relativo — parêntese em import é inofensivo.
+
+A infraestrutura mora em `src/test/`: `render.tsx` (envolve em `QueryClientProvider` e
+`SafeAreaProvider`), `mocks.ts` (fábricas de domínio) e `api.ts` (`responderPorRota`, que declara
+o que cada rota devolve em vez de encadear `mockResolvedValueOnce` — sobrevive a mudança na ordem
+das chamadas).
+
+`request` e `upload` são mockados globalmente em `jest.setup.js`. Como eles são o único egress do
+app, **nenhum teste consegue tocar a rede** sem alterar aquele arquivo.
+
+- Arquivo de unidade ao lado do código.
 - Nome do teste descreve comportamento em pt-BR: `it('formata centavos negativos com sinal')`.
 - Prioridade de cobertura: `src/util/money.ts` → `src/api/client.ts` → hooks de mutação →
   os quatro estados das telas.
@@ -115,9 +133,14 @@ Antes de entregar:
 
 ```bash
 npm run typecheck
-npm run lint        # a partir de M0
-npm test            # a partir de M0
+npm run lint
+npm test
+npm run bundle:check
 ```
+
+`bundle:check` roda `expo export` e produz o bundle de produção do grafo inteiro. É o que pega
+import quebrado e módulo que não resolve em arquivo que nenhum teste importa — a classe de erro
+que, sem ele, só aparece ao abrir o app.
 
 Nenhuma verificação é desativada para concluir uma tarefa. Regra de lint que atrapalha se
 discute e se muda com justificativa — não se silencia com comentário pontual.
