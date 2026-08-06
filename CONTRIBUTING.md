@@ -15,5 +15,6 @@ interface está legível ou cabe no aparelho — isso continua exigindo abrir o 
 Mudança de estrutura, token de design ou contrato de API atualiza o documento correspondente
 **no mesmo commit**.
 
-O diretório `backend/` é desenvolvido pelo dono do repositório e não é alterado por agentes de
-código. Necessidade de endpoint novo se registra em `docs/api-contract.md`.
+O backend está em `backend/` (FastAPI + Postgres) — ver `docs/backend.md` para subir e
+`docs/api-contract.md` para o contrato. Regra financeira sem fonte citável não entra: devolve
+`None` e o app exibe "ainda não calculado".

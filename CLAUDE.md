@@ -17,14 +17,18 @@ arquitetura, contrato de API ou Definition of Done mudar, atualize somente
 `docs/guardrails.md`, `docs/api-contract.md`, `docs/design-system.md`, `docs/domain.md`.
 Sequência de construção em `roadmap.md`.
 
-## `backend/` não é seu
+## `backend/` faz parte do repositório
 
-> O diretório `backend/` (FastAPI) é desenvolvido pelo dono do repositório. **Agentes não
-> alteram nada dentro dele** — nem para consertar um bug óbvio, nem para destravar uma tela.
-> Se o front precisa de um endpoint que não existe, ou se o backend diverge do contrato,
-> especifique a necessidade em `docs/api-contract.md` e reporte. Não implemente.
+Agentes desenvolvem o backend também. O que muda em relação ao front é o rigor exigido:
 
-O mesmo vale para `backend/venv/` e `backend/requirements.txt`.
+> **Nenhuma regra financeira é inventada.** Toda regra em `backend/domain/` leva a FONTE no
+> docstring (artigo de lei, decreto, ou o contrato do próprio usuário). Regra sem fonte
+> devolve `None`, e o app exibe "ainda não calculado" — que é a verdade. O `valorCobrado * 1.1`
+> que existia aqui é o exemplo do que não fazer: um número inventado que o usuário poderia
+> levar para uma negociação real.
+
+Ler `docs/backend.md` antes de tocar em `backend/`. Mudança de contrato atualiza
+`docs/api-contract.md` no mesmo commit. `backend/venv/` continua fora do versionamento.
 
 ## Claude Code
 

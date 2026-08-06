@@ -50,8 +50,10 @@ backend/                     FastAPI — território do dono do repositório
 docs/                        documentos canônicos
 ```
 
-**`backend/` não é editável por agentes.** Se o front precisa de um endpoint que não existe,
-especifique-o em `docs/api-contract.md` e reporte a necessidade. Não implemente.
+**O backend faz parte do repositório** e é desenvolvido por agentes também — ver
+`docs/backend.md`. A exigência extra lá: **nenhuma regra financeira é inventada**. Toda regra em
+`backend/domain/` cita a fonte no docstring; regra sem fonte devolve `None` e o app exibe
+"ainda não calculado".
 
 ---
 

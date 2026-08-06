@@ -439,49 +439,52 @@ preenchido para o usuário confirmar. Ver `guardrails.md`, seção 7.2.
 
 ### Bloco 0 — fundação (destrava tudo o resto)
 
-- [x] `id: str` em `backend/models.py` — sem isso, `POST /v1/dividas` estourava `ValidationError`
-- [ ] **Persistência real** — hoje `dividas_db` é lista em memória e some a cada reload do uvicorn
-- [ ] **Autenticação** — o cliente envia `Authorization: Bearer`, o backend ignora
-- [ ] `tipo` validado como `Literal` dos quatro valores de `CriticidadeTipo` (seção 1.2)
-- [ ] CORS restrito — hoje `allow_origins=["*"]`
+- [x] `id: str` — era `int` e fazia `POST /v1/dividas` estourar `ValidationError`
+- [x] **Persistência real** — Postgres via SQLAlchemy + Alembic (`backend/docker-compose.yml`)
+- [x] **Autenticação** — Bearer token com comparação em tempo constante; todo query filtra tenant
+- [x] `tipo` validado como `Literal` dos quatro valores de `CriticidadeTipo`
+- [x] CORS restrito às origens do Expo
 
 ### Bloco 1 — M1 · CRUD de dívidas
 *Destrava: detalhe, edição, quitação e exclusão. Quatro telas prontas esperando.*
 
 - [x] `GET /v1/dividas` — **visto funcionando no app**
-- [~] `POST /v1/dividas` — corrigido no Bloco 0, ainda não exercitado em device
-- [ ] `GET /v1/dividas/{id}` — seção 3, M1
-- [ ] `PATCH /v1/dividas/{id}` — seção 3, M1
-- [ ] `POST /v1/dividas/{id}/quitacao` — seção 3, M1
-- [ ] `DELETE /v1/dividas/{id}` — exclusão **lógica**, seção 3, M1
-- [ ] Campos novos de `Divida`: `situacao`, `saldoDevedor`, `taxaJurosMensal` (basis points),
-      `totalParcelas`, `parcelasPagas`, `proximoVencimento`
+- [~] `POST /v1/dividas` — implementado e exercitado por request; falta ver no app
+- [~] `GET /v1/dividas/{id}` — implementado; 404 (nunca 403) para id de outro tenant
+- [~] `PATCH /v1/dividas/{id}` — implementado
+- [~] `POST /v1/dividas/{id}/quitacao` — implementado; 409 ao quitar duas vezes
+- [~] `DELETE /v1/dividas/{id}` — exclusão **lógica**, implementada
+- [x] Campos novos de `Divida`: `situacao`, `saldoDevedor`, `taxaJurosMensal`, `totalParcelas`,
+      `parcelasPagas`, `proximoVencimento`
+- [x] `valorCorrigido` pela taxa do contrato — **`null` sem taxa**, substituindo o `* 1.1`
+- [x] `possivelPrescricao` pelo art. 206, §5º, I do Código Civil
 
 ### Bloco 2 — M2 · perfil de renda
 *Destrava: metade do painel. Vem antes do resumo — sem renda, comprometimento e mínimo
 existencial não têm o que exibir.*
 
-- [ ] `GET /v1/perfil` — seção 3, M2
-- [ ] `PUT /v1/perfil` — seção 3, M2
-- [ ] Cálculo do mínimo existencial a partir de renda e dependentes
+- [~] `GET /v1/perfil` — implementado; campos ausentes quando não informados
+- [~] `PUT /v1/perfil` — implementado
+- [x] Mínimo existencial pelo Decreto 11.150/2022 (25% do salário mínimo).
+      **`dependentes` não entra na fórmula** — o decreto não escala por dependente
 
 ### Bloco 3 — M2 · resumo
 *Destrava: a outra metade do painel.*
 
-- [ ] `GET /v1/dividas/resumo` com `?mes=` — seção 3, M2
-- [ ] Agregados: totais, `custoMedioJurosMensal`, `porCriticidade`
-- [ ] `proximosVencimentos` com `situacao` derivada **no backend** (o fuso do aparelho não decide
-      o que está atrasado)
-- [ ] `evolucaoSaldo`, até 12 pontos
+- [~] `GET /v1/dividas/resumo` com `?mes=` — implementado
+- [x] Agregados: totais, `custoMedioJurosMensal` (ponderado pelo saldo), `porCriticidade`
+- [ ] `proximosVencimentos` — volta **vazio** até o Bloco 5; sem parcelas não há vencimento real
+- [x] `evolucaoSaldo` via `saldo_snapshot`, um ponto por mês, acumulando a partir de hoje
 
 ### Bloco 4 — M1.5 · ingestão de contrato
 *Destrava: as duas telas de contrato. É o que remove o atrito de digitar a taxa de juros à mão.*
 
-- [ ] `POST /v1/contratos` — multipart, resposta `202`, seção M1.5
-- [ ] `GET /v1/contratos/{id}` — polling, seção M1.5
-- [ ] Extração com `valor`, `confianca` e **`trecho` literal** — sem trecho o front descarta o
-      campo, então extrair sem citar é trabalho perdido
-- [ ] Descarte do arquivo bruto após a extração (ADR 0005)
+- [~] `POST /v1/contratos` — multipart, `202`, processamento em background
+- [~] `GET /v1/contratos/{id}` — polling
+- [x] Extração com extrator plugável (`BUDDY_EXTRATOR`), Claude com visão lendo PDF e foto
+- [x] **Campo sem `trecho` é zerado no servidor** antes de sair da rota (guardrail 8.1)
+- [x] Arquivo lido em memória e nunca gravado em disco (ADR 0005)
+- [ ] **Exige `ANTHROPIC_API_KEY`.** Sem ela o upload responde "falhou" com mensagem útil
 
 ### Bloco 5 — sem front construído ainda
 
@@ -496,5 +499,7 @@ existencial não têm o que exibir.*
 | Endpoint | Estado |
 |---|---|
 | `GET /v1/dividas` | funcionando — lista carrega no app |
-| `POST /v1/chat/messages` | mock: ecoa a entrada e devolve card fixo |
-| todos os demais | não existem |
+| Blocos 0 a 4 | implementados e exercitados por request real; **ainda não vistos no app** |
+| `POST /v1/chat/messages` | mock: card fixo, sem LLM. Ganhou auth |
+| Leitura de contrato | implementada, **bloqueada** por falta de `ANTHROPIC_API_KEY` |
+| Bloco 5 (M3/M4/M5) | não existe |

@@ -20,7 +20,8 @@ arquitetura, contrato de API ou Definition of Done mudar, atualize somente
 2. Dinheiro é **centavo inteiro** em todo lugar. Nunca float, nunca `Number` com decimal.
 3. `src/api/client.ts` é o **único egress de rede** do app. Nenhum `fetch` fora dele.
 4. Nenhum segredo no bundle. `EXPO_PUBLIC_*` é público por definição.
-5. `backend/` é território do dono do repositório. Agentes não editam nada lá.
+5. **Nenhuma regra financeira é inventada.** Toda regra em `backend/domain/` cita a fonte;
+   sem fonte, devolve `None` e o app exibe "ainda não calculado".
 6. Sem número de fonte confiável, o assistente **não afirma** — ele diz que não sabe.
 7. Tom anti-ansiedade: vermelho é exceção, não estética.
 
