@@ -5,7 +5,17 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from config import get_settings
-from routers import chat, contratos, dividas, lembretes, parcelas, perfil, resumo, simulacoes
+from routers import (
+    chat,
+    contratos,
+    dividas,
+    lembretes,
+    parcelas,
+    perfil,
+    resumo,
+    revisao,
+    simulacoes,
+)
 
 settings = get_settings()
 
@@ -59,6 +69,7 @@ async def erro_validacao(_: Request, exc: RequestValidationError):
 app.include_router(resumo.router)
 app.include_router(simulacoes.router)
 app.include_router(parcelas.router)
+app.include_router(revisao.router)
 app.include_router(dividas.router)
 app.include_router(perfil.router)
 app.include_router(lembretes.router)

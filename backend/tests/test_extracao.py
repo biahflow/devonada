@@ -2,6 +2,7 @@ from collections.abc import Sequence
 
 import pytest
 
+from extracao import regras
 from extracao.base import ArquivoContrato, ErroDeExtracao
 from extracao.extrator_llm import ExtratorLLM
 from llm.base import Bloco, BlocoDocumento, BlocoImagem, ErroDeLLM
@@ -12,18 +13,9 @@ def _campo(valor=None, trecho=None, confianca="baixa"):
 
 
 def _resposta(**over):
-    campos = {
-        nome: _campo()
-        for nome in (
-            "credor",
-            "valorCobrado",
-            "dataOrigem",
-            "tipo",
-            "taxaJurosMensal",
-            "totalParcelas",
-            "cet",
-        )
-    }
+    # Derivado de `regras.CAMPOS`, não de uma cópia: campo novo no schema entra
+    # aqui sozinho, e o helper não fica descrevendo um contrato que já mudou.
+    campos = {nome: _campo() for nome in regras.CAMPOS}
     campos.update(over)
     return {"campos": campos, "alertas": []}
 

@@ -31,6 +31,19 @@ class Settings(BaseSettings):
     # points. 2500 = 25%, conforme o Decreto 11.150/2022, art. 3º.
     minimo_existencial_bps: int = 2500
 
+    # TETOS DE JUROS DO CONSIGNADO, em basis points ao mês. Definidos por
+    # resolução do CNPS, que os revê periodicamente — por isso NÃO TÊM DEFAULT.
+    # Zero significa "não configurado", e a regra de revisão devolve None em vez
+    # de comparar com um teto chutado (ADR 0008). O achado que depende deles
+    # simplesmente não é produzido.
+    teto_juros_consignado_inss_bps: int = 0
+    teto_juros_cartao_consignado_bps: int = 0
+
+    # Data de vigência dos tetos acima, em ISO (AAAA-MM-DD). Viaja na resposta da
+    # revisão e aparece na tela: se o teto estiver velho, o usuário vê a idade do
+    # número que embasou o achado em vez de confiar nele às cegas.
+    tetos_vigentes_em: str = ""
+
     # Provedor de LLM. Uma escolha para o servidor inteiro; as capacidades
     # (extração, assistente) não sabem qual é. Ver docs/adr/0007.
     llm_provider: str = "openai"

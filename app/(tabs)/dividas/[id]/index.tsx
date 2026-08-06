@@ -128,6 +128,11 @@ export default function DetalheDivida() {
             onPress={() => router.push(`/dividas/${divida.id}/plano`)}
           />
           <Button
+            label="Revisar cobrança"
+            onPress={() => router.push(`/dividas/${divida.id}/revisao`)}
+            variant="secondary"
+          />
+          <Button
             label="Editar"
             onPress={() => router.push(`/dividas/${divida.id}/editar`)}
             variant="secondary"

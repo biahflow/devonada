@@ -54,3 +54,4 @@ quanto o das certas — ele impede que o mesmo caminho seja tentado duas vezes.
 | [0005](0005-descarte-do-arquivo-de-contrato.md) | O arquivo do contrato é descartado após a extração | aceito |
 | [0006](0006-postgres-token-fixo-e-extrator-plugavel.md) | Postgres, token fixo e extrator plugável | aceito (extrator plugável substituído pela 0007) |
 | [0007](0007-camada-de-provedor-de-llm.md) | Camada de provedor de LLM, e OpenAI como padrão | aceito |
+| [0008](0008-valor-justo-e-soma-de-achados.md) | `valorJusto` é soma de achados citáveis, não estimativa | aceito |

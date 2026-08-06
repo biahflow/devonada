@@ -19,13 +19,19 @@ from assistente import (
 from auth import tenant_atual
 from db import get_db
 from domain.simulacao import economia_vs_minimo, simular
+from routers.revisao import revisar_divida
 from routers.simulacoes import carregar_dividas_simulaveis, mes_atual
 
 router = APIRouter(prefix="/v1/chat", tags=["Chat"])
 
 TETO_HISTORICO = 50
 
-Card = schemas.DividaResumoCard | schemas.PlanoSugeridoCard | schemas.DividaPropostaCard
+Card = (
+    schemas.DividaResumoCard
+    | schemas.PlanoSugeridoCard
+    | schemas.DividaPropostaCard
+    | schemas.ValorJustoCard
+)
 
 
 def _contexto(db: Session, tenant: str) -> ContextoDoUsuario:
@@ -107,6 +113,38 @@ def montar_cards(db: Session, tenant: str, pedidos: list[PedidoDeCard]) -> list[
                     proximoVencimento=vencimento,
                     situacao=d.situacao,  # type: ignore[arg-type]
                     criticidade=d.tipo,  # type: ignore[arg-type]
+                )
+            )
+
+        elif pedido.tipo == "valor_justo":
+            if not pedido.divida_id:
+                continue
+            d = db.scalar(
+                select(orm.Divida).where(
+                    orm.Divida.id == pedido.divida_id,
+                    orm.Divida.tenant_id == tenant,
+                    orm.Divida.excluido_em.is_(None),
+                )
+            )
+            if d is None:
+                continue
+
+            # A MESMA função da rota de revisão (M6). O card da conversa e a
+            # tela não podem divergir sobre o mesmo contrato.
+            r = revisar_divida(db, tenant, d)
+            if r.valorJusto is None or not r.script:
+                # Sem achado com valor não há número a mostrar — e um card
+                # dizendo "está tudo certo" seria afirmação que não sustentamos.
+                continue
+
+            cards.append(
+                schemas.ValorJustoCard(
+                    dividaId=d.id,
+                    credor=r.credor,
+                    valorCobrado=r.valorCobrado,
+                    valorJusto=r.valorJusto,
+                    script=r.script,
+                    fundamentos=r.fundamentos,
                 )
             )
 

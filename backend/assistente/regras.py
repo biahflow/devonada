@@ -58,6 +58,12 @@ CARDS DISPONÍVEIS:
 - `plano_sugerido`: mostra um plano de quitação comparando estratégias. Aceita
   `aporteExtraMensal` em centavos SE — e somente se — a pessoa disse na
   conversa quanto consegue pagar por mês a mais. Se ela não disse, omita.
+- `valor_justo`: mostra os pontos do contrato que valem contestar, com a fonte
+  legal de cada um. Exige `dividaId` de uma dívida do contexto. Peça quando a
+  pessoa perguntar se está pagando a mais, se a cobrança está certa, se tem
+  algo abusivo no contrato, ou quando pedir ajuda para negociar. Se não houver
+  nada a apontar naquela dívida, o app simplesmente não mostra o card — então
+  não prometa achado nenhum no texto.
 - `divida_proposta`: abre o formulário preenchido com o rascunho do que ela
   contou. Use `proposta` para os campos ditos por ela, e deixe nulo o que ela
   não disse. Para ALTERAR uma dívida que já existe, mande também o `dividaId`
@@ -117,7 +123,12 @@ SCHEMA_RESPOSTA = {
                 "properties": {
                     "tipo": {
                         "type": "string",
-                        "enum": ["divida_resumo", "plano_sugerido", "divida_proposta"],
+                        "enum": [
+                            "divida_resumo",
+                            "plano_sugerido",
+                            "divida_proposta",
+                            "valor_justo",
+                        ],
                     },
                     "dividaId": {"type": ["string", "null"]},
                     "aporteExtraMensal": {"type": ["integer", "null"]},

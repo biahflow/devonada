@@ -23,7 +23,7 @@ abaixo. Todo o resto continua valendo: o que o modelo afirma como fato não
 tem campo onde caber.
 """
 
-TipoDeCard = Literal["divida_resumo", "plano_sugerido", "divida_proposta"]
+TipoDeCard = Literal["divida_resumo", "plano_sugerido", "divida_proposta", "valor_justo"]
 
 
 @dataclass(frozen=True)

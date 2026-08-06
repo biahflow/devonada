@@ -85,6 +85,7 @@ app/
       [id]/editar.tsx            edição
       [id]/plano.tsx             cronograma de parcelas (M3)
       [id]/renegociar.tsx        registro de acordo (M3)
+      [id]/revisao.tsx           revisão de cobrança (M6)
       contrato/index.tsx         envio de contrato (M1.5)
       contrato/[id].tsx          revisão da extração (M1.5)
     painel/
@@ -98,7 +99,8 @@ Tudo vive **dentro de `(tabs)/`**: uma rota fora do grupo perde a barra de abas,
 simulador ou do plano levaria o usuário para fora da navegação em vez de voltar para a lista.
 
 Rota é a unidade de deep link: um card do chat consegue apontar para `dividas/[id]` sem
-conhecer a pilha de navegação. Isso é o que viabiliza M5.
+conhecer a pilha de navegação. Isso é o que viabiliza M5 — e, no M6, o `valor_justo` aponta para
+`dividas/[id]/revisao` pelo mesmo mecanismo.
 
 ---
 

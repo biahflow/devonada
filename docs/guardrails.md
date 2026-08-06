@@ -88,6 +88,18 @@ O produto fala sobre dívida, prescrição e negociação. Isso é território s
 - **`possivelPrescricao` é um alerta para investigar, nunca uma afirmação.** A copy é
   "pode ter prescrito — vale checar", jamais "esta dívida prescreveu". O front nunca transforma
   o booleano em asserção.
+- **Todo `achado` da revisão de cobrança segue o mesmo regime** (M6). Copy correta: "a taxa
+  contratada está acima do teto vigente — vale contestar". Copy proibida: "esta cobrança é
+  ilegal", "isto é abusivo", "você tem direito a receber de volta". Quem decide se houve abuso é
+  o Judiciário; o produto aponta e cita.
+  - **Todo achado carrega a fonte** — artigo, súmula ou tema repetitivo, nomeado —, o trecho
+    literal do contrato quando veio da extração, e a **pergunta de fato** que só o usuário
+    responde ("você pôde escolher a seguradora?"). O achado nunca conclui no lugar dele.
+  - **Achado sem fonte não existe.** Teto que muda por resolução vive em configuração datada, sem
+    default: não configurado ⇒ o achado não é produzido. Ver ADR 0008.
+  - Os testes de copy em `backend/tests/test_revisao.py` e `src/test/screens/revisao.test.tsx`
+    **falham** se "ilegal", "abusiv" ou "é seu direito" aparecerem na tela. Regra que não quebra
+    nada quando violada não é guardrail.
 - **O app não redige petição nem instrui a não pagar.** Script de negociação (campo `script` de
   `ValorJustoCardData`) é gerado no backend, curado, e apresentado como sugestão editável.
 - **Fundamentos legais são texto vindo do backend** (`fundamentos`), curados. O front nunca
