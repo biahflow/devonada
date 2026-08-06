@@ -51,3 +51,4 @@ quanto o das certas — ele impede que o mesmo caminho seja tentado duas vezes.
 | [0002](0002-tanstack-query-para-server-state.md) | TanStack Query para estado de servidor | aceito |
 | [0003](0003-calculo-financeiro-fica-no-backend.md) | Todo cálculo financeiro fica no backend | aceito |
 | [0004](0004-paleta-hibrida-pine-e-dourado.md) | Paleta híbrida: pine primário, dourado acento | aceito |
+| [0005](0005-descarte-do-arquivo-de-contrato.md) | O arquivo do contrato é descartado após a extração | aceito |

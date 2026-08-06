@@ -184,3 +184,4 @@ Prioridade de cobertura, nesta ordem: `src/util/money.ts` (dinheiro), `src/api/c
 | [0002](adr/0002-tanstack-query-para-server-state.md) | TanStack Query para estado de servidor |
 | [0003](adr/0003-calculo-financeiro-fica-no-backend.md) | Todo cálculo financeiro fica no backend |
 | [0004](adr/0004-paleta-hibrida-pine-e-dourado.md) | Paleta híbrida: pine primário, dourado acento |
+| [0005](adr/0005-descarte-do-arquivo-de-contrato.md) | O arquivo do contrato é descartado após a extração |

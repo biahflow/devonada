@@ -169,6 +169,18 @@ nunca `toISOString()`, que desloca o dia conforme o fuso. Nenhuma regra de data 
 em cada chip e `radiogroup` no contêiner. A descrição da opção selecionada aparece abaixo,
 para explicar a escolha sem poluir a lista.
 
+**`SeletorDeArquivo`** — não é componente, é a função `escolherArquivo()`: abre o menu nativo de
+origem (PDF, câmera, galeria) e devolve o arquivo ou `null`. `ActionSheetIOS` no iOS, `Alert` no
+Android. Permissão de câmera pedida **no contexto**, ao escolher a câmera — pedir antes de haver
+motivo é o caminho mais curto para o usuário negar.
+
+**`CampoRevisao`** (`dividas/`) — campo proposto por extração de contrato, com `Badge` de
+confiança e o trecho citado. Sem trecho, **não exibe valor**: número sem evidência é palpite do
+modelo. O trecho é texto puro, nunca marcação — conteúdo de documento é entrada não confiável.
+
+**`AlertaCard`** (`dividas/`) — cláusula que merece atenção, em `accentSoft`. Copy de
+investigação e rodapé explícito de que não é conclusão jurídica.
+
 **`Badge`** — pílula `radius.pill`. Variante de criticidade mapeia `CriticidadeTipo`:
 
 | `tipo` | Fundo | Texto | Rótulo |

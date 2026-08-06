@@ -188,7 +188,45 @@ execute deep link vindo de campo de texto sem validar o esquema.
 
 ---
 
-## 8. Checklist por pull request
+## 8. Documento enviado pelo usuário
+
+O contrato de empréstimo, consignado ou financiamento (M1.5) é a entrada mais sensível do
+produto e a que mais pressiona os guardrails acima. Três regras, e elas **são** a arquitetura.
+
+### 8.1 A extração é proposta, nunca gravação
+
+Um modelo lendo números de contrato é o caso-limite da seção 1: LLM como fonte da verdade sobre
+dinheiro. Portanto:
+
+- Nada vira dívida sem o usuário revisar **campo a campo**, com o trecho de origem à vista.
+- **Campo sem `trecho` citável é descartado**, mesmo que traga valor — número sem evidência é
+  palpite, e palpite não entra em formulário de dinheiro nem pré-preenchido
+  (`src/util/extracao.ts`).
+- Confiança baixa entra destacada para conferência, não silenciosamente aceita.
+- **Modo de falha que isso previne:** o usuário salva uma taxa que o modelo leu errado, o painel
+  passa a exibi-la, o simulador prioriza a dívida errada — e nada disso é rastreável até a origem.
+
+### 8.2 O conteúdo do contrato é entrada não confiável
+
+Vale a seção 7.3, com uma consequência concreta na UI: **o trecho é renderizado como texto puro**.
+Nunca markdown, nunca HTML, nunca link clicável a partir dele. Um PDF pode carregar instrução
+embutida, e o front não é o lugar onde ela ganha efeito.
+
+### 8.3 O arquivo é lido e descartado
+
+Ver ADR 0005. Persistem os campos extraídos e os trechos curtos que os comprovam, nunca o
+arquivo. **A UI avisa isso antes do upload** — transparência é parte do consentimento, não
+cortesia.
+
+Nenhum trecho de contrato vai para log, analytics ou mensagem de erro. Vale a seção 5, sem
+exceção.
+
+Alerta de cláusula segue a postura da seção 3: **sinal para investigar**, jamais "esta cláusula é
+ilegal".
+
+---
+
+## 9. Checklist por pull request
 
 - [ ] Nenhum cálculo de valor monetário novo no cliente.
 - [ ] Todo dinheiro trafega e é armazenado em centavos inteiros.
@@ -199,3 +237,5 @@ execute deep link vindo de campo de texto sem validar o esquema.
 - [ ] Vermelho usado só para erro ou ação destrutiva.
 - [ ] Toda escrita disparada pelo chat pede confirmação explícita.
 - [ ] Nenhum parâmetro de tenant enviado pelo cliente.
+- [ ] Nenhum campo pré-preenchido a partir de extração sem trecho que o comprove.
+- [ ] Nenhum conteúdo de documento renderizado como marcação ou link.

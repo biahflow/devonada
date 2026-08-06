@@ -8,6 +8,14 @@
 
 ---
 
+> **Já existe uma ingestão real no produto.** O M1.5 lê o contrato de empréstimo, consignado ou
+> financiamento e propõe o cadastro preenchido — ver `docs/features/002-ingestao-de-contrato.md`
+> e ADR 0005. Ele antecipa boa parte da discussão abaixo: consentimento explícito, descarte do
+> bruto, extração como proposta e não como verdade. O que ele **não** resolve é o fluxo contínuo:
+> contrato é uma foto do passado, extrato é o filme.
+
+---
+
 ## 1. Por que isto importa
 
 O produto hoje enxerga o que o usuário digita. Isso basta para a vertical de dívidas, mas trava

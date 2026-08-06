@@ -170,6 +170,73 @@ proximoVencimento?: IsoDate;
 
 ---
 
+### M1.5 — Ingestão de contrato
+
+O usuário envia o PDF ou a foto do contrato; o backend extrai e devolve uma **proposta** para
+revisão. Nada é gravado por este fluxo — a criação continua sendo `POST /v1/dividas`, disparada
+pelo usuário depois de conferir.
+
+#### `POST /v1/contratos`
+
+`multipart/form-data`, campo `arquivo`. Aceita `application/pdf`, `image/jpeg` e `image/png`.
+
+Response `202`:
+```json
+{ "extracao": { "id": "…", "status": "processando" } }
+```
+
+Assíncrono de propósito: OCR mais extração levam segundos a minutos, e segurar a conexão desse
+tempo em rede móvel é receita para timeout.
+
+> **O arquivo é descartado após a extração** (ADR 0005). Persistem os campos estruturados e os
+> trechos curtos citados. O app comunica isso ao usuário antes do upload.
+
+#### `GET /v1/contratos/{id}`
+
+O front faz polling a cada 2,5s, com teto de 2 minutos.
+
+Response `200` com `status: "concluida"`:
+```json
+{
+  "extracao": {
+    "id": "…",
+    "status": "concluida",
+    "campos": {
+      "credor":          { "valor": "Banco Teste S/A", "confianca": "alta",  "trecho": "CREDOR: Banco Teste S/A", "pagina": 1 },
+      "valorCobrado":    { "valor": 150000,            "confianca": "alta",  "trecho": "Valor total: R$ 1.500,00", "pagina": 1 },
+      "dataOrigem":      { "valor": "2021-06-01",      "confianca": "alta",  "trecho": "Contratação em 01/06/2021", "pagina": 1 },
+      "tipo":            { "valor": "juros_abusivos",  "confianca": "media", "trecho": "Modalidade: crédito rotativo" },
+      "taxaJurosMensal": { "valor": 1250,              "confianca": "alta",  "trecho": "Taxa de juros: 12,50% a.m.", "pagina": 2 },
+      "totalParcelas":   { "valor": 12,                "confianca": "alta",  "trecho": "Em 12 parcelas" },
+      "cet":             { "valor": 18000,             "confianca": "baixa", "trecho": "CET: 180,00% a.a." }
+    },
+    "alertas": [
+      { "id": "…", "titulo": "Seguro prestamista embutido", "explicacao": "O contrato inclui um seguro que pode não ter sido oferecido de forma opcional.", "trecho": "…", "pagina": 3 }
+    ]
+  }
+}
+```
+
+Regras de forma — **não negociáveis, porque o front depende delas para não mentir**:
+
+| Regra | Motivo |
+|---|---|
+| `valor: null` quando não encontrado | O front deixa o campo vazio. Zero seria uma afirmação falsa. |
+| `trecho` é texto **literal** do contrato | Sem ele o front **descarta o campo**, mesmo com valor. Ver `src/util/extracao.ts`. |
+| `confianca`: `alta \| media \| baixa` | `baixa` entra destacada para conferência do usuário. |
+| Monetário em centavos, taxa e CET em basis points | Mesma regra da seção 1. `cet` é anual. |
+| `alertas[].explicacao` em tom de investigação | "Pode não ter sido oferecido de forma opcional", nunca "é ilegal". Guardrail 3. |
+
+`status: "falhou"` acompanha `erro` com mensagem em pt-BR para o usuário — qualidade de imagem,
+formato inesperado, PDF protegido.
+
+#### `POST /v1/dividas` com vínculo
+
+Ao confirmar a revisão, o front chama o endpoint já existente acrescido de `extracaoId`, para o
+backend ligar a dívida à extração que a originou.
+
+---
+
 ### M2 — Painel de endividamento
 
 #### `GET /v1/dividas/resumo`
@@ -345,6 +412,8 @@ Espelha `roadmap.md`. Cada bloco destrava as telas do milestone correspondente:
 
 1. Persistência real + auth + validação de `tipo` + `id: str` — destrava tudo.
 2. `GET/PATCH/DELETE /v1/dividas/{id}` e `POST .../quitacao` — M1.
+2b. `POST /v1/contratos` e `GET /v1/contratos/{id}` — M1.5. Pode vir antes do M2: é o que remove
+   o atrito de digitar taxa de juros à mão, e alimenta o contexto dos agentes.
 3. `GET /v1/dividas/resumo` — M2.
 4. Parcelas, pagamento, renegociação, lembretes — M3.
 5. `POST /v1/dividas/simulacoes` — M4.

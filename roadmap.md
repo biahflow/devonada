@@ -84,6 +84,34 @@ pronto; falta o backend.
 
 ---
 
+## M1.5 — Ingestão de contrato — front entregue, aguardando backend
+
+O atalho que torna o M1 usável de verdade: em vez de digitar credor, valor, data e taxa, o
+usuário manda o contrato e confere o que foi lido. Spec em
+`docs/features/002-ingestao-de-contrato.md`.
+
+Também é o que torna o `valorJusto` defensável — contrato de consignado carrega CET, IOF, tarifa
+de cadastro e seguro prestamista embutido, que é exatamente onde mora a cobrança indevida.
+
+- [x] `upload()` multipart dentro de `src/api/client.ts` — o egress segue único, e documento
+      sensível é o último lugar para abrir exceção.
+- [x] `src/api/contratos.ts` com `CampoExtraido<T>`: todo campo carrega valor, confiança e o
+      **trecho literal** do contrato que o sustenta.
+- [x] `useExtracao` com polling que para ao concluir, ao falhar e no teto de 2 minutos —
+      polling infinito em rede móvel queima bateria.
+- [x] `SeletorDeArquivo` com PDF, câmera e galeria; permissão pedida no contexto.
+- [x] Tela de envio com o **aviso de descarte antes do upload** (ADR 0005).
+- [x] Tela de revisão campo a campo, com trecho citado e alertas de cláusula.
+- [x] `extracaoParaProposta` **descarta campo sem evidência**, mesmo trazendo valor.
+- [x] ADR 0005 e seção 8 de `docs/guardrails.md` escritos antes do código.
+- [ ] **Verificação em device bloqueada pelo backend.** `POST /v1/contratos` e
+      `GET /v1/contratos/{id}` não existem — ver `docs/api-contract.md`, seção M1.5.
+
+**Sai com:** enviar um contrato real de consignado, acompanhar a leitura, revisar os campos com
+os trechos citados e confirmar a criação da dívida. **Ainda não fechado** — falta o backend.
+
+---
+
 ## M2 — Painel de endividamento
 
 O que transforma uma lista num diagnóstico. Zero agregação no cliente: todo número vem de
