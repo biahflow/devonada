@@ -17,7 +17,7 @@ docker compose up -d                      # Postgres na 5433
 source venv/bin/activate
 alembic upgrade head
 uvicorn main:app --host 0.0.0.0 --port 8001 --reload
-pytest                                     # 156 testes
+pytest                                     # 202 testes
 ```
 
 **Portas escolhidas por colisão, não por gosto:** a 8000 e a 5432 já são do stack do
@@ -38,7 +38,9 @@ schemas.py      contrato de API em Pydantic — espelha src/api/types.ts
 auth.py         Bearer → tenant_id
 domain/         REGRAS DE NEGÓCIO puras, com fonte citada
 routers/        dividas · resumo · simulacoes · parcelas · perfil · lembretes · contratos · chat
-extracao/       base.py (Protocol) · anthropic_extrator.py · factory
+llm/            ÚNICO lugar que conhece SDK de modelo (ADR 0007)
+assistente/     o assistente do chat, sobre a camada llm/
+extracao/       base.py (Protocol) · regras.py (prompt) · extrator_llm.py · factory
 alembic/        migrations
 tests/          pytest
 ```
@@ -114,13 +116,41 @@ retroativo estimado.
 
 ---
 
+## A camada de LLM
+
+`llm/` é o **único** lugar do backend que conhece um SDK de modelo. As capacidades — extração de
+contrato, assistente do chat — falam com o `Protocol ClienteLLM` e não sabem qual provedor está
+do outro lado. A decisão e o porquê estão na **ADR 0007**.
+
+```
+BUDDY_LLM_PROVIDER          openai (padrão) | anthropic
+BUDDY_LLM_MODEL_EXTRACAO    modelo da leitura de contrato
+BUDDY_LLM_MODEL_ASSISTENTE  modelo do chat
+```
+
+**Modelo por capacidade, não global:** ler contrato exige visão, PDF e evidência literal por
+campo; classificar a intenção de uma frase, não.
+
+A interface tem um método, `responder_json`, e ele devolve JSON validado contra **schema
+estrito**. Não existe porta de texto livre — seria o caminho mais curto para um número sem
+procedência chegar à tela. Todo erro de SDK vira `ErroDeLLM` com frase em pt-BR dentro do
+adaptador; nenhuma exceção de provedor atravessa essa fronteira.
+
+> **A chave vem do `Settings`, não do ambiente.** `pydantic-settings` carrega o `.env` para
+> dentro do objeto de settings, mas os SDKs leem `os.environ` — as duas coisas não se
+> encontravam, e a chave escrita em `backend/.env` **nunca era usada**. Agora ela passa por
+> `Settings` e é entregue ao adaptador pela fábrica. `tests/conftest.py` zera as chaves: sem
+> isso, uma chave real na máquina transforma a suíte em chamada paga.
+
 ## Extração de contrato
 
-`extracao/base.py` define o `Protocol` `ExtratorDeContrato`; a factory escolhe a implementação
-por `BUDDY_EXTRATOR`. Trocar de provedor não toca as rotas.
+`extracao/base.py` define o `Protocol` `ExtratorDeContrato`; `extracao/regras.py` guarda o prompt
+e o schema, valendo para qualquer provedor; `extracao/extrator_llm.py` é a implementação.
 
-A implementação padrão usa Claude com visão (`BUDDY_LLM_MODEL`, default `claude-opus-5`), o que
-lê PDF **e** foto sem OCR separado — sem dependência de Tesseract no servidor.
+Lê PDF **e** foto sem OCR separado — sem dependência de Tesseract no servidor.
+
+`BUDDY_EXTRATOR` continua existindo porque a porta faz sentido: um extrator determinístico para
+o layout de um banco específico seria mais exato que qualquer modelo, e entraria sem tocar a rota.
 
 **Três guardrails aplicados no servidor, não só no cliente:**
 
@@ -132,8 +162,44 @@ lê PDF **e** foto sem OCR separado — sem dependência de Tesseract no servido
 - **ADR 0005 — descarte.** O arquivo vive em memória durante o processamento e nunca toca o
   disco. Persistem os campos e os trechos curtos.
 
-Sem `ANTHROPIC_API_KEY`, o upload responde `status: "falhou"` com frase útil em vez de estourar
-500 — o app já trata esse estado e oferece o cadastro manual.
+Sem chave do provedor configurado, o upload responde `status: "falhou"` com frase útil em vez de
+estourar 500 — o app já trata esse estado e oferece o cadastro manual.
+
+**Uma rede extra, aprendida na primeira leitura real:** o modelo devolveu `dataOrigem` como
+`12/03/2025`, e a extração inteira caía por causa do formato, perdendo os seis campos que vieram
+certos. O prompt agora pede ISO, e `_normalizar_data` converte `DD/MM/AAAA` antes da validação —
+prompt não é garantia, e contrato brasileiro escreve data no formato brasileiro.
+
+## O assistente do chat
+
+`assistente/` segue o mesmo desenho: `base.py` com o `Protocol`, `regras.py` com prompt e schema,
+`assistente_llm.py` para qualquer provedor e `determinista.py` sem modelo nenhum.
+
+> **O modelo escolhe QUAL card; o backend preenche os NÚMEROS.** É a regra que organiza o pacote.
+> `PedidoDeCard` carrega um id e, no máximo, o aporte que o próprio usuário declarou — **não
+> existe campo para valor monetário**, não por confiança no modelo, mas porque o tipo não
+> permite. Quem preenche saldo, prazo e economia é `routers/chat.py::montar_cards`, lendo o banco.
+
+Três camadas independentes sustentam o guardrail 7.1, porque prompt não é guardrail:
+
+| Camada | Onde | O que impede |
+|---|---|---|
+| Estrutural | `assistente/regras.py` | Schema sem campo de valor: o modelo não consegue emitir número |
+| Contexto | `routers/chat.py::_contexto` | O prompt recebe identificação, nunca valores |
+| Varredura | `assistente/assistente_llm.py` | Número no texto sem card derruba o texto, no servidor |
+
+**Limitações declaradas:**
+
+1. **O determinístico reconhece três intenções.** Credor citado pelo nome, pedido de plano e
+   pedido de resumo. Fora disso, diz que não sabe. É o que roda na suíte (sem rede) e o fallback
+   quando não há chave.
+2. **A varredura de número é heurística.** Pega dígitos; não pega "mil e quinhentos" por extenso.
+   A defesa estrutural é a primeira camada; a varredura é a segunda.
+3. **O modelo inventa navegação, não número.** Na primeira chamada real mandou o usuário a uma
+   "seção de indicadores econômicos" inexistente. O prompt passou a enumerar as três abas reais e
+   a proibir inventar tela — vale reexaminar a cada troca de modelo.
+4. **Toda mensagem é uma chamada paga**, sem cache nem limite por usuário.
+5. **O histórico cresce sem poda.** O teto de 50 é de leitura; nada apaga mensagem antiga.
 
 ---
 
@@ -157,12 +223,14 @@ Recurso de outro tenant devolve **404, nunca 403**: um 403 confirmaria que o id 
 > BUDDY_TEST_DATABASE_URL=postgresql+psycopg://buddy:buddy@localhost:5433/buddy_test pytest
 > ```
 >
-> Os 156 testes passam nos dois. Rode contra Postgres antes de qualquer release — SQLite não
+> Os 202 testes passam nos dois. Rode contra Postgres antes de qualquer release — SQLite não
 > pega divergência de dialeto (constraint que só o Postgres aplica, precisão de `BigInteger`,
 > comportamento de índice).
 
-> **`/v1/chat/messages` ainda é mock.** Devolve um card fixo, sem LLM. O chat real é o Bloco 5.
-> Ganhou auth como todas as outras rotas.
+> **O card `valor_justo` não é calculado por ninguém.** Ele existe no contrato e no front desde o
+> começo, mas nenhum endpoint o produz: não há regra de valor justo com fonte citável, e
+> inventá-la seria o oposto do que este backend faz. O chat deixou de ser mock no M5, mas não
+> passou a emitir esse card.
 
 > **Auth é de beta: um token, um tenant.** Suficiente para um usuário; insuficiente no dia em que
 > houver dois. A troca por JWT não muda o cliente, que já manda `Bearer` e trata 401.

@@ -55,12 +55,14 @@ O front **não retenta `4xx`**; retenta `0` (sem conexão) e `5xx` no máximo du
 > que já não existem (`id: int`, `tipo` sem validação, sem persistência, auth ignorada). Todas
 > foram resolvidas no Bloco 0 da fila. O que sobrou está abaixo.
 
-1. **`/v1/chat/messages` é mock.** Ecoa o input e devolve sempre o mesmo `card_valor_justo`
-   hardcoded, sem LLM. Suficiente para M0–M4; M5 depende do fluxo real.
-2. **Auth é de beta: um token, um tenant.** Suficiente para um usuário, insuficiente no dia em
+1. **Auth é de beta: um token, um tenant.** Suficiente para um usuário, insuficiente no dia em
    que houver dois. A troca por JWT não muda o cliente, que já manda `Bearer` e trata `401`.
-3. **Leitura de contrato exige `ANTHROPIC_API_KEY`.** Sem ela o upload responde
-   `status: "falhou"` com frase útil — o app já trata esse estado e oferece o cadastro manual.
+2. **LLM exige chave do provedor configurado** (`OPENAI_API_KEY` por padrão; ver ADR 0007). Sem
+   ela, o chat responde `503` e a leitura de contrato responde `status: "falhou"`, ambos com
+   frase útil — o app trata os dois estados e oferece o caminho manual.
+3. **`valor_justo` ainda não é calculado.** O card existe no contrato e no front desde o começo,
+   mas nenhum endpoint o produz: não há regra de valor justo com fonte citável ainda, e inventá-la
+   seria o oposto do que este produto faz.
 
 As limitações **declaradas** do cálculo (o que o backend deliberadamente não calcula, e por quê)
 estão em `docs/backend.md`, não aqui: elas não são divergências a corrigir, são decisões.
@@ -105,6 +107,13 @@ Response `200`:
 ```
 
 `cards` é opcional. **Todo número comunicado ao usuário vai num card**, nunca no `content`.
+
+Desde o M5 esta rota fala com os dados reais do usuário — ver a seção M5 para os `kind` novos,
+para o `GET` do histórico e para como o guardrail acima é sustentado no servidor.
+
+`503` quando o assistente não está disponível (sem chave configurada, ou falha do provedor), com
+`message` em pt-BR. A pergunta do usuário **já foi gravada** antes: o que ele escreveu não se
+perde por falha nossa.
 
 ### `GET /v1/dividas`
 Consumido por `listDebts()` em `src/api/debts.ts`.
@@ -439,23 +448,45 @@ estruturado.
 
 ### M5 — Dívidas dentro do chat
 
-Novos `kind` em `ActionCardData`. O mecanismo de união discriminada em `src/api/types.ts` já
-suporta; basta acrescentar os tipos e o caso no dispatcher `ActionCard`.
+Novos `kind` em `ActionCardData`. O `switch` do dispatcher `ActionCard` é **exaustivo**: `kind`
+novo sem tratamento é erro de compilação, não card invisível.
 
 ```json
 { "kind": "divida_resumo", "dividaId": "...", "credor": "Nubank", "saldoDevedor": 320000, "proximoVencimento": "2024-03-20", "situacao": "ativa", "criticidade": "juros_abusivos" }
 ```
 
 ```json
-{ "kind": "plano_sugerido", "estrategia": "avalanche", "aporteExtraMensal": 50000, "mesesAteQuitacao": 26, "dataLiberdade": "2026-05", "economia": 940000, "simulacaoId": "..." }
+{ "kind": "plano_sugerido", "estrategia": "avalanche", "aporteExtraMensal": 50000, "mesesAteQuitacao": 26, "dataLiberdade": "2026-05", "economia": 940000 }
 ```
 
 Ambos carregam um identificador que permite o deep link para a tela correspondente
-(`app/dividas/[id].tsx`, `app/dividas/simulador.tsx`). Card é o ponto de entrada para a tela,
-não um substituto dela.
+(`dividas/[id]`, `dividas/simulador`). Card é o ponto de entrada para a tela, não um substituto
+dela. `economia` é anulável, pelo mesmo motivo de `economiaVsMinimo` no M4.
 
-**Nenhum card dispara escrita sozinho.** Um card que sugere criar uma dívida abre o formulário
-preenchido para o usuário confirmar. Ver `guardrails.md`, seção 7.2.
+> **O modelo escolhe QUAL card; o backend preenche os NÚMEROS.** Todo valor destes cards é lido
+> do banco em `routers/chat.py::montar_cards`. O schema que o assistente responde não tem campo
+> para valor monetário — ele devolve, no máximo, um `dividaId` e o aporte que o próprio usuário
+> declarou. Número no texto sem card correspondente é **cortado no servidor**. Ver
+> `docs/features/005-dividas-no-chat.md` para as três camadas.
+
+#### `GET /v1/chat/messages`
+
+O histórico da conversa, para ela sobreviver ao fechamento do app.
+
+Query: `?limite=` (1 a 200, padrão 50).
+
+Response `200`:
+```json
+{ "mensagens": [ { "id": "...", "role": "user", "content": "e o nubank?", "cards": [], "createdAt": "2026-08-06T18:00:00Z" } ] }
+```
+
+Ordem **cronológica** — o app rola para o fim, não para o começo.
+
+Os cards vêm **remontados a cada leitura**, a partir do banco, e não servidos do JSON gravado:
+uma parcela paga ontem não pode reaparecer hoje com o saldo de ontem.
+
+**Nenhum card dispara escrita sozinho.** Um card que sugere criar uma dívida abriria o formulário
+preenchido para o usuário confirmar (`guardrails.md`, 7.2) — esse `kind` ainda não existe.
 
 ---
 
@@ -526,7 +557,11 @@ existencial não têm o que exibir.*
 - [x] `dividasSemTaxa` na resposta: dívida sem taxa amortiza sem juros projetados, e a tela
       nomeia quais foram — o prazo exibido seria otimista em silêncio
 - [x] Os dois `422`: aporte que invade o mínimo existencial e plano que não quita
-- [ ] M5: chat real com os `kind` `divida_resumo` e `plano_sugerido`
+- [~] M5: chat real com os `kind` `divida_resumo` e `plano_sugerido` — implementado e
+      **exercitado com chamada real ao provedor**; falta ver no app
+- [x] `GET /v1/chat/messages`: o histórico sobrevive ao fechamento do app
+- [x] Camada de provedor de LLM (ADR 0007), com OpenAI padrão e Anthropic vivo no repositório
+- [x] Leitura de contrato **destravada**: exercitada de ponta a ponta com contrato sintético
 
 ### Estado observado em device
 
@@ -536,8 +571,10 @@ existencial não têm o que exibir.*
 | Blocos 0 a 4 | implementados e exercitados por request real; **ainda não vistos no app** |
 | M3 (parcelas, pagamento, renegociação, lembretes) | idem |
 | M4 (`POST /v1/dividas/simulacoes`) | idem — inclusive os dois `422`, conferidos por request |
-| `POST /v1/chat/messages` | mock: card fixo, sem LLM. Ganhou auth |
-| Leitura de contrato | implementada, **bloqueada** por falta de `ANTHROPIC_API_KEY` |
-| M5 (chat real) | não existe |
+| M5 (chat real, histórico) | implementado; **exercitado com chamada real à OpenAI**, ainda não visto no app |
+| Leitura de contrato | **destravada** — contrato sintético lido com trecho literal nos sete campos |
 
-Suíte do backend: **156 testes**, verdes em SQLite e em Postgres.
+Suíte do backend: **202 testes**, verdes em SQLite e em Postgres, **sem tocar a rede**.
+
+Nenhum endpoint da fila continua sem implementação. O que falta em todos é a mesma coisa:
+**ver funcionando no aplicativo, em aparelho**.

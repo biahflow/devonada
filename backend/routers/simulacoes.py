@@ -15,16 +15,20 @@ from domain.simulacao import DividaSimulavel, economia_vs_minimo, simular
 router = APIRouter(prefix="/v1/dividas", tags=["Simulacoes"])
 
 
-def _mes_atual() -> str:
+def mes_atual() -> str:
     hoje = date.today()
     return f"{hoje.year}-{hoje.month:02d}"
 
 
-def _carregar_dividas(
+def carregar_dividas_simulaveis(
     db: Session, tenant: str, ids: list[str] | None
 ) -> list[DividaSimulavel]:
     """
     Monta a entrada do motor a partir do que está persistido.
+
+    Pública porque o chat (M5) monta o card de plano com exatamente as mesmas
+    dívidas que o simulador usa. Duas leituras diferentes dariam dois planos
+    diferentes para a mesma pergunta.
 
     SALDO E PARCELA MÍNIMA VÊM DAS PARCELAS REAIS quando existe cronograma. Sem
     cronograma, o saldo é o valor cobrado e a parcela mínima é ZERO — nenhum
@@ -138,13 +142,13 @@ def simulacoes(
 
     Não escreve nada — simulação é leitura.
     """
-    dividas = _carregar_dividas(db, tenant, entrada.dividasIds)
+    dividas = carregar_dividas_simulaveis(db, tenant, entrada.dividasIds)
     if not dividas:
         return schemas.RespostaSimulacao(simulacoes=[], comparacao=None, dividasSemTaxa=[])
 
     _validar_aporte(db, tenant, entrada.aporteExtraMensal, dividas, settings)
 
-    mes = _mes_atual()
+    mes = mes_atual()
     resultados: list[schemas.Simulacao] = []
 
     # dict.fromkeys em vez de set: preserva a ordem pedida pelo cliente e

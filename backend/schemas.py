@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -304,6 +304,50 @@ class RespostaExtracao(Camel):
 
 class SendMessageRequest(Camel):
     content: str
+
+
+class DividaResumoCard(Camel):
+    """
+    Retrato de uma dívida dentro da conversa.
+
+    TODO valor aqui é preenchido pela rota, a partir do banco. O assistente
+    escolheu qual dívida mostrar; ele não escreveu nenhum destes números.
+    """
+
+    kind: Literal["divida_resumo"] = "divida_resumo"
+    dividaId: str
+    credor: str
+    saldoDevedor: int | None = None
+    proximoVencimento: date | None = None
+    situacao: SituacaoDivida
+    criticidade: CriticidadeTipo
+
+
+class PlanoSugeridoCard(Camel):
+    """Plano de quitação na conversa. Os números vêm de domain/simulacao.py."""
+
+    kind: Literal["plano_sugerido"] = "plano_sugerido"
+    estrategia: EstrategiaQuitacao
+    aporteExtraMensal: int
+    mesesAteQuitacao: int
+    dataLiberdade: str
+    economia: int | None = None
+
+
+class MensagemChat(Camel):
+    id: str
+    role: Literal["user", "assistant"]
+    content: str
+    cards: list[DividaResumoCard | PlanoSugeridoCard] = Field(default_factory=list)
+    createdAt: datetime
+
+
+class RespostaMensagem(Camel):
+    message: MensagemChat
+
+
+class HistoricoChat(Camel):
+    mensagens: list[MensagemChat]
 
 
 class Erro(Camel):

@@ -1,5 +1,5 @@
-import { useCallback, useRef, useState } from 'react';
-import { sendMessage } from '../api/chat';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { listarMensagens, sendMessage } from '../api/chat';
 import { ApiError } from '../api/client';
 import type { ChatMessage } from '../api/types';
 
@@ -7,22 +7,67 @@ function localId(): string {
   return `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-const SAUDACAO: ChatMessage = {
-  id: 'saudacao',
-  role: 'assistant',
-  content:
-    'Oi. Me conta de uma dívida que está te preocupando — quanto estão cobrando e de quem. ' +
-    'Vamos por partes, sem pressa.',
-  createdAt: new Date().toISOString(),
-};
+const TEXTO_SAUDACAO =
+  'Oi. Me conta de uma dívida que está te preocupando — quanto estão cobrando e de quem. ' +
+  'Vamos por partes, sem pressa.';
 
-/** Estado do chat em memória. Sem persistência local no MVP: a fonte da
- *  verdade é o backend. (Sem localStorage — não existe em RN de qualquer forma.) */
+/**
+ * Estado do chat.
+ *
+ * A conversa continua sendo um FLUXO em `useState`, não uma coleção no
+ * TanStack Query (ADR 0002) — mas desde o M5 ela é carregada do backend no
+ * mount e sobrevive ao fechamento do app. A fonte da verdade é o servidor; o
+ * que existe aqui é a sessão em andamento.
+ */
 export function useChat() {
-  const [messages, setMessages] = useState<ChatMessage[]>([SAUDACAO]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [carregando, setCarregando] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    listarMensagens(controller.signal)
+      .then(({ mensagens }) => {
+        // A saudação só aparece em conversa nova. Repeti-la a cada abertura
+        // faria o app parecer que esqueceu a pessoa.
+        setMessages(
+          mensagens.length > 0
+            ? mensagens
+            : [
+                {
+                  id: 'saudacao',
+                  role: 'assistant',
+                  content: TEXTO_SAUDACAO,
+                  createdAt: new Date().toISOString(),
+                },
+              ],
+        );
+      })
+      .catch((e) => {
+        if (controller.signal.aborted) return;
+        // Histórico indisponível não impede conversar: a mensagem nova vai
+        // para o servidor do mesmo jeito.
+        setMessages([
+          {
+            id: 'saudacao',
+            role: 'assistant',
+            content: TEXTO_SAUDACAO,
+            createdAt: new Date().toISOString(),
+          },
+        ]);
+        setError(
+          e instanceof ApiError ? e.message : 'Não deu para carregar as conversas anteriores.',
+        );
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setCarregando(false);
+      });
+
+    return () => controller.abort();
+  }, []);
 
   const send = useCallback(
     async (content: string) => {
@@ -55,5 +100,5 @@ export function useChat() {
     [sending],
   );
 
-  return { messages, sending, error, send };
+  return { messages, carregando, sending, error, send };
 }

@@ -10,6 +10,22 @@ TOKEN = "token-de-teste"
 os.environ["BUDDY_API_TOKEN"] = TOKEN
 os.environ["BUDDY_DATABASE_URL"] = "sqlite+pysqlite:///:memory:"
 
+# A suíte NÃO herda a configuração de LLM da máquina de quem roda. Sem estas
+# linhas, `backend/.env` decide qual provedor e qual implementação os testes
+# exercitam — e um `.env` desatualizado quebra a suíte por um motivo que não
+# tem nada a ver com o código sob teste. (Foi o que aconteceu.)
+os.environ["BUDDY_LLM_PROVIDER"] = "openai"
+os.environ["BUDDY_EXTRATOR"] = "llm"
+os.environ["BUDDY_ASSISTENTE"] = "determinista"
+
+# NENHUM TESTE TOCA A REDE. Variável de ambiente vence o `.env` no
+# pydantic-settings, então zerar as chaves aqui garante que uma chave real na
+# máquina do desenvolvedor não transforme a suíte em chamada paga — e não faça
+# um teste passar pelo motivo errado, que foi o que aconteceu: o teste de
+# "sem chave configurada" passava porque a API real respondia com erro.
+os.environ["OPENAI_API_KEY"] = ""
+os.environ["ANTHROPIC_API_KEY"] = ""
+
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import create_engine  # noqa: E402

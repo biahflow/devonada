@@ -1,8 +1,9 @@
 # Arquitetura — front do Buddy Financeiro
 
 > Documento vivo. Decisões duradouras viram ADR em `docs/adr/` (ver seção final).
-> Escopo: **o cliente Expo / React Native**. O backend FastAPI em `backend/` é desenvolvido
-> separadamente; o que o front espera dele está em `api-contract.md`.
+> Escopo: **o cliente Expo / React Native**. O backend FastAPI em `backend/` faz parte do mesmo
+> repositório e é desenvolvido junto — sua arquitetura está em `backend.md`, e o contrato entre
+> os dois, em `api-contract.md`.
 
 ---
 
@@ -198,3 +199,4 @@ Prioridade de cobertura, nesta ordem: `src/util/money.ts` (dinheiro), `src/api/c
 | [0004](adr/0004-paleta-hibrida-pine-e-dourado.md) | Paleta híbrida: pine primário, dourado acento |
 | [0005](adr/0005-descarte-do-arquivo-de-contrato.md) | O arquivo do contrato é descartado após a extração |
 | [0006](adr/0006-postgres-token-fixo-e-extrator-plugavel.md) | Postgres, token fixo e extrator plugável |
+| [0007](adr/0007-camada-de-provedor-de-llm.md) | Camada de provedor de LLM, e OpenAI como padrão |

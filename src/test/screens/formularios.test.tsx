@@ -103,9 +103,14 @@ describe('tela de renda', () => {
 });
 
 describe('aba de chat', () => {
-  it('abre com a saudação, sem depender de rede', () => {
+  it('abre com a saudação quando não há conversa anterior', async () => {
+    // Desde o M5 o chat CARREGA o histórico ao abrir — antes ele nascia sempre
+    // do zero, em memória. A saudação passou a ser o caso de conversa nova.
+    // O comportamento completo está em src/test/screens/chat.test.tsx.
+    responderPorRota({ '/v1/chat/messages': { mensagens: [] } });
     renderizarTela(<ChatTab />);
-    expect(screen.getByText(/Me conta de uma dívida/)).toBeTruthy();
+
+    await waitFor(() => expect(screen.getByText(/Me conta de uma dívida/)).toBeTruthy());
     expect(screen.getByText('Enviar')).toBeTruthy();
   });
 });

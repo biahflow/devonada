@@ -157,6 +157,18 @@ O chat é a superfície mais perigosa do produto, porque texto livre parece auto
 - O front **não conserta** resposta do modelo: se vier um número no texto livre sem card
   correspondente, isso é bug de backend a ser reportado, não algo a mascarar na UI.
 
+**Onde isto vive em código (M5).** Três camadas independentes, porque prompt não é guardrail:
+
+| Camada | Onde | O que impede |
+|---|---|---|
+| Estrutural | `backend/assistente/regras.py` | O schema da resposta **não tem campo para valor**. O modelo não consegue emitir número. |
+| Contexto | `backend/routers/chat.py::_contexto` | O prompt recebe identificação de dívida, nunca valores. O que o modelo não vê, não repete errado. |
+| Varredura | `backend/assistente/assistente_llm.py` | Número no texto sem card derruba o texto, **no servidor**, antes de virar mensagem. |
+
+E `routers/chat.py::montar_cards` preenche cada card lendo o banco: **o modelo escolhe qual card;
+o backend diz quanto**. A varredura é heurística (pega dígito, não pega valor por extenso) — ela
+é a segunda camada, não a primeira.
+
 ### 7.2 Autonomia por classe de ação
 
 | Classe de ação | Exemplo | Autonomia | Confirmação |

@@ -2,10 +2,11 @@ import { KeyboardAvoidingView, Platform, View, Text, StyleSheet } from 'react-na
 import { useChat } from '../hooks/useChat';
 import { MessageList } from '../components/chat/MessageList';
 import { ChatComposer } from '../components/chat/ChatComposer';
+import { LoadingState } from '../components/ui/LoadingState';
 import { colors, spacing, typography } from '../theme/theme';
 
 export function ChatScreen() {
-  const { messages, sending, error, send } = useChat();
+  const { messages, carregando, sending, error, send } = useChat();
 
   return (
     <KeyboardAvoidingView
@@ -18,7 +19,11 @@ export function ChatScreen() {
       </View>
 
       <View style={styles.flex}>
-        <MessageList messages={messages} />
+        {carregando ? (
+          <LoadingState label="Retomando a conversa" />
+        ) : (
+          <MessageList messages={messages} />
+        )}
       </View>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}

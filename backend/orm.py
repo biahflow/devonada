@@ -1,5 +1,5 @@
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from sqlalchemy import BigInteger, Boolean, Date, DateTime, Integer, String, Text, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -142,6 +142,39 @@ class SaldoSnapshot(Base):
     saldo: Mapped[int] = mapped_column(BigInteger)
     atualizado_em: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class MensagemChat(Base):
+    """
+    Uma mensagem da conversa. Existe para o histórico sobreviver ao fechamento
+    do app — antes disso, `useChat` guardava tudo em memória.
+
+    `cards_json` guarda o PEDIDO de card (tipo e id), nunca os valores. Os
+    números são remontados do banco a cada leitura: uma parcela paga ontem não
+    pode reaparecer hoje com o saldo de ontem.
+    """
+
+    __tablename__ = "mensagem_chat"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=novo_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+
+    papel: Mapped[str] = mapped_column(String(20))  # user | assistant
+    conteudo: Mapped[str] = mapped_column(Text)
+    cards_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # O instante vem do PYTHON, não do banco, e esta é a única tabela assim.
+    # `func.now()` vira CURRENT_TIMESTAMP no SQLite, que tem precisão de
+    # SEGUNDO: pergunta e resposta gravadas no mesmo segundo empatavam, e a
+    # ordem da conversa passava a depender do desempate por UUID — ou seja,
+    # aleatória. Numa lista de dívidas isso seria feio; num diálogo, torna a
+    # conversa incompreensível. O server_default fica como rede para linha
+    # inserida fora do app.
+    criada_em: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
     )
 
 

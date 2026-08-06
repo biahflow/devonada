@@ -121,11 +121,16 @@ de cadastro e seguro prestamista embutido, que é exatamente onde mora a cobran�
 - [x] Tela de revisão campo a campo, com trecho citado e alertas de cláusula.
 - [x] `extracaoParaProposta` **descarta campo sem evidência**, mesmo trazendo valor.
 - [x] ADR 0005 e seção 8 de `docs/guardrails.md` escritos antes do código.
-- [ ] **Validação em device bloqueada.** Nenhum dos dois endpoints existe — fila em
-      `docs/api-contract.md`, seção 4, Bloco 4.
+- [x] **Backend destravado no M5.** Os dois endpoints existem desde o M1.5, mas faltava chave de
+      LLM. Com a camada de provedor (ADR 0007) e a chave da OpenAI, a leitura foi exercitada de
+      ponta a ponta: um contrato sintético voltou com **trecho literal nos sete campos**, data
+      convertida para ISO, dinheiro em centavos, taxa em basis points e dois alertas escritos
+      como investigação.
+- [ ] **Validação em device pendente.** O fluxo das duas telas, a permissão de câmera e a leitura
+      de uma foto de contrato real exigem aparelho.
 
 **Sai com:** enviar um contrato real de consignado, acompanhar a leitura, revisar os campos com
-os trechos citados e confirmar a criação da dívida. **Ainda não fechado** — falta o backend.
+os trechos citados e confirmar a criação da dívida. **Ainda não fechado** — falta o device.
 
 ---
 
@@ -219,22 +224,35 @@ fechado** — falta o device.
 
 ---
 
-## M5 — Dívidas dentro do chat
+## M5 — Dívidas dentro do chat — entregue, aguardando validação em device
 
 Fecha o ciclo: o assistente deixa de ser um oráculo genérico e passa a falar sobre os dados
-reais do usuário.
+reais do usuário. Spec em `docs/features/005-dividas-no-chat.md`.
 
-- [ ] Novos `kind` em `ActionCardData`: `divida_resumo` e `plano_sugerido`. O `switch` exaustivo
-      do dispatcher `ActionCard` faz o compilador cobrar o tratamento.
-- [ ] Deep link do card para a tela correspondente (`dividas/[id]`, `dividas/simulador`).
+É também o primeiro milestone **exercitado com chamada real ao provedor de LLM** — o que
+destravou, de quebra, a leitura de contrato do M1.5.
+
+- [x] **Camada de provedor de LLM** (`backend/llm/`, ADR 0007): a abstração é do provedor, não
+      da capacidade. Duas capacidades **mais** N provedores, em vez de duas vezes N.
+- [x] Novos `kind` em `ActionCardData`: `divida_resumo` e `plano_sugerido`. O `switch` do
+      dispatcher `ActionCard` perdeu o `default` e ficou **exaustivo** — `kind` sem tratamento é
+      erro de compilação, não card invisível.
+- [x] Deep link do card para a tela correspondente (`dividas/[id]`, `dividas/simulador`), sempre
+      por campo tipado, nunca por id extraído de texto.
+- [x] Histórico do chat persistido no backend, com os cards **remontados a cada leitura** — uma
+      parcela paga ontem não reaparece hoje com o saldo de ontem.
+- [x] Guardrail 7.1 verificado, em três camadas independentes: o schema não tem campo para valor,
+      o prompt não recebe valores, e número no texto sem card é cortado no servidor.
+- [x] O plano do chat usa a **mesma** `domain/simulacao.py` do M4 — conferido por teste e por
+      request real.
 - [ ] Card que sugere criar ou alterar dívida abre o **formulário preenchido** para o usuário
-      confirmar. Nenhuma escrita como efeito colateral de conversa. (`guardrails.md`, 7.2)
-- [ ] Persistir o histórico do chat entre sessões (hoje `useChat` mantém tudo em memória).
-- [ ] Verificar o guardrail na prática: nenhum número no `content` da mensagem sem card
-      correspondente.
+      confirmar (`guardrails.md`, 7.2). **Fora do escopo desta rodada** — exige um `kind` novo,
+      e nenhuma escrita por conversa existe hoje.
+- [ ] **Validação em device pendente.** Rolagem do chat com card, teclado sobre o composer e
+      legibilidade dos cards em tela pequena exigem aparelho.
 
-**Sai com:** o assistente responde sobre as dívidas do usuário com card tipado, e toda ação que
-altera dado passa por confirmação explícita.
+**Sai com:** o assistente responde sobre as dívidas do usuário com card tipado, e nenhum número
+que ele comunica foi escrito por ele. **Ainda não fechado** — falta o device.
 
 ---
 

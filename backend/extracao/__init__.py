@@ -21,15 +21,20 @@ def obter_extrator() -> ExtratorDeContrato:
     """
     Escolhe a implementação por `BUDDY_EXTRATOR`.
 
-    O import da implementação é preguiçoso de propósito: o SDK da Anthropic só
-    é carregado quando o extrator dele é realmente usado, então os testes e as
-    demais rotas não pagam por ele.
+    Hoje só existe `llm`, que serve a qualquer provedor — quem escolhe o
+    provedor é `BUDDY_LLM_PROVIDER`, e este módulo não sabe qual é. O `extrator`
+    continua sendo uma opção porque a porta faz sentido: um extrator
+    determinístico para o layout de contrato de um banco específico seria mais
+    exato que qualquer modelo, e entraria aqui sem tocar a rota.
+
+    O import é preguiçoso: nenhum SDK é carregado por quem não extrai contrato.
     """
     nome = get_settings().extrator
 
-    if nome == "anthropic":
-        from extracao.anthropic_extrator import ExtratorAnthropic
+    if nome == "llm":
+        from llm import obter_cliente
+        from extracao.extrator_llm import ExtratorLLM
 
-        return ExtratorAnthropic(modelo=get_settings().llm_model)
+        return ExtratorLLM(cliente=obter_cliente(get_settings().llm_model_extracao))
 
     raise ErroDeExtracao(f"Extrator '{nome}' não existe neste servidor.")

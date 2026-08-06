@@ -25,6 +25,9 @@ export function ChatComposer({ onSend, disabled }: Props) {
         style={styles.input}
         value={value}
         onChangeText={setValue}
+        // Placeholder não é rótulo: leitor de tela pode não anunciá-lo, e ele
+        // some assim que a pessoa começa a digitar.
+        accessibilityLabel="Mensagem"
         placeholder="Escreva aqui…"
         placeholderTextColor={colors.inkSoft}
         multiline

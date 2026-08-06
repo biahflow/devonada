@@ -49,8 +49,19 @@ export interface Divida {
 
 export type ChatRole = 'user' | 'assistant';
 
-/** Cards de ação embutidos numa mensagem do assistente. União discriminada. */
-export type ActionCardData = ValorJustoCardData | InfoCardData;
+/**
+ * Cards de ação embutidos numa mensagem do assistente. União discriminada.
+ *
+ * Todo número que o assistente comunica chega AQUI, em campo tipado, nunca no
+ * `content` da mensagem (guardrail 7.1). O dispatcher `ActionCard` trata a
+ * união de forma exaustiva, então acrescentar um `kind` sem tratá-lo é erro de
+ * compilação, não um card que some em silêncio na tela.
+ */
+export type ActionCardData =
+  | ValorJustoCardData
+  | InfoCardData
+  | DividaResumoCardData
+  | PlanoSugeridoCardData;
 
 export interface ValorJustoCardData {
   kind: 'valor_justo';
@@ -67,6 +78,35 @@ export interface InfoCardData {
   kind: 'info';
   titulo: string;
   corpo: string;
+}
+
+/**
+ * Retrato de uma dívida dentro da conversa (M5).
+ *
+ * Todos os valores são preenchidos pelo BACKEND a partir do banco. O assistente
+ * escolheu qual dívida mostrar; ele não escreveu nenhum destes números.
+ */
+export interface DividaResumoCardData {
+  kind: 'divida_resumo';
+  dividaId: Uuid;
+  credor: string;
+  /** em centavos */
+  saldoDevedor?: number | null;
+  proximoVencimento?: IsoDate | null;
+  situacao: SituacaoDivida;
+  criticidade: CriticidadeTipo;
+}
+
+/** Plano de quitação na conversa (M5). Os números vêm da mesma simulação do M4. */
+export interface PlanoSugeridoCardData {
+  kind: 'plano_sugerido';
+  estrategia: EstrategiaQuitacao;
+  /** em centavos */
+  aporteExtraMensal: number;
+  mesesAteQuitacao: number;
+  dataLiberdade: IsoMes;
+  /** em centavos. Ausente = o cenário mínimo não quita, então não há economia a afirmar. */
+  economia?: number | null;
 }
 
 export interface ChatMessage {

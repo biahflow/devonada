@@ -291,8 +291,12 @@ class TestContratos:
         assert r.status_code == 404
 
     def test_sem_chave_configurada_falha_com_mensagem_util(self, client, auth, monkeypatch):
-        # Sem ANTHROPIC_API_KEY o endpoint não pode estourar 500 — o app precisa
-        # de uma frase que o usuário entenda e um caminho alternativo.
+        # Sem chave o endpoint não pode estourar 500 — o app precisa de uma
+        # frase que o usuário entenda e um caminho alternativo.
+        #
+        # Remove a chave de TODOS os provedores: apagar só a do provedor ativo
+        # faria o teste virar falso positivo no dia em que o default mudasse.
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
         r = client.post(
             "/v1/contratos",

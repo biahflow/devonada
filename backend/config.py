@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -30,9 +31,30 @@ class Settings(BaseSettings):
     # points. 2500 = 25%, conforme o Decreto 11.150/2022, art. 3º.
     minimo_existencial_bps: int = 2500
 
-    # Extração de contrato: qual implementação usar e com qual modelo.
-    extrator: str = "anthropic"
-    llm_model: str = "claude-opus-5"
+    # Provedor de LLM. Uma escolha para o servidor inteiro; as capacidades
+    # (extração, assistente) não sabem qual é. Ver docs/adr/0007.
+    llm_provider: str = "openai"
+
+    # MODELO POR CAPACIDADE, não global: ler contrato exige visão, PDF e
+    # evidência literal por campo; classificar a intenção de uma frase, não.
+    # Um modelo só forçaria pagar o mais caro nas duas ou arriscar o mais fraco
+    # na leitura de contrato.
+    llm_model_extracao: str = "gpt-5"
+    llm_model_assistente: str = "gpt-5-mini"
+
+    # Qual implementação de cada capacidade usar. `llm` usa o provedor acima;
+    # `determinista` responde sem modelo nenhum.
+    extrator: str = "llm"
+    assistente: str = "llm"
+
+    # As chaves NÃO levam o prefixo BUDDY_ — são as variáveis que os próprios
+    # SDKs usam. Elas passam por aqui de propósito: um SDK lê `os.environ`, e
+    # `pydantic-settings` carrega o `.env` para dentro do objeto de settings,
+    # não para o ambiente do processo. Sem esta ponte, a chave escrita no
+    # `backend/.env` nunca chegava ao provedor — e o recurso respondia "não
+    # configurado" com a chave preenchida na frente do desenvolvedor.
+    openai_api_key: str = Field(default="", validation_alias="OPENAI_API_KEY")
+    anthropic_api_key: str = Field(default="", validation_alias="ANTHROPIC_API_KEY")
 
     @property
     def cors_origin_list(self) -> list[str]:
