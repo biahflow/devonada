@@ -72,6 +72,12 @@ Todo número na tela veio de um campo tipado da API. Se um valor não veio, a UI
   arquivo só — e torna auditável, num `grep`, tudo que o app envia para fora.
 - **Token só em `expo-secure-store`.** Nunca em `AsyncStorage`, nunca em estado global
   serializado, nunca em log.
+- **Como o token do beta chega ao aparelho.** `npm run token:qr` lê `BUDDY_API_TOKEN` de
+  `backend/.env` e imprime um QR com um deep link (`buddyfinanceiro://painel/token?valor=…`;
+  use `-- --expo-go` em Expo Go). A câmera nativa do celular lê e o app salva. O QR **não**
+  imprime o token em texto. A tela só aceita o parâmetro em `__DEV__` — em produção, um link
+  qualquer poderia escolher com quem o app fala. O token continua existindo só em
+  `backend/.env` e no `expo-secure-store`; **não** entra no bundle.
 - **Modo de falha que isso previne:** uma chave de LLM no bundle é extraída em minutos e vira
   conta de milhares de reais no cartão do dono do repo.
 

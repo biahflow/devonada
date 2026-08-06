@@ -144,13 +144,20 @@ Quitar uma dívida invalida `['dividas']` inteiro, porque o resumo do painel tam
 | `status` | Significado | Comportamento da UI |
 |---|---|---|
 | `0` | sem conexão | banner "sem conexão" + botão de tentar de novo; não faz retry automático agressivo |
-| `401` | token inválido ou expirado | limpa o token (`clearToken`) e envia para o fluxo de login |
+| `401` | token ausente ou diferente do servidor | oferece "Configurar conexão", que leva a `/painel/token` |
 | `404` | recurso não existe | estado vazio específico da tela, não erro genérico |
 | `422` | payload inválido | erro por campo no formulário, quando o backend indicar o campo |
 | `5xx` | falha do servidor | banner de erro + retry manual |
 
 Regra do TanStack Query: **não retenta `4xx`**. Retenta `0` e `5xx`, com backoff, no máximo
 duas vezes — em rede móvel, insistir mais gasta bateria e não resolve.
+
+**Todo erro exibido tem que ter uma ação possível.** O `401` é o caso que ensinou isso: o
+backend responde "sua sessão expirou" (`backend/auth.py`), mas não existe sessão no beta — é
+um token estático, e a frase mandava a pessoa procurar um login inexistente. Hoje quem
+decide isso é o `ErrorState`, via `isAuthError` (`src/api/client.ts`), e não cada tela: nas
+telas de coleção o botão vem no próprio `ErrorState`, e no chat vem na faixa de erro, que
+não bloqueia a conversa. Nenhuma tela repete o texto do backend para o `401`.
 
 ---
 

@@ -1,8 +1,10 @@
 import { KeyboardAvoidingView, Platform, View, Text, StyleSheet } from 'react-native';
 import { useChat } from '../hooks/useChat';
+import { isAuthError } from '../api/client';
 import { MessageList } from '../components/chat/MessageList';
 import { ChatComposer } from '../components/chat/ChatComposer';
 import { LoadingState } from '../components/ui/LoadingState';
+import { ConfigurarConexaoButton } from '../components/ui/ConfigurarConexaoButton';
 import { colors, spacing, typography } from '../theme/theme';
 
 export function ChatScreen() {
@@ -26,7 +28,15 @@ export function ChatScreen() {
         )}
       </View>
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {/* Faixa, e não ErrorState de tela cheia: mesmo sem histórico dá para
+          conversar. Só o 401 ganha ação, porque é o único erro daqui que a
+          pessoa consegue resolver sozinha. */}
+      {error ? (
+        <View style={styles.errorBox}>
+          <Text style={styles.error}>{error.texto}</Text>
+          {isAuthError(error.causa) ? <ConfigurarConexaoButton /> : null}
+        </View>
+      ) : null}
 
       <ChatComposer onSend={send} disabled={sending} />
     </KeyboardAvoidingView>
@@ -43,11 +53,14 @@ const styles = StyleSheet.create({
   },
   title: { ...typography.title, color: colors.ink },
   subtitle: { ...typography.caption, color: colors.inkSoft },
+  errorBox: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    gap: spacing.xs,
+  },
   error: {
     ...typography.caption,
     color: colors.danger,
     textAlign: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
   },
 });
