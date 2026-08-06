@@ -200,6 +200,57 @@ dinheiro num componente só — se um dia a formatação mudar, muda em um lugar
 
 ---
 
+## 4b. Visualização de dados
+
+> Esta seção existe porque a proposta óbvia **falhou numa validação executada**, não porque
+> alguém achou feio. Rodar o validador é obrigatório antes de definir qualquer paleta de gráfico.
+
+A tentativa natural era uma cor por criticidade — `#A5493D`, `#B07D2B`, `#1F6045`, `#5A6B64`.
+Resultado da validação contra a superfície clara:
+
+- **Chroma floor: FAIL.** Pine e `inkSoft` leem como cinza quando viram marca de gráfico.
+- **Normal-vision floor: FAIL.** `#5A6B64 ↔ #1F6045` com ΔE 9,1, abaixo do piso de 15. Mesmo
+  quem enxerga todas as cores não distinguiria as duas fatias.
+
+Esta paleta tem três matizes utilizáveis e um neutro. Ela **não sustenta quatro séries
+categóricas**, e a resposta não é inventar um quarto matiz fora do design system.
+
+### Regras
+
+- **Série única sempre que possível.** Uma série não leva legenda — o título nomeia o que está
+  desenhado.
+- **Categoria vem do rótulo, não do matiz.** As barras de `porCriticidade` usam um tom só
+  (`primary`); a identidade vem do `CriticidadeBadge` ao lado, onde a cor semântica já funciona
+  em escala de badge e já passa no contraste. Quatro cores ali seriam redundantes com o rótulo.
+- **Vermelho não entra em gráfico.** `danger` é erro e ação destrutiva. Saldo alto é `ink`,
+  atraso é `warning` — sempre com ícone e texto junto, nunca cor sozinha.
+- **Nunca dois eixos Y.** Duas medidas de escalas diferentes viram dois gráficos.
+- **Eixo começa na base.** Truncar o eixo para dramatizar variação é manipulação — e este
+  produto existe para reduzir ansiedade, não fabricá-la.
+- **Sem curva suavizada.** Interpolar 12 pontos inventa valores intermediários que não existem.
+- **Rótulo direto só nos extremos**, nunca um número em cada ponto.
+- **Marcas finas:** linha de 2px, marcador de ≥8px, grade e eixo recessivos.
+- Estado vazio e série de um ponto só são casos reais (o backend leva meses para acumular
+  histórico) e estão cobertos por teste em `src/util/grafico.test.ts`.
+
+### Componentes
+
+**`StatTile`** (`ui/`) — número protagonista. Valor único se lê melhor como número grande que
+como barra de um item só. Ausência exibe "ainda não calculado", **nunca R$ 0,00**.
+
+**`Meter`** (`ui/`) — proporção com limiar. Acima do limite usa `warning` com ícone e frase
+explicativa; estar endividado não é erro nem ação destrutiva.
+
+**`LinhaEvolucao`** (`charts/`) — série única em `primary`, SVG puro sobre `react-native-svg`.
+
+**`BarrasCriticidade`** (`charts/`) — barras horizontais em um tom, rotuladas por badge.
+
+A escala valor→coordenada vive em `src/util/grafico.ts`, pura e testada. **Não é cálculo
+financeiro:** nenhum valor novo nasce ali, é projeção geométrica de números que o backend já
+enviou — mesma natureza de `formatBRL`.
+
+---
+
 ## 5. Regras
 
 - **Tema claro sempre.** Não há dark mode e não há `useColorScheme`. `app.json` já fixa

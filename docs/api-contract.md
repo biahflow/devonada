@@ -239,6 +239,29 @@ backend ligar a dívida à extração que a originou.
 
 ### M2 — Painel de endividamento
 
+#### `GET /v1/perfil` e `PUT /v1/perfil`
+
+O painel prevê `comprometimentoRenda` e `minimoExistencial`, mas nada disso existe sem a renda —
+e não havia endpoint para o usuário informá-la. Estes são esses endpoints.
+
+Response `200` (ambos):
+```json
+{ "perfil": { "rendaMensal": 550000, "dependentes": 2 } }
+```
+
+Request do `PUT`: o mesmo objeto sem envelope.
+
+| Campo | Unidade | Ausente significa |
+|---|---|---|
+| `rendaMensal` | centavos | não informado — **nunca zero** |
+| `dependentes` | contagem | zero dependentes |
+
+> **`minimoExistencial` continua sendo calculado no backend**, a partir da renda e dos
+> dependentes. O front coleta e exibe; não aplica nenhuma regra de mínimo existencial
+> (guardrail 1, ADR 0003). Nenhuma sugestão do produto pode propor plano que invada esse mínimo.
+
+Dado de renda é sensível: não deve aparecer em log nem em mensagem de erro.
+
 #### `GET /v1/dividas/resumo`
 
 Query opcional: `?mes=2024-03` (default: mês corrente).
@@ -414,7 +437,8 @@ Espelha `roadmap.md`. Cada bloco destrava as telas do milestone correspondente:
 2. `GET/PATCH/DELETE /v1/dividas/{id}` e `POST .../quitacao` — M1.
 2b. `POST /v1/contratos` e `GET /v1/contratos/{id}` — M1.5. Pode vir antes do M2: é o que remove
    o atrito de digitar taxa de juros à mão, e alimenta o contexto dos agentes.
-3. `GET /v1/dividas/resumo` — M2.
+3. `GET/PUT /v1/perfil` e `GET /v1/dividas/resumo` — M2. O perfil vem primeiro: sem renda, metade
+   do painel não tem o que exibir.
 4. Parcelas, pagamento, renegociação, lembretes — M3.
 5. `POST /v1/dividas/simulacoes` — M4.
 6. Chat real com os novos `kind` de card — M5.

@@ -112,24 +112,30 @@ os trechos citados e confirmar a criação da dívida. **Ainda não fechado** �
 
 ---
 
-## M2 — Painel de endividamento
+## M2 — Painel de endividamento — front entregue, aguardando backend
 
 O que transforma uma lista num diagnóstico. Zero agregação no cliente: todo número vem de
-`GET /v1/dividas/resumo`.
+`GET /v1/dividas/resumo`. Spec em `docs/features/003-painel-de-endividamento.md`.
 
-- [ ] `src/api/resumo.ts` + `useResumo()`.
-- [ ] Cards de total devido, quantidade de dívidas, custo médio de juros e distribuição por
-      criticidade.
-- [ ] Comprometimento de renda e mínimo existencial. Quando a renda ainda não foi informada,
-      o card convida a preencher — não exibe zero.
-- [ ] Próximos vencimentos, com link para o detalhe da dívida.
-- [ ] Gráfico de evolução do saldo devedor a partir de `evolucaoSaldo` (`react-native-svg` ou
-      `victory-native`). Linha em `primary`, sem preenchimento vermelho, sem eixo invertido
-      que dramatize a curva.
-- [ ] `MoneyText` com `tabular-nums` em toda coluna de valores.
+- [x] `src/api/resumo.ts` + `useResumo(mes)`, com a chave dentro do prefixo `['dividas']` — as
+      mutações do M1 revalidam o painel de graça.
+- [x] **Lacuna do contrato resolvida:** `GET/PUT /v1/perfil` especificado e tela `painel/renda`
+      construída. Sem endpoint de renda, o convite a preencher não tinha destino.
+- [x] `StatTile` para o total devido, juros médios e quitado no ano. Ausência exibe "ainda não
+      calculado", nunca zero.
+- [x] `Meter` de comprometimento com o limite de 30% marcado. Acima do limite usa `warning` com
+      ícone e texto — nunca `danger`, nunca cor sozinha.
+- [x] Distribuição por criticidade e próximos vencimentos.
+- [x] Gráfico de evolução em `react-native-svg`, série única, eixo na base, sem curva suavizada.
+- [x] Seletor de mês com o futuro bloqueado.
+- [x] **Paleta de gráfico validada por script, não estimada.** A proposta de uma cor por
+      criticidade falhou no piso de distinção; a decisão e o motivo estão em
+      `docs/design-system.md`, seção 4b.
+- [ ] **Verificação em device bloqueada pelo backend.** `GET /v1/dividas/resumo` e `/v1/perfil`
+      não existem — ver `docs/api-contract.md`, seção M2.
 
 **Sai com:** aba Painel exibindo apenas números vindos do backend — nenhuma soma, média ou
-percentual calculado em TypeScript.
+percentual calculado em TypeScript. **Ainda não fechado** — falta o backend.
 
 ---
 
