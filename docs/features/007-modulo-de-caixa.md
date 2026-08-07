@@ -49,8 +49,17 @@ sem apagar o histórico — mesma disciplina da exclusão lógica de dívida.
 gasto variável que muda de valor. Para esses, a solução **não** é replicar automaticamente:
 número que o usuário nunca confirmou entrando na capacidade é o mesmo erro de o LLM gravar dado
 sem revisão (guardrail 8.1). A solução é o **fechamento do mês** — a tela abre pré-preenchida
-com o mês anterior e o usuário confirma ou ajusta. Está no roadmap como próximo passo do M7,
-fora deste milestone.
+com o mês anterior e o usuário confirma ou ajusta.
+
+**Entregue no M7.1** (`app/(tabs)/caixa/fechamento.tsx`, Bloco 8 do contrato). Três coisas dele
+valem registrar:
+
+- o backend **propõe e não grava**: `GET /v1/caixa/fechamento` monta a lista, e nada toca o banco
+  até o `POST` que o usuário dispara;
+- **item omitido não é gravado e não vira zero** — quem não confirmou uma linha não afirmou que
+  ela é zero. Há teste nos dois lados provando isso;
+- cada linha mostra a **procedência** do número ("sugerido a partir de jul/26"). Valor
+  pré-preenchido sem origem visível é indistinguível de valor inventado.
 
 ## O que a leitura da lei mudou neste desenho
 

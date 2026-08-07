@@ -121,6 +121,13 @@ class Perfil(Base):
         Integer, default=3, server_default="3"
     )
 
+    # Lembrete de fechamento do mês (M7.1). O DIA é preferência; a hora reusa
+    # `hora_lembrete`, porque duas horas diferentes para o mesmo usuário seriam
+    # duas coisas para ele configurar sem ganho nenhum.
+    # `None` = desligado. Um booleano separado permitiria "ligado sem dia", que
+    # é um estado que não significa nada.
+    fechamento_dia_do_mes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
     # METAS DO CAIXA (M7). Todas NULLABLE de propósito: campo não preenchido tem
     # de sobreviver como ausente, nunca como zero. Zero é uma afirmação — "não
     # reservo imposto" — e ausente é outra: "não sei ainda".
@@ -326,6 +333,36 @@ class ProvisaoAnual(Base):
 
     criada_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     atualizada_em: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class FechamentoMes(Base):
+    """
+    O mês que o usuário confirmou.
+
+    Existe porque nenhuma outra tabela responde "quando ele conferiu isso pela
+    última vez". `Recebimento` só existe para quem tem renda variável, e
+    `CaixaSnapshot` é gravado a cada mutação — os dois marcam atividade, não
+    conferência.
+
+    A distinção importa: a capacidade alimenta o aporte do simulador, e o
+    simulador alimenta o que a pessoa leva a uma negociação. Saber que o número
+    tem três meses é o que permite dizer isso na tela em vez de apresentá-lo
+    como se fosse de hoje.
+
+    Um por tenant por mês — refechar o mesmo mês atualiza `confirmado_em` em vez
+    de duplicar, do mesmo jeito que reenviar um recebimento sobrescreve.
+    """
+
+    __tablename__ = "fechamento_mes"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=novo_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+
+    mes: Mapped[str] = mapped_column(String(7))  # AAAA-MM
+
+    confirmado_em: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 

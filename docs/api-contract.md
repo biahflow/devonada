@@ -814,6 +814,23 @@ sobre quanto a pessoa consegue pagar.*
 - [~] `acimaDoPrazoDeRepactuacao` na simulação — CDC art. 104-A, 5 anos
 - [~] Card `plano_sugerido` do chat usa a capacidade como aporte padrão, não zero
 
+### Bloco 8 — M7.1 · fechamento do mês
+*Destrava: o caixa deixar de envelhecer em silêncio. Gasto fixo e provisão já não se redigitam
+pela forma do modelo; sobram o recebimento variável e o gasto que muda de valor.*
+
+- [~] Tabela `fechamento_mes` — um por tenant por mês, com unicidade garantida no banco
+- [~] `perfil.fechamento_dia_do_mes` — dia do lembrete; `None` é desligado
+- [~] `GET /v1/caixa/fechamento?mes=AAAA-MM` — a proposta pré-preenchida. **Propõe e não grava.**
+      Cada item traz `origem` (`mes_anterior` · `valor_atual` · `sem_referencia`) e, quando vem
+      do mês anterior, o `mesDeReferencia`. Sem referência ⇒ `valorSugerido` **ausente**, nunca 0
+- [~] `POST /v1/caixa/fechamento` — grava **só os itens enviados**, numa transação, com **um**
+      snapshot. Item omitido não é gravado e não vira zero
+- [~] `GET /v1/caixa` ganha `ultimoFechamentoMes`, `mesesDesdeFechamento` e `caixaDefasado`.
+      Os três **ausentes** quando nunca houve fechamento: "ainda não fechou" e "está em dia" são
+      afirmações diferentes
+- [x] `domain/caixa.caixa_defasado` — o limiar de 2 meses é escolha de método, declarada no
+      docstring: um mês de atraso é o estado normal entre fechamentos
+
 ### Estado observado em device
 
 | Endpoint | Estado |

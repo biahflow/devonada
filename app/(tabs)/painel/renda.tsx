@@ -8,13 +8,25 @@ import { Button } from '../../../src/components/ui/Button';
 import { Feedback } from '../../../src/components/ui/Feedback';
 import { FormField } from '../../../src/components/ui/FormField';
 import { CurrencyInput } from '../../../src/components/ui/CurrencyInput';
+import { OptionGroup, type Option } from '../../../src/components/ui/OptionGroup';
 import { LoadingState } from '../../../src/components/ui/LoadingState';
 import { ErrorState } from '../../../src/components/ui/ErrorState';
 import { useAtualizarPerfil, usePerfil } from '../../../src/hooks/usePainel';
-import { HORA_MAXIMA, HORA_MINIMA, horaValida } from '../../../src/notificacoes';
+import { HORA_MAXIMA, HORA_MINIMA, horaValida, pedirPermissao } from '../../../src/notificacoes';
 import type { PerfilFinanceiro } from '../../../src/api/types';
 import { ApiError } from '../../../src/api/client';
 import { colors, spacing, typography } from '../../../src/theme/theme';
+
+/**
+ * Só até 28: 29, 30 e 31 não existem em todo mês, e um lembrete que some em
+ * fevereiro é pior que um lembrete um dia antes. O contrato impõe o mesmo teto.
+ */
+const DIAS_DE_FECHAMENTO: readonly Option<string>[] = [
+  { value: 'off', label: 'Não avisar' },
+  { value: '1', label: 'Dia 1', description: 'Logo no começo do mês seguinte.' },
+  { value: '5', label: 'Dia 5', description: 'Depois que os recebimentos costumam cair.' },
+  { value: '28', label: 'Dia 28', description: 'Antes de o mês virar.' },
+];
 
 export default function Renda() {
   const router = useRouter();
@@ -44,11 +56,19 @@ function Formulario({ inicial, onPronto }: { inicial: PerfilFinanceiro; onPronto
   const [dependentes, setDependentes] = useState(String(inicial.dependentes ?? 0));
   const [hora, setHora] = useState(inicial.horaLembrete ?? '09:00');
   const [antecedencia, setAntecedencia] = useState(String(inicial.diasAntecedenciaLembrete ?? 3));
+  const [diaFechamento, setDiaFechamento] = useState(
+    inicial.fechamentoDiaDoMes ? String(inicial.fechamentoDiaDoMes) : 'off',
+  );
   const [erro, setErro] = useState<string | undefined>();
   const [erroHora, setErroHora] = useState<string | undefined>();
   const atualizar = useAtualizarPerfil();
 
-  function salvar() {
+  async function salvar() {
+    // Permissão pedida NO CONTEXTO: só quando a pessoa liga o lembrete, nunca
+    // no boot. Negar não impede o salvamento — a preferência fica gravada e o
+    // agendamento volta a valer se ela permitir depois.
+    if (diaFechamento !== 'off') await pedirPermissao();
+
     let invalido = false;
 
     if (renda <= 0) {
@@ -74,6 +94,7 @@ function Formulario({ inicial, onPronto }: { inicial: PerfilFinanceiro; onPronto
         dependentes: Number.parseInt(dependentes, 10) || 0,
         horaLembrete: hora,
         diasAntecedenciaLembrete: Number.parseInt(antecedencia, 10) || 0,
+        fechamentoDiaDoMes: diaFechamento === 'off' ? null : Number(diaFechamento),
       },
       { onSuccess: onPronto },
     );
@@ -152,6 +173,21 @@ function Formulario({ inicial, onPronto }: { inicial: PerfilFinanceiro; onPronto
             onChangeText={setAntecedencia}
             keyboardType="number-pad"
             placeholder="3"
+          />
+
+          <View style={styles.secao}>
+            <Text style={styles.tituloSecao}>Lembrete de fechamento do mês</Text>
+            <Text style={styles.explicacao}>
+              Um aviso por mês para conferir o que entrou e o que variou. Opcional — sem ele o
+              caixa continua funcionando, só envelhece sem avisar.
+            </Text>
+          </View>
+
+          <OptionGroup
+            label="Quando avisar"
+            value={diaFechamento}
+            onChangeValue={setDiaFechamento}
+            options={DIAS_DE_FECHAMENTO}
           />
 
           <Button label="Salvar" onPress={salvar} loading={atualizar.isPending} />

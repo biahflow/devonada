@@ -2,6 +2,8 @@ import { request } from './client';
 import type {
   Caixa,
   FonteRenda,
+  ItemConfirmado,
+  PropostaFechamento,
   Gasto,
   MetasCaixa,
   ProvisaoAnual,
@@ -116,4 +118,24 @@ export function getMetas() {
 /** `null` GRAVA ausência — é como o usuário desfaz uma meta. */
 export function updateMetas(metas: MetasCaixa) {
   return request<{ metas: MetasCaixa }>('/v1/caixa/metas', { method: 'PUT', body: metas });
+}
+
+/* --- Fechamento do mês --- */
+
+/**
+ * A proposta pré-preenchida. PROPÕE, não grava: quem confirma é o usuário, no
+ * POST abaixo. Replicar em silêncio faria um número que ninguém conferiu entrar
+ * na capacidade — e daí no plano que ele leva a um credor.
+ */
+export function getFechamento(mes?: string) {
+  const query = mes ? `?mes=${encodeURIComponent(mes)}` : '';
+  return request<{ proposta: PropostaFechamento }>(`/v1/caixa/fechamento${query}`);
+}
+
+/** Só o que vai em `itens` é gravado. Item omitido não vira zero. */
+export function confirmarFechamento(mes: string, itens: readonly ItemConfirmado[]) {
+  return request<{ caixa: Caixa }>('/v1/caixa/fechamento', {
+    method: 'POST',
+    body: { mes, itens },
+  });
 }

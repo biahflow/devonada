@@ -1,4 +1,10 @@
-import { HORA_MAXIMA, HORA_MINIMA, horaValida, instanteDoLembrete } from './notificacoes';
+import {
+  HORA_MAXIMA,
+  HORA_MINIMA,
+  horaValida,
+  instanteDoLembrete,
+  proximoFechamento,
+} from './notificacoes';
 
 jest.mock('expo-notifications', () => ({
   getPermissionsAsync: jest.fn(),
@@ -50,5 +56,37 @@ describe('instanteDoLembrete', () => {
     const quando = instanteDoLembrete('2026-09-10', '09:00');
     expect(quando.getSeconds()).toBe(0);
     expect(quando.getMilliseconds()).toBe(0);
+  });
+});
+
+describe('proximoFechamento', () => {
+  it('vai para o mês que vem quando o dia já passou', () => {
+    const agora = new Date(2026, 7, 20, 10, 0, 0); // 20/08/2026
+    const quando = proximoFechamento(5, '09:00', agora);
+    expect(quando.getMonth()).toBe(8); // setembro
+    expect(quando.getDate()).toBe(5);
+    expect(quando.getHours()).toBe(9);
+  });
+
+  it('fica no mês corrente quando o dia ainda vem', () => {
+    const agora = new Date(2026, 7, 2, 10, 0, 0);
+    const quando = proximoFechamento(28, '20:30', agora);
+    expect(quando.getMonth()).toBe(7);
+    expect(quando.getDate()).toBe(28);
+    expect(quando.getMinutes()).toBe(30);
+  });
+
+  it('o mesmo dia mais cedo já passou e vai para o mês seguinte', () => {
+    // Agendar no passado dispararia na hora — o mesmo cuidado de `reagendar`.
+    const agora = new Date(2026, 7, 10, 14, 0, 0);
+    const quando = proximoFechamento(10, '09:00', agora);
+    expect(quando.getMonth()).toBe(8);
+  });
+
+  it('atravessa a virada do ano', () => {
+    const agora = new Date(2026, 11, 20, 10, 0, 0); // 20/12/2026
+    const quando = proximoFechamento(3, '09:00', agora);
+    expect(quando.getFullYear()).toBe(2027);
+    expect(quando.getMonth()).toBe(0);
   });
 });

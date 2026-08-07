@@ -1,7 +1,7 @@
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 import orm
@@ -13,8 +13,10 @@ from domain.caixa import (
     EntradaCaixa,
     ProvisaoPendente,
     aporte_de_provisao,
+    caixa_defasado,
     calcular_caixa,
     meses_ate_vencimento,
+    meses_entre,
     renda_tipica,
 )
 from leitura import montar_entrada_caixa
@@ -43,6 +45,56 @@ def _nao_encontrado(o_que: str) -> HTTPException:
 # --- Leitura da cascata ------------------------------------------------------
 
 
+def _mes_de_hoje() -> str:
+    hoje = date.today()
+    return f"{hoje.year}-{hoje.month:02d}"
+
+
+def _ultimo_fechamento(db: Session, tenant: str) -> str | None:
+    return db.scalar(
+        select(orm.FechamentoMes.mes)
+        .where(orm.FechamentoMes.tenant_id == tenant)
+        .order_by(orm.FechamentoMes.mes.desc())
+        .limit(1)
+    )
+
+
+def _caixa_schema(db: Session, tenant: str, settings: Settings) -> schemas.Caixa:
+    """
+    Traduz a cascata para o contrato e acrescenta a defasagem.
+
+    A defasagem é decidida em `domain.caixa_defasado`, não aqui: "a partir de
+    quando o número está velho" é escolha de método, e escolha de método mora no
+    domínio com o porquê no docstring.
+    """
+    caixa = calcular_caixa(montar_entrada_caixa(db, tenant, settings))
+    ultimo = _ultimo_fechamento(db, tenant)
+    meses = meses_entre(ultimo, _mes_de_hoje()) if ultimo else None
+    return schemas.Caixa(
+        rendaBrutaTipica=caixa.renda_bruta_tipica,
+        origemRenda=caixa.origem_renda,  # type: ignore[arg-type]
+        impostoReservado=caixa.imposto_reservado,
+        rendaLiquida=caixa.renda_liquida,
+        essenciais=caixa.essenciais,
+        naoEssenciais=caixa.nao_essenciais,
+        provisaoMensal=caixa.provisao_mensal,
+        aporteReserva=caixa.aporte_reserva,
+        aporteAposentadoria=caixa.aporte_aposentadoria,
+        comprometidoDividas=caixa.comprometido_dividas,
+        capacidadeHoje=caixa.capacidade_hoje,
+        capacidadeMaxima=caixa.capacidade_maxima,
+        aporteMaximo=caixa.aporte_maximo,
+        minimoExistencial=caixa.minimo_existencial,
+        minimoExistencialVigenteEm=settings.minimo_existencial_vigente_em or None,
+        abaixoDoPiso=caixa.abaixo_do_piso,
+        naoFecha=caixa.nao_fecha,
+        preenchimento=caixa.preenchimento,  # type: ignore[arg-type]
+        ultimoFechamentoMes=ultimo,
+        mesesDesdeFechamento=meses,
+        caixaDefasado=caixa_defasado(meses),
+    )
+
+
 @router.get("", response_model=schemas.RespostaCaixa)
 def obter(
     db: Session = Depends(get_db),
@@ -50,29 +102,7 @@ def obter(
     settings: Settings = Depends(get_settings),
 ):
     """A cascata atual. Leitura pura — o snapshot é gravado pelas mutações."""
-    caixa = calcular_caixa(montar_entrada_caixa(db, tenant, settings))
-    return schemas.RespostaCaixa(
-        caixa=schemas.Caixa(
-            rendaBrutaTipica=caixa.renda_bruta_tipica,
-            origemRenda=caixa.origem_renda,  # type: ignore[arg-type]
-            impostoReservado=caixa.imposto_reservado,
-            rendaLiquida=caixa.renda_liquida,
-            essenciais=caixa.essenciais,
-            naoEssenciais=caixa.nao_essenciais,
-            provisaoMensal=caixa.provisao_mensal,
-            aporteReserva=caixa.aporte_reserva,
-            aporteAposentadoria=caixa.aporte_aposentadoria,
-            comprometidoDividas=caixa.comprometido_dividas,
-            capacidadeHoje=caixa.capacidade_hoje,
-            capacidadeMaxima=caixa.capacidade_maxima,
-            aporteMaximo=caixa.aporte_maximo,
-            minimoExistencial=caixa.minimo_existencial,
-            minimoExistencialVigenteEm=settings.minimo_existencial_vigente_em or None,
-            abaixoDoPiso=caixa.abaixo_do_piso,
-            naoFecha=caixa.nao_fecha,
-            preenchimento=caixa.preenchimento,  # type: ignore[arg-type]
-        )
-    )
+    return schemas.RespostaCaixa(caixa=_caixa_schema(db, tenant, settings))
 
 
 def registrar_snapshot(db: Session, tenant: str, settings: Settings) -> None:
@@ -130,6 +160,171 @@ def historico(db: Session = Depends(get_db), tenant: str = Depends(tenant_atual)
             for s in linhas
         ]
     )
+
+
+# --- Fechamento do mês -------------------------------------------------------
+
+
+def _mes_anterior(mes: str) -> str:
+    """`AAAA-MM` − 1, atravessando o ano."""
+    ano, m = int(mes[:4]), int(mes[5:7])
+    return f"{ano - 1}-12" if m == 1 else f"{ano}-{m - 1:02d}"
+
+
+@router.get("/fechamento", response_model=schemas.RespostaFechamento)
+def propor_fechamento(
+    mes: str | None = None,
+    db: Session = Depends(get_db),
+    tenant: str = Depends(tenant_atual),
+):
+    """
+    O que precisa ser confirmado neste mês, já pré-preenchido.
+
+    PROPÕE, NÃO GRAVA. Nada aqui toca o banco: a confirmação é um POST separado,
+    e é o usuário quem a dispara. Pré-preencher e pedir confirmação custa dois
+    toques; replicar em silêncio faria um número que ninguém conferiu entrar na
+    capacidade — e daí no plano que a pessoa leva a um credor (guardrail 8.1).
+
+    Entram só as duas coisas que mudam de valor: o recebimento de fonte
+    `variavel` e o gasto `fixo=False`. Gasto fixo e provisão são registros
+    permanentes e já valem sem redigitar — é a forma do modelo que resolve a
+    recorrência, não uma função de cópia.
+    """
+    alvo = mes or _mes_de_hoje()
+    anterior = _mes_anterior(alvo)
+    itens: list[schemas.ItemFechamento] = []
+
+    fontes = db.scalars(
+        select(orm.FonteRenda).where(
+            orm.FonteRenda.tenant_id == tenant,
+            orm.FonteRenda.ativo.is_(True),
+            orm.FonteRenda.variavel.is_(True),
+        )
+    ).all()
+    for f in fontes:
+        # O valor do mês alvo, se já registrado, tem precedência: quem está
+        # refazendo um fechamento vê o que gravou, não o mês anterior de novo.
+        deste_mes = db.scalar(
+            select(orm.Recebimento.valor).where(
+                orm.Recebimento.tenant_id == tenant,
+                orm.Recebimento.fonte_id == f.id,
+                orm.Recebimento.mes == alvo,
+            )
+        )
+        do_anterior = db.scalar(
+            select(orm.Recebimento.valor).where(
+                orm.Recebimento.tenant_id == tenant,
+                orm.Recebimento.fonte_id == f.id,
+                orm.Recebimento.mes == anterior,
+            )
+        )
+        if deste_mes is not None:
+            sugerido, origem, referencia = deste_mes, "valor_atual", None
+        elif do_anterior is not None:
+            sugerido, origem, referencia = do_anterior, "mes_anterior", anterior
+        else:
+            # Sem referência o campo vai VAZIO, nunca zero: zero afirmaria que a
+            # pessoa não recebeu nada.
+            sugerido, origem, referencia = None, "sem_referencia", None
+
+        itens.append(
+            schemas.ItemFechamento(
+                tipo="recebimento",
+                id=f.id,
+                descricao=f.nome,
+                valorSugerido=sugerido,
+                origem=origem,  # type: ignore[arg-type]
+                mesDeReferencia=referencia,
+            )
+        )
+
+    variaveis = db.scalars(
+        select(orm.Gasto).where(
+            orm.Gasto.tenant_id == tenant,
+            orm.Gasto.ativo.is_(True),
+            orm.Gasto.fixo.is_(False),
+        )
+    ).all()
+    for g in variaveis:
+        itens.append(
+            schemas.ItemFechamento(
+                tipo="gasto",
+                id=g.id,
+                descricao=g.descricao,
+                valorSugerido=g.valor_mensal,
+                origem="valor_atual",
+            )
+        )
+
+    return schemas.RespostaFechamento(
+        proposta=schemas.PropostaFechamento(mes=alvo, itens=itens)
+    )
+
+
+@router.post("/fechamento", response_model=schemas.RespostaConfirmacao)
+def confirmar_fechamento(
+    entrada: schemas.ConfirmacaoFechamento,
+    db: Session = Depends(get_db),
+    tenant: str = Depends(tenant_atual),
+    settings: Settings = Depends(get_settings),
+):
+    """
+    Grava o que o usuário confirmou, e só isso.
+
+    ITEM OMITIDO NÃO É GRAVADO e não vira zero — quem não confirmou uma linha
+    não afirmou que ela é zero. Mesma disciplina do `extracaoParaProposta`, que
+    descarta campo sem evidência mesmo tendo o valor em mãos.
+
+    UMA TRANSAÇÃO E UM SNAPSHOT. As mutações avulsas do módulo gravam um
+    snapshot cada; um fechamento com oito itens produziria oito fotos idênticas
+    e sujaria o histórico que existe para responder "com base em qual renda eu
+    propus aquele acordo?".
+    """
+    for item in entrada.itens:
+        if item.tipo == "recebimento":
+            _buscar_fonte(db, tenant, item.id)
+            r = db.scalar(
+                select(orm.Recebimento).where(
+                    orm.Recebimento.tenant_id == tenant,
+                    orm.Recebimento.fonte_id == item.id,
+                    orm.Recebimento.mes == entrada.mes,
+                )
+            )
+            if r is None:
+                db.add(
+                    orm.Recebimento(
+                        tenant_id=tenant,
+                        fonte_id=item.id,
+                        mes=entrada.mes,
+                        valor=item.valor,
+                    )
+                )
+            else:
+                r.valor = item.valor
+        else:
+            g = db.scalar(
+                select(orm.Gasto).where(
+                    orm.Gasto.tenant_id == tenant, orm.Gasto.id == item.id
+                )
+            )
+            if g is None:
+                raise _nao_encontrado("esse gasto")
+            g.valor_mensal = item.valor
+
+    fechamento = db.scalar(
+        select(orm.FechamentoMes).where(
+            orm.FechamentoMes.tenant_id == tenant, orm.FechamentoMes.mes == entrada.mes
+        )
+    )
+    if fechamento is None:
+        db.add(orm.FechamentoMes(tenant_id=tenant, mes=entrada.mes))
+    else:
+        # Refechar o mesmo mês atualiza a confirmação em vez de duplicar.
+        fechamento.confirmado_em = func.now()
+
+    db.commit()
+    registrar_snapshot(db, tenant, settings)
+    return schemas.RespostaConfirmacao(caixa=_caixa_schema(db, tenant, settings))
 
 
 # --- Fontes de renda ---------------------------------------------------------
