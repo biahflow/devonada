@@ -65,19 +65,22 @@ Todo número na tela veio de um campo tipado da API. Se um valor não veio, a UI
   `ANTHROPIC_API_KEY`, credencial de Pluggy/Belvo e afins ficam no backend. O app só fala com a
   própria API autenticada.
 - **`EXPO_PUBLIC_*` é público.** Qualquer coisa com esse prefixo é embutida no bundle JS e
-  legível por quem baixar o APK. Só `EXPO_PUBLIC_API_BASE_URL` mora ali. Se um dia algo secreto
-  precisar existir no cliente, a resposta é *mover para o backend*, não ofuscar.
+  legível por quem baixar o APK. Moram ali `EXPO_PUBLIC_API_BASE_URL` e os dois
+  `EXPO_PUBLIC_PRODUTO_ASSINATURA_*` — **ids de produto da loja, que são públicos por natureza**:
+  eles estão impressos na página da assinatura na App Store, e o SDK precisa deles antes de
+  qualquer chamada ao nosso servidor. Não é exceção à regra; é a regra aplicada a um valor que não
+  é segredo. Se um dia algo secreto precisar existir no cliente, a resposta é *mover para o
+  backend*, não ofuscar.
 - **`src/api/client.ts` é o único egress de rede.** Nenhum `fetch`, `axios` ou `XMLHttpRequest`
   fora dele. Isso concentra Bearer token, serialização, `AbortSignal` e normalização de erro num
   arquivo só — e torna auditável, num `grep`, tudo que o app envia para fora.
 - **Token só em `expo-secure-store`.** Nunca em `AsyncStorage`, nunca em estado global
-  serializado, nunca em log.
-- **Como o token do beta chega ao aparelho.** `npm run token:qr` lê `BUDDY_API_TOKEN` de
-  `backend/.env` e imprime um QR com um deep link (`buddyfinanceiro://painel/token?valor=…`;
-  use `-- --expo-go` em Expo Go). A câmera nativa do celular lê e o app salva. O QR **não**
-  imprime o token em texto. A tela só aceita o parâmetro em `__DEV__` — em produção, um link
-  qualquer poderia escolher com quem o app fala. O token continua existindo só em
-  `backend/.env` e no `expo-secure-store`; **não** entra no bundle.
+  serializado, nunca em log. Vale para o par inteiro da ADR 0012 — acesso e refresh.
+- **Como a credencial chega ao aparelho: pelo login.** O parágrafo anterior descrevia o
+  `npm run token:qr`, que lia `BUDDY_API_TOKEN` de `backend/.env` e imprimia um QR. **Nada disso
+  existe desde o M8** — o script, a tela de token e o próprio `BUDDY_API_TOKEN` saíram junto com o
+  token fixo da ADR 0006. Hoje o usuário entra com e-mail e senha, e o `src/api/sessao.ts` guarda
+  o par no SecureStore.
 - **Modo de falha que isso previne:** uma chave de LLM no bundle é extraída em minutos e vira
   conta de milhares de reais no cartão do dono do repo.
 
@@ -304,7 +307,65 @@ ilegal".
 
 ---
 
-## 9. Checklist por pull request
+## 9. Cobrança (M9, ADR 0013)
+
+O produto é pago, e o público dele está endividado. Isso torna a alavanca óbvia de conversão —
+trancar o acesso — exatamente a que transformaria o app no tipo de credor que ele existe para
+ajudar a enfrentar. As regras abaixo são o que impede isso, e nenhuma é negociável por receita.
+
+### 9.1 Leitura nunca é bloqueada
+
+Sem assinatura, o app fica **somente leitura**: tudo o que o usuário já cadastrou continua à
+vista — dívidas, parcelas, caixa, achados de revisão, histórico do chat. O que trava é registrar e
+alterar.
+
+*Modo de falha que isso previne:* alguém em aperto financeiro deixa de pagar a assinatura e perde
+o acesso à própria lista de dívidas, no mês em que mais precisa dela. Também é o que mantém o
+produto do lado certo do art. 18 do LGPD — acesso do titular ao próprio dado não é recurso pago.
+
+### 9.2 A exclusão de conta nunca é bloqueada
+
+`DELETE /v1/conta` fica fora da trava. Apple, diretriz 5.1.1(v), e o mesmo art. 18: reter dado de
+quem pediu para apagá-lo porque a assinatura venceu reprovaria na revisão da loja — e seria errado
+antes disso.
+
+### 9.3 Preço não vem do cliente nem do nosso servidor
+
+Ele é lido da loja em tempo de execução, já localizado em moeda e formato. **Nunca cravado no
+bundle, nunca servido pelo backend, nunca formatado por nós.** É exigência das duas lojas, e preço
+nosso mentiria para quem está em outro país e envelheceria na primeira promoção. O que trafega em
+`EXPO_PUBLIC_` é só o **id do produto** — que é público por natureza e não é exceção à seção 2.
+
+### 9.4 O aparelho não afirma a própria validade
+
+O app manda o recibo e mais nada. Quem diz até quando a assinatura vale é a loja, consultada pelo
+servidor com credencial que só ele tem. `expiraEm`, `status` e `produtoId` vindos do cliente são
+recusados por não existirem no schema.
+
+*Modo de falha que isso previne:* um app modificado que declare `podeEscrever: true` — a forma mais
+barata de burlar a cobrança, e a única resposta é não perguntar ao cliente.
+
+### 9.5 A transação só é encerrada depois que o backend confirma
+
+`finishTransaction` no `onSuccess`, nunca no evento de compra.
+
+*Modo de falha que isso previne:* o usuário é cobrado, a rede cai antes de o servidor saber, e a
+loja não reentrega o que já foi reconhecido — ele fica pagando por um app travado, sem caminho de
+volta que não passe por suporte.
+
+### 9.6 O período de teste não é regra financeira
+
+`domain/assinatura.py` é o único módulo de `backend/domain/` **sem FONTE no docstring**, e ele diz
+isso por escrito. A regra da seção 1 é que nenhuma regra financeira é inventada — porque um número
+chutado ali sai na tela como se fosse direito do usuário. Período de teste é da classe do preço:
+nosso para escolher.
+
+Não use este arquivo como precedente. A diferença é que aqui o número descreve o que **nós**
+cobramos; lá, o que o **usuário** deveria pagar a um credor.
+
+---
+
+## 10. Checklist por pull request
 
 - [ ] Nenhum cálculo de valor monetário novo no cliente.
 - [ ] Todo dinheiro trafega e é armazenado em centavos inteiros.
@@ -317,3 +378,4 @@ ilegal".
 - [ ] Nenhum parâmetro de tenant enviado pelo cliente.
 - [ ] Nenhum campo pré-preenchido a partir de extração sem trecho que o comprove.
 - [ ] Nenhum conteúdo de documento renderizado como marcação ou link.
+- [ ] Nenhuma rota de leitura bloqueada por assinatura, e nenhum preço servido pelo backend.

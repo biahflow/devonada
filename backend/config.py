@@ -92,6 +92,51 @@ class Settings(BaseSettings):
     extrator: str = "llm"
     assistente: str = "llm"
 
+    # ------------------------------------------------------------------ #
+    # Assinatura (M9, ADR 0013)
+    # ------------------------------------------------------------------ #
+
+    # Provedor de loja, no mesmo padrão plugável do LLM e do correio: `real`
+    # fala com a App Store e com o Google Play, `memoria` confere um recibo que
+    # descreve a si mesmo e é o que a suíte usa. A regra "nenhum teste toca a
+    # rede" passa a valer para cobrança também.
+    loja: str = "real"
+
+    # DIAS DE TESTE antes do paywall, contados de `usuario.criado_em`.
+    #
+    # ESTE NÚMERO NÃO TEM FONTE A CITAR, e isso não é omissão. As constantes de
+    # `backend/domain/` levam artigo de lei porque descrevem dinheiro que a lei
+    # define; sete dias é escolha comercial do dono do produto, da mesma classe
+    # do preço. Fica em config pelo motivo de sempre — mudar de ideia não é
+    # editar código —, não porque uma resolução o revê.
+    teste_dias: int = 7
+
+    # Identificador do produto de assinatura em cada loja. Sem default: um id
+    # chutado faz a compra falhar no aparelho do usuário com erro da loja, que
+    # é o pior lugar para descobrir que a configuração está vazia.
+    #
+    # O PREÇO NÃO ESTÁ AQUI e não deve estar. Ele vive na App Store Connect e no
+    # Play Console, chega ao app pelo SDK já localizado em moeda e formato, e é
+    # exigência das duas lojas que seja assim. Preço cravado no servidor ou no
+    # bundle mente para quem está em outro país e envelhece na primeira
+    # promoção.
+    produto_assinatura_ios: str = ""
+    produto_assinatura_android: str = ""
+
+    # Credenciais da App Store Server API. SEM DEFAULT, como `jwt_secret`:
+    # ausente significa não configurado, e a rota de compra recusa com frase
+    # útil em vez de conferir o recibo contra o vazio e concluir que ele é
+    # inválido — que diria ao usuário pagante que a compra dele não vale.
+    apple_key_id: str = ""
+    apple_issuer_id: str = ""
+    apple_bundle_id: str = ""
+    apple_key_p8: str = ""
+
+    # Credencial do Google Play Developer API: o JSON da service account, em
+    # uma linha. Mesma disciplina de ausência acima.
+    google_service_account_json: str = ""
+    google_package_name: str = ""
+
     # As chaves NÃO levam o prefixo BUDDY_ — são as variáveis que os próprios
     # SDKs usam. Elas passam por aqui de propósito: um SDK lê `os.environ`, e
     # `pydantic-settings` carrega o `.env` para dentro do objeto de settings,

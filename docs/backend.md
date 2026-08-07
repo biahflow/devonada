@@ -36,12 +36,14 @@ db.py           engine, SessionLocal, dependency get_db
 orm.py          tabelas SQLAlchemy
 schemas.py      contrato de API em Pydantic — espelha src/api/types.ts
 auth.py         JWT → tenant_id · hash de senha · hash de token (ADR 0012)
+assinatura.py   a trava de escrita: GET livre, write exige assinatura (ADR 0013)
 domain/         REGRAS DE NEGÓCIO puras, com fonte citada
 leitura.py      adaptadores persistência → domínio, compartilhados entre routers
 routers/        dividas · resumo · simulacoes · parcelas · perfil · lembretes · contratos · chat
-                caixa · revisao · auth · conta
+                caixa · revisao · auth · conta · assinatura
 llm/            ÚNICO lugar que conhece SDK de modelo (ADR 0007)
 correio/        ÚNICO lugar que fala SMTP — mesmo desenho da camada llm/
+loja/           ÚNICO lugar que fala com App Store e Google Play — mesmo desenho
 web/            exclusao.html, a página pública servida em GET /exclusao
 assistente/     o assistente do chat, sobre a camada llm/
 extracao/       base.py (Protocol) · regras.py (prompt) · extrator_llm.py · factory
@@ -62,7 +64,17 @@ envia tenant; ele vem do `sub` do access token.
 
 A mesma disciplina rendeu de novo na exclusão de conta: como toda tabela de dado do usuário tem
 `tenant_id`, a varredura de exclusão é DERIVADA de `orm.Base.metadata` em vez de escrita à mão.
-Tabela nova entra na exclusão no commit em que nasce.
+Tabela nova entra na exclusão no commit em que nasce. E rendeu uma terceira vez no M9: a tabela
+`assinatura` entrou na exclusão sem uma linha a mais.
+
+**Toda rota de escrita exige assinatura, e a regra é derivada do método HTTP** (M9, ADR 0013).
+`exigir_assinatura` é uma dependência GLOBAL registrada uma vez em `main.py`: `GET` passa sempre,
+`POST`/`PUT`/`PATCH`/`DELETE` respondem `402` sem teste em curso nem assinatura ativa. Fora da
+trava ficam `/v1/auth`, `/v1/assinatura` e `/v1/conta`.
+
+Pelo mesmo motivo da varredura acima: lista por rota envelheceria na primeira rota criada sem
+lembrar dela, e o buraco apareceria como receita que não entra — não como teste vermelho. Um teste
+varre `app.openapi()` e falha se `LIVRES` crescer sem decisão explícita.
 
 ---
 
@@ -86,6 +98,17 @@ Tabela nova entra na exclusão no commit em que nasce.
 | Juros acima do teto do consignado | Teto vigente do consignado | Resolução do CNPS (config datada) | `domain/revisao.py` |
 | CET não informado | Taxa efetiva anual é informação obrigatória | CDC, art. 52, II | `domain/revisao.py` |
 | `valorJusto` | `valorCobrado` − Σ achados **com valor** | — (subtração, não estimativa; ADR 0008) | `domain/revisao.py` |
+| Situação da assinatura | 7 dias de teste da criação da conta; a data mais distante entre teste e compra | **nenhuma — e o docstring diz por quê** | `domain/assinatura.py` |
+
+> **A última linha é o único "sem fonte" desta tabela que não é uma escolha de método, e ela
+> precisa ser lida com atenção.** A regra deste diretório é que nenhuma REGRA FINANCEIRA é
+> inventada: as linhas acima levam artigo de lei porque descrevem dinheiro que a lei define, e um
+> número chutado ali sairia na tela do usuário como se fosse direito dele. Período de teste é de
+> outra classe — é o que **nós** cobramos, da mesma natureza do preço, e não existe decreto de
+> período de avaliação a citar.
+>
+> `domain/assinatura.py` declara isso no próprio docstring, para que ninguém conclua que a fonte
+> foi esquecida — e para que ele não vire precedente para o próximo `* 1.1`.
 
 ### As limitações declaradas
 

@@ -435,6 +435,66 @@ class Usuario(Base):
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class Assinatura(Base):
+    """
+    A última compra que a loja confirmou para este tenant (M9, ADR 0013).
+
+    UMA LINHA POR TENANT, sobrescrita a cada conferência — não é um extrato de
+    cobranças. A renovação mensal produz transação nova todo mês, e guardar cada
+    uma faria a tabela crescer para sempre para responder a pergunta que o
+    produto realmente faz, que é uma só: **até quando esta pessoa pode
+    escrever?** Quem quiser o histórico de faturamento pede ao painel da loja,
+    que é quem cobra.
+
+    `tenant_id` é o que faz esta tabela entrar na exclusão de conta SEM UMA
+    LINHA A MAIS: a varredura de `routers/conta.tabelas_do_tenant()` é derivada
+    de `Base.metadata`, e o teste que falha quando uma tabela fica de fora já
+    cobre esta. Foi exatamente para isto que aquela varredura não foi escrita à
+    mão.
+    """
+
+    __tablename__ = "assinatura"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=novo_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True, unique=True)
+
+    plataforma: Mapped[str] = mapped_column(String(10))
+    produto_id: Mapped[str] = mapped_column(String(120))
+
+    # A CHAVE ESTÁVEL da loja: não muda quando a assinatura renova. É por ela, e
+    # não pelo id da transação da vez, que a restauração é idempotente — o
+    # mesmo recibo reenviado encontra a linha que já existe em vez de criar uma
+    # assinatura nova a cada toque no botão.
+    transacao_original_id: Mapped[str] = mapped_column(String(120), unique=True, index=True)
+
+    # O que mandar de volta à loja para reconferir. NÃO É O MESMO que a coluna
+    # acima: a Apple consulta pelo `originalTransactionId`, o Google pelo
+    # `purchaseToken` — e o `orderId` do Google, que é o que grava a unicidade,
+    # não serve para consultar nada. Guardar só um dos dois faria a renovação
+    # ser detectada no iPhone e não no Android.
+    #
+    # Text e não String(n): token do Google não tem tamanho contratado.
+    chave_consulta: Mapped[str] = mapped_column(Text)
+
+    # SEMPRE ABSOLUTO E SEMPRE EM UTC. Nunca "faltam N dias": o relógio do
+    # aparelho é do usuário, e quem controla o relógio controlaria a assinatura.
+    expira_em: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    # `sandbox` ou `production`. Guardado porque uma compra de sandbox liberando
+    # o app em produção é o buraco que a revisão da loja não vê e que qualquer
+    # pessoa com Xcode encontra.
+    ambiente: Mapped[str] = mapped_column(String(20), default="production")
+
+    # Desligada NÃO significa expirada: cancelar desliga a renovação, e o
+    # período já pago continua valendo até `expira_em`.
+    renovacao_automatica: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    atualizado_em: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
 class Sessao(Base):
     """
     Um refresh token vivo (ADR 0012).

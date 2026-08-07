@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 
 import orm
 from config import Settings
+from domain.assinatura import AssinaturaConhecida, Situacao
+from domain.assinatura import situacao as calcular_situacao
 from domain.caixa import (
     Caixa,
     EntradaCaixa,
@@ -178,3 +180,49 @@ def capacidade_atual(db: Session, tenant: str, settings: Settings) -> Caixa | No
     """
     caixa = calcular_caixa(montar_entrada_caixa(db, tenant, settings))
     return None if caixa.preenchimento == "vazio" else caixa
+
+
+def situacao_da_assinatura(db: Session, tenant: str, settings: Settings) -> Situacao:
+    """
+    Traduz `usuario` + `assinatura` na entrada de `domain.assinatura.situacao`.
+
+    Vive aqui, e não no router, pelo motivo declarado no topo deste módulo: dois
+    lugares precisam da MESMA tradução — a trava de escrita
+    (`backend/assinatura.py`) e a rota que mostra a situação ao usuário
+    (`routers/assinatura.py`). Duas traduções dariam duas respostas para a
+    mesma pergunta, e aqui isso significaria a tela dizendo "em dia" enquanto a
+    escrita leva 402.
+
+    O TESTE COMEÇA NA CONTA MAIS ANTIGA do tenant. Hoje há um usuário por tenant
+    e a distinção não aparece; no dia da conta compartilhada, o segundo usuário
+    a entrar não reinicia o teste do casal.
+    """
+    criado_em = db.scalars(
+        select(orm.Usuario.criado_em)
+        .where(orm.Usuario.tenant_id == tenant)
+        .order_by(orm.Usuario.criado_em)
+        .limit(1)
+    ).first()
+
+    linha = db.scalars(
+        select(orm.Assinatura).where(orm.Assinatura.tenant_id == tenant)
+    ).first()
+
+    conhecida = (
+        AssinaturaConhecida(
+            expira_em=linha.expira_em,
+            renovacao_automatica=linha.renovacao_automatica,
+        )
+        if linha
+        else None
+    )
+
+    return calcular_situacao(
+        # Sem usuário, o tenant não tem dono — é o estado do beta antes do M8, e
+        # dele não existe mais no banco. `datetime.min` faz o teste já ter
+        # vencido, que é o lado seguro: libera menos, nunca mais.
+        criado_em=criado_em or datetime.min,
+        assinatura=conhecida,
+        agora=datetime.now(timezone.utc),
+        teste_dias=settings.teste_dias,
+    )

@@ -846,3 +846,52 @@ class PedidoExclusaoDeConta(Camel):
     """
 
     senha: str = Field(min_length=1, max_length=200)
+
+
+# --------------------------------------------------------------------------- #
+# Assinatura (M9, ADR 0013)
+# --------------------------------------------------------------------------- #
+
+StatusAssinatura = Literal["em_teste", "ativa", "expirada"]
+Plataforma = Literal["ios", "android"]
+
+
+class SituacaoAssinatura(Camel):
+    """
+    Até quando esta conta pode escrever, e por qual motivo.
+
+    `podeEscrever` é REDUNDANTE em relação a `status`, e é assim de propósito: o
+    cliente não deve reimplementar a regra "expirada é o único que bloqueia". No
+    dia em que aparecer um quarto status — período de graça, cobrança em nova
+    tentativa —, o app instalado que não atualizou continua acertando, porque a
+    resposta já vem decidida. Mesma disciplina de `situacao` em `Divida`, que o
+    front exibe sem recalcular.
+
+    NÃO HÁ PREÇO AQUI. Ele vem da loja pelo SDK, já localizado em moeda e
+    formato — é exigência das duas, e preço servido daqui mentiria para quem
+    está em outro país.
+    """
+
+    status: StatusAssinatura
+    podeEscrever: bool
+    expiraEm: datetime
+    diasRestantes: int
+
+    # Só quando há compra: quem está no teste ainda não tem produto nenhum.
+    produtoId: str | None = None
+    renovacaoAutomatica: bool | None = None
+
+
+class PedidoCompra(Camel):
+    """
+    O recibo que a loja entregou ao app.
+
+    O CONTEÚDO DELE NÃO É FONTE DA VERDADE — ver o docstring de
+    `loja/apple.py:conferir`. Ele é chave de busca; quem afirma até quando a
+    assinatura vale é a loja, consultada pelo servidor. Por isso não há
+    `expiraEm` nem `produtoId` neste corpo: aceitá-los do cliente seria deixar o
+    aparelho declarar a própria validade.
+    """
+
+    plataforma: Plataforma
+    recibo: str = Field(min_length=1, max_length=8000)
