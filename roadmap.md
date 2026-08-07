@@ -485,6 +485,63 @@ com ninguém, e apagar tudo o que é seu sem pedir permissão.
 
 ---
 
+## M9 — Assinatura in-app — entregue, aguardando validação em device
+
+Segundo milestone que não entrega feature: entrega a condição para **cobrar**. Era o único item do
+pré-lançamento que é código de produto — as duas lojas obrigam o meio de pagamento delas para
+conteúdo digital, e nada no app sabia quem tinha pago. Spec em `docs/features/009-assinatura.md`;
+as decisões, na ADR 0013.
+
+- [x] **A fronteira não é acesso, é escrita.** Sete dias de teste da criação da conta; depois,
+      **somente leitura**. Quem parou de pagar continua vendo as próprias dívidas, o próprio caixa
+      e o próprio histórico. Trancar alguém endividado para fora da lista das dívidas dele seria o
+      oposto do que este produto faz — e não sobreviveria ao art. 18 do LGPD, porque acesso do
+      titular ao próprio dado não é recurso pago.
+- [x] **A trava é derivada do método HTTP**, numa dependência global de `main.py`: `GET` passa,
+      write exige situação válida, `402` na recusa. Lista por rota envelheceria na primeira rota
+      criada sem lembrar dela, e o buraco apareceria como **receita que não entra** — não como
+      teste vermelho. Mesmo raciocínio de `tabelas_do_tenant()`, e há um teste que varre
+      `app.openapi()` e falha se a lista de livres crescer sem decisão explícita.
+- [x] Fora da trava ficam `/v1/auth`, `/v1/assinatura` e `/v1/conta`. Não são exceções de recurso:
+      são as rotas de começar, gerenciar e encerrar a relação. Exigir assinatura para assinar é
+      deadlock, e travar a exclusão de conta reprova na diretriz 5.1.1(v) da Apple.
+- [x] `backend/loja/` plugável (`BUDDY_LOJA`), no padrão da ADR 0007: Apple, Google e memória.
+      **Cobrança entrou na regra de que nenhum teste toca a rede.**
+- [x] **O recibo do aparelho é chave de busca, nunca fonte da verdade.** O servidor extrai o
+      identificador e pergunta à loja com credencial que só ele tem. Um app modificado consegue
+      apontar para a assinatura de um estranho; não consegue inventar uma que não existe.
+- [x] **RevenueCat foi recusado por um custo que não é técnico.** Ele receberia identificador de
+      usuário e histórico de compra, virando um processador terceiro a declarar na política de
+      privacidade e no App Privacy — dois itens que ainda não foram escritos. Adicionar um
+      processador a um produto que ainda não declarou os que tem é a ordem errada.
+- [x] Reconferência sob demanda no lugar de webhook: *Server Notifications V2* e o RTDN exigem URL
+      pública, que continua pendente. Falha de rede na reconferência **não derruba ninguém** —
+      respondemos com o que está gravado.
+- [x] **Nenhum preço trafega pelo nosso servidor nem pelo bundle.** Ele vem da loja já localizado,
+      exigência das duas. O que é público é o id do produto, que já está impresso na página da
+      assinatura na App Store.
+- [x] `finishTransaction` **só depois** que o backend confirma. Encerrar antes deixaria o usuário
+      cobrado com o servidor sem saber, e a loja não reentrega o que já foi reconhecido — ele
+      ficaria pagando por um app travado.
+- [x] `assinatura` entrou na exclusão de conta **sem uma linha a mais**, pela varredura derivada do
+      metadata. É a terceira vez que aquela decisão do M8 se paga sozinha.
+- [x] **A fixture `auth` não mudou, ao contrário do que o plano previa.** Toda conta da suíte nasce
+      pela rota de registro, e conta recém-criada está dentro do teste — os 420 testes anteriores
+      passaram intactos. 452 testes agora.
+- [ ] **Validação em device pendente, e aqui ela é mais determinante que nos outros milestones.**
+      Nenhum gate exercita a loja: a folha de compra, o sandbox das duas lojas, o app voltando
+      destravado sem logout, e sobretudo **restaurar compras num aparelho novo** — o caminho que a
+      revisão da Apple testa primeiro e o que mais reprova.
+
+> **O Expo Go deixa de bastar.** In-app purchase exige módulo nativo, e o binário do Expo Go não o
+> tem. `app.json` ganhou `bundleIdentifier` e `package`, entrou `eas.json`, e o fluxo de assinatura
+> só roda em `eas build --profile development`. O resto do produto continua rodando em Expo Go.
+
+**Sai com:** o app cobrando pelas lojas, com sete dias de teste e somente leitura depois — e
+ninguém trancado para fora do próprio dado.
+
+---
+
 ## Pré-lançamento — o que bloqueia publicar e cobrar
 
 > **Escopo maior que o front.** O resto deste documento fala do cliente Expo; esta seção fala do
@@ -516,10 +573,14 @@ com ninguém, e apagar tudo o que é seu sem pedir permissão.
       sustentam o texto: o arquivo é **descartado** após a extração. O PDF pode conter CPF e
       dados de terceiros, e isso precisa estar dito.
 
-**Cobrança.**
+**Cobrança — entregue no M9.**
 
-- [ ] Assinatura por **in-app purchase** (StoreKit / Play Billing). Para conteúdo digital as duas
-      lojas obrigam o meio de pagamento delas — Pix ou Stripe direto não passa.
+- [x] Assinatura por **in-app purchase** (`expo-iap` + validação direta com as duas lojas). Sete
+      dias de teste, somente leitura depois, preço vindo da loja (ADR 0013).
+- [ ] **Produto de assinatura cadastrado** na App Store Connect e no Play Console, e as credenciais
+      preenchidas (`BUDDY_APPLE_*`, `BUDDY_GOOGLE_*`). O código está pronto e a suíte prova o ciclo
+      contra o adaptador de memória; **compra de verdade não foi exercitada uma única vez.**
+- [ ] *Development build* pelo EAS. O Expo Go não carrega o módulo nativo da loja.
 
 **Risco que não é de loja, e é o maior.**
 
@@ -534,7 +595,7 @@ com ninguém, e apagar tudo o que é seu sem pedir permissão.
 
 **Validação em device.**
 
-- [ ] M0 a M8, milestone a milestone. Está detalhado em cada um acima e não se resolve em lote:
+- [ ] M0 a M9, milestone a milestone. Está detalhado em cada um acima e não se resolve em lote:
       nenhum gate automático prova que a tela é legível, que o teclado não cobre o campo, que a
       notificação toca na hora certa ou que a sessão se renova quando o app volta do background.
 
@@ -546,7 +607,10 @@ com ninguém, e apagar tudo o que é seu sem pedir permissão.
   assistente. Ver `docs/data-ingestion.md`. É o que transforma o produto de "assistente de
   dívidas" em planejador financeiro, e é também o maior salto de complexidade e de risco.
 - **Renda, orçamento e metas** — o outro lado do fluxo de caixa.
-- **Billing** — signup entregue no M8; falta o in-app purchase, que está no pré-lançamento.
+- **Billing avançado** — signup no M8, in-app purchase no M9. Ficaram de fora, de propósito: plano
+  anual, plano familiar, cupom e paywall com teste A/B. Nada disso antes do primeiro pagante.
+- **Webhook de renovação** — *App Store Server Notifications V2* e RTDN do Google, quando houver
+  URL pública. Substitui a reconferência sob demanda do M9 sem mudar o contrato da rota.
 - **Segundo fator e login social** — ficaram de fora do M8 de propósito (ver os não objetivos da
   spec 008). Adotar login social obriga a oferecer *Sign in with Apple*, diretriz 4.8.
 - **Conta compartilhada** — casal olhando o mesmo caixa. O modelo já suporta: `usuario.tenant_id`

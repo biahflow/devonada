@@ -1,7 +1,7 @@
 # Inventário do Buddy Financeiro
 
-> **Documento derivado e datado.** Levantado em **07/08/2026**, sobre o fim do **M8**
-> (conta de usuário).
+> **Documento derivado e datado.** Levantado em **07/08/2026**, sobre o fim do **M9**
+> (assinatura in-app).
 > Ele **descreve**, não decide: em qualquer divergência, quem manda é o documento canônico
 > apontado em cada seção (`docs/agent-guidelines.md`, seção "Ordem de precedência").
 > Não faz parte da ordem de precedência e não deve ser citado como fonte de regra.
@@ -46,6 +46,7 @@ distinção é do `roadmap.md` e este documento não a apaga.
 | M7 | Módulo de caixa: renda, gastos, provisões e a capacidade real de pagamento | Entregue; **falta device** |
 | M7.2 | Uma renda só: `fonte_renda` vira a fonte de verdade e o painel volta a exibir comprometimento | Entregue; **falta device** |
 | M8 | Conta de usuário: cadastro, login, sessão revogável, recuperação de senha e exclusão de conta | Entregue; **falta device** |
+| M9 | Assinatura in-app: 7 dias de teste, somente leitura depois, validação direta com as duas lojas | Entregue; **falta device e conta de loja** |
 
 ## Stack, em uma tabela
 
@@ -366,6 +367,7 @@ deixou de ser aproximação e `proximosVencimentos` deixou de voltar vazio.)
 | **Validação em device** | Pendência transversal de M1.5 a M6 |
 | **Telas do M1 não exercitadas** | Cadastro, detalhe, edição, quitação e exclusão contra o backend real |
 | ~~**Login de verdade**~~ | **Fechada no M8.** Cadastro, login, sessão revogável e recuperação de senha (ADR 0012). A tela de token do beta foi removida |
+| ~~**Não há como cobrar**~~ | **Fechada no M9.** In-app purchase com validação no servidor, provedor de loja plugável e paywall por método HTTP (ADR 0013). Falta cadastrar o produto nas lojas |
 | **Recuperação de senha sem SMTP** | Sem `BUDDY_SMTP_*` configurado, nenhum código é enviado — e a rota continua respondendo 202, porque responder outra coisa a transformaria em verificador de cadastro. É a única dependência externa do produto cuja ausência não tem contorno pela interface |
 | **URL pública de exclusão** | `GET /exclusao` existe, mas só onde a API existe. A exigência do Google é uma URL pública — falta domínio |
 | **CI** | Nenhum pipeline. Os gates dependem de disciplina |
