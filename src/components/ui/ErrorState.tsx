@@ -1,9 +1,8 @@
 import { View, Text, StyleSheet } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
-import { ApiError, isAuthError } from '../../api/client';
+import { ApiError } from '../../api/client';
 import { env } from '../../config/env';
 import { Button } from './Button';
-import { ConfigurarConexaoButton } from './ConfigurarConexaoButton';
 import { colors, radius, spacing, typography } from '../../theme/theme';
 
 interface Props {
@@ -20,12 +19,13 @@ interface Props {
 function describe(error: unknown): { title: string; message: string } {
   if (error instanceof ApiError) {
     if (error.status === 401) {
-      // NÃO repetimos aqui o "sua sessão expirou" que o backend manda: não há
-      // sessão nenhuma para expirar no beta, e essa frase mandava o usuário
-      // procurar um login que não existe. O que falta é o token do aparelho.
+      // Raro depois do M8: um 401 só chega até aqui se a renovação silenciosa
+      // falhou, e nesse caso `client.ts` já derrubou a sessão e o `_layout` já
+      // está levando a pessoa ao login. A frase existe para o instante entre as
+      // duas coisas — e não manda procurar nada, porque não há o que fazer.
       return {
-        title: 'O app não está conectado ao servidor',
-        message: 'Falta configurar o token de acesso deste aparelho.',
+        title: 'Sua sessão terminou',
+        message: 'Estamos levando você de volta à tela de entrada.',
       };
     }
     if (error.status === 0) {
@@ -59,7 +59,7 @@ function describe(error: unknown): { title: string; message: string } {
 
 export function ErrorState({ error, onRetry }: Props) {
   const { title, message } = describe(error);
-  const semToken = isAuthError(error);
+  const sessaoAcabou = error instanceof ApiError && error.status === 401;
 
   return (
     <View style={styles.container} accessibilityRole="alert">
@@ -70,17 +70,11 @@ export function ErrorState({ error, onRetry }: Props) {
         {title}
       </Text>
       <Text style={styles.message}>{message}</Text>
-      {/* Sem token, "tentar de novo" só repete o 401. A ação que resolve vem
-          primeiro; a repetição continua disponível para quem voltar da tela de
-          token e quiser recarregar sem sair da tela. */}
-      {semToken ? <ConfigurarConexaoButton style={styles.action} /> : null}
-      {onRetry ? (
-        <Button
-          label="Tentar de novo"
-          onPress={onRetry}
-          variant="secondary"
-          style={semToken ? styles.actionSecundaria : styles.action}
-        />
+      {/* Sem sessão, "tentar de novo" só repete o 401 — e o redirecionamento
+          para o login já está a caminho. Oferecer o botão convidaria a insistir
+          numa ação que não pode dar certo. */}
+      {onRetry && !sessaoAcabou ? (
+        <Button label="Tentar de novo" onPress={onRetry} variant="secondary" style={styles.action} />
       ) : null}
     </View>
   );

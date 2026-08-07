@@ -14,10 +14,37 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+psycopg://buddy:buddy@localhost:5433/buddy"
 
-    # Auth de beta: um token, um tenant. Trocar por JWT depois não muda o cliente,
-    # que já manda Authorization: Bearer e trata 401.
-    api_token: str = ""
+    # Chave de assinatura do access token (ADR 0012). SEM DEFAULT de propósito:
+    # um default publicado no repositório é uma chave que qualquer pessoa usa
+    # para forjar sessão. Vazia ⇒ toda rota autenticada responde 500 com frase
+    # útil, que é ruidoso e é o ponto — falha silenciosa aqui seria falha aberta.
+    jwt_secret: str = ""
+
+    # O tenant do beta. Sobrou de quando o acesso era um token fixo, e hoje tem
+    # UM uso só: o primeiro cadastro num banco sem usuários o adota, para as
+    # dívidas e o caixa já cadastrados não ficarem órfãos (ADR 0012, item 2).
     tenant_id: str = "00000000-0000-0000-0000-000000000001"
+
+    # Envio de e-mail, no mesmo padrão de provedor plugável do LLM (ADR 0007):
+    # `smtp` fala com o mundo, `memoria` guarda numa lista e é o que a suíte usa.
+    # A escolha é do servidor; quem chama não sabe qual está ativo.
+    correio: str = "smtp"
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_usuario: str = ""
+    smtp_senha: str = ""
+    smtp_remetente: str = ""
+
+    # Trava de força bruta no login. Depois de `login_max_falhas` tentativas
+    # erradas seguidas, a conta fica bloqueada por `login_bloqueio_minutos`.
+    login_max_falhas: int = 5
+    login_bloqueio_minutos: int = 15
+
+    # Custo do bcrypt. DOZE é o valor de produção e o default; a suíte baixa para
+    # 4 porque cria usuário em quase todo teste e 12 rodadas custam ~250 ms cada.
+    # Ficar em config em vez de cravado no código é o que permite baixar no teste
+    # sem que alguém fique tentado a baixar no código e esquecer lá.
+    bcrypt_rounds: int = 12
 
     # Origens permitidas no CORS. O Expo em desenvolvimento não manda Origin,
     # mas manter restrito evita que a API responda a qualquer página web.

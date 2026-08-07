@@ -1,6 +1,7 @@
 # ADR 0006 — Postgres, token fixo e extrator plugável
 
-**Status:** aceito
+**Status:** aceito — o **token fixo** foi superado pela [ADR 0012](0012-conta-de-usuario.md) (M8);
+Postgres continua de pé e o extrator plugável foi generalizado pela [ADR 0007](0007-camada-de-provedor-de-llm.md)
 **Data:** 2026-08-06
 
 ## Contexto

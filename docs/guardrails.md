@@ -161,6 +161,34 @@ declarada em `src/api/types.ts`.
 - **Modo de falha que isso previne:** vazamento cross-tenant é o incidente número um de um
   produto financeiro. Se o cliente pode informar o tenant, ele pode informar o do vizinho.
 
+### 6.1 Conta e sessão (M8, ADR 0012)
+
+O `tenant_id` passou a vir do `sub` do access token. O que muda de regra:
+
+- **Nada de senha em log, em resposta ou em mensagem de erro.** Ela entra pela rota, vira hash e
+  não sai mais. Vale para o corpo da requisição inteiro: não logue payload de rota de auth.
+- **A autenticação não revela quem tem conta.** Login errado tem UMA frase para senha incorreta e
+  e-mail inexistente, e o mesmo tempo de resposta — a verificação roda contra um hash falso
+  quando não há usuário. `POST /senha/recuperacao` responde `202` sempre.
+  *Modo de falha que isso previne:* a rota vira verificador de cadastro, e a lista de quem usa
+  um app de dívidas é matéria-prima de phishing.
+- **Troca de senha revoga todas as sessões.** Quem troca em geral perdeu o aparelho, e uma troca
+  que deixa o aparelho perdido logado não protege de nada.
+- **Trocar de sessão limpa o cache do TanStack Query.** Dado de um usuário no cache depois de
+  outro entrar no mesmo aparelho é vazamento cross-tenant do lado do cliente, e o filtro do
+  servidor não o alcança.
+- **Exclusão de conta é FÍSICA**, e é a única exclusão do produto que é. O `excluido_em` de
+  `divida` protege o histórico do usuário; aqui é o usuário pedindo que o histórico deixe de
+  existir. Ela reconfirma a senha, além do Bearer.
+- **Tabela nova com `tenant_id` entra na exclusão de conta automaticamente.** A varredura é
+  derivada de `orm.Base.metadata`, e há teste que falha se alguma tabela ficar fora. Se a sua
+  tabela for chaveada por outra coisa, declare-a em `routers.conta.TABELAS_POR_USUARIO` e apague-a
+  na rota. *Modo de falha que isso previne:* dado de conta excluída fica no banco, e o buraco só
+  aparece numa auditoria de loja.
+- **E-mail não carrega dado financeiro.** O único e-mail do produto leva um código de seis
+  dígitos. Um e-mail atravessa servidores que não controlamos e fica guardado em caixas que não
+  controlamos.
+
 ---
 
 ## 7. Guardrails de IA

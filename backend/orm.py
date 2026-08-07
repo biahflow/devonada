@@ -402,3 +402,88 @@ class CaixaSnapshot(Base):
     calculado_em: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+
+class Usuario(Base):
+    """
+    Quem entra no app (M8, ADR 0012).
+
+    `tenant_id` é COLUNA SEPARADA de `id`, e não um apelido dele. Hoje há um
+    usuário por tenant, mas conta compartilhada — casal olhando o mesmo caixa —
+    é dois usuários apontando para o mesmo tenant, e essa é a única forma que
+    não exige remigrar todas as tabelas depois. Custa uma coluna agora.
+    """
+
+    __tablename__ = "usuario"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=novo_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+
+    # Guardado normalizado (aparas + minúsculas). A unicidade é do banco, não da
+    # rota: duas requisições simultâneas passam pelo mesmo `SELECT` sem achar
+    # nada e criam duas contas com o mesmo e-mail.
+    email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
+    senha_hash: Mapped[str] = mapped_column(String(100))
+
+    # Trava de força bruta. Produto financeiro sem ela é convite: senha de 8
+    # caracteres cai em horas contra uma rota que responde sempre.
+    falhas_login: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    bloqueado_ate: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Sessao(Base):
+    """
+    Um refresh token vivo (ADR 0012).
+
+    O VALOR NUNCA É GRAVADO — só o SHA-256 dele. Vazamento do banco não devolve
+    sessão utilizável, que é a mesma disciplina de `senha_hash` uma coluna acima.
+    SHA-256 puro e não bcrypt de propósito: o token tem 32 bytes de entropia, não
+    é adivinhável por dicionário, e a verificação acontece em toda renovação.
+
+    A rotação é o que torna roubo DETECTÁVEL: usar um refresh o revoga e cria
+    outro, então o mesmo valor apresentado duas vezes significa cópia.
+    """
+
+    __tablename__ = "sessao"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=novo_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+    usuario_id: Mapped[str] = mapped_column(String(36), index=True)
+
+    refresh_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    expira_em: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revogada_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    criada_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    ultimo_uso_em: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+
+class CodigoRecuperacao(Base):
+    """
+    Código de 6 dígitos para redefinir a senha (ADR 0012).
+
+    Hash, não o código: quem lê o banco não redefine a senha de ninguém.
+
+    `tentativas` existe porque 6 dígitos são um milhão de possibilidades, e um
+    milhão de requisições é uma tarde. Sem teto, o código curto seria a porta
+    mais larga do produto — o mesmo raciocínio de `falhas_login`, e o motivo de
+    a validade ser 30 minutos e não 24 horas.
+    """
+
+    __tablename__ = "codigo_recuperacao"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=novo_id)
+    usuario_id: Mapped[str] = mapped_column(String(36), index=True)
+
+    codigo_hash: Mapped[str] = mapped_column(String(64))
+    expira_em: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    tentativas: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    usado_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

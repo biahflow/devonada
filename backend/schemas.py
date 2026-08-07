@@ -1,7 +1,7 @@
 from datetime import date, datetime
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 """
 Contrato de API. Espelha docs/api-contract.md e src/api/types.ts.
@@ -746,3 +746,103 @@ class RespostaFechamento(Camel):
 
 class RespostaConfirmacao(Camel):
     caixa: Caixa
+
+
+# --- M8 · conta de usuário (ADR 0012) -------------------------------------
+
+# Mínimo de senha. Oito caracteres sem exigência de símbolo, maiúscula ou
+# dígito: regras de composição empurram a pessoa para "Senha@123", que é pior
+# que uma frase longa. O que protege de verdade aqui é o bcrypt com custo 12
+# mais a trava de tentativas, não o teatro de complexidade.
+SENHA_MINIMA = 8
+
+
+class Sessao(Camel):
+    """
+    O par de tokens. `acesso` é JWT de 15 min; `refresh` é opaco, de 30 dias.
+
+    O servidor guarda só o HASH do refresh — o valor existe uma vez, nesta
+    resposta, e depois só no `expo-secure-store` do aparelho.
+    """
+
+    acesso: str
+    refresh: str
+    expiraEm: datetime
+
+
+class RespostaSessao(Camel):
+    sessao: Sessao
+
+
+# O e-mail é APARADO ANTES de ser validado.
+#
+# Teclado de celular completa o campo e deixa um espaço no fim, e a autocorreção
+# manda a primeira letra maiúscula. Validar antes de aparar recusaria com 422 um
+# e-mail que a pessoa digitou certo, e ela não teria como ver o espaço na tela.
+# `strip` no schema, minúsculas na rota: o primeiro é forma, o segundo é
+# identidade.
+#
+# `EmailStr` do pydantic exigiria `email-validator` como dependência nova para
+# uma validação em que o servidor não pode confiar de qualquer forma — o que
+# prova o e-mail é o código de recuperação chegar nele.
+Email = Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=320)]
+EmailValidado = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True,
+        min_length=3,
+        max_length=320,
+        pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+    ),
+]
+
+
+class NovaConta(Camel):
+    email: EmailValidado
+    senha: str = Field(min_length=SENHA_MINIMA, max_length=200)
+
+
+class Credenciais(Camel):
+    """
+    O login NÃO valida formato nem tamanho — de propósito.
+
+    Recusar com 422 uma senha de três caracteres contaria que as senhas deste
+    servidor têm pelo menos oito, e recusar um e-mail malformado antes de
+    consultar o banco daria uma resposta mais rápida para entrada inválida que
+    para e-mail inexistente. Toda credencial que não confere sai pela mesma
+    porta: 401, com a mesma frase.
+    """
+
+    email: Email
+    senha: str = Field(min_length=1, max_length=200)
+
+
+class PedidoRefresh(Camel):
+    refresh: str = Field(min_length=1, max_length=200)
+
+
+class PedidoLogout(Camel):
+    """`refresh` ausente revoga TODAS as sessões — o "sair de todos os aparelhos"."""
+
+    refresh: str | None = Field(default=None, max_length=200)
+
+
+class PedidoRecuperacao(Camel):
+    email: Email
+
+
+class PedidoRedefinicao(Camel):
+    email: Email
+    codigo: str = Field(pattern=r"^\d{6}$")
+    senha: str = Field(min_length=SENHA_MINIMA, max_length=200)
+
+
+class PedidoExclusaoDeConta(Camel):
+    """
+    A senha de novo, além do Bearer.
+
+    Exclusão é irreversível, e um celular desbloqueado esquecido na mesa não
+    pode apagar a vida financeira de alguém em dois toques.
+    """
+
+    senha: str = Field(min_length=1, max_length=200)

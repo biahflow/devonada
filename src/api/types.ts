@@ -570,3 +570,23 @@ export interface ItemConfirmado {
   id: Uuid;
   valor: number;
 }
+
+// --- M8 · conta de usuário (ADR 0012) ---------------------------------------
+
+/**
+ * O par de tokens. `acesso` é JWT de 15 min; `refresh` é opaco, de 30 dias e
+ * rotacionado a cada uso.
+ *
+ * Os dois vivem no `expo-secure-store` (`src/api/sessao.ts`). Nunca em estado de
+ * componente, nunca em AsyncStorage — guardrails, seção 5.
+ */
+export interface Sessao {
+  acesso: string;
+  refresh: string;
+  /** ISO 8601. Instante em que o `acesso` vence. */
+  expiraEm: string;
+}
+
+export interface RespostaSessao {
+  sessao: Sessao;
+}

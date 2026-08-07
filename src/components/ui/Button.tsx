@@ -47,6 +47,11 @@ export function Button({
       onPress={onPress}
       disabled={inactive}
       accessibilityRole="button"
+      // Explícito, e não herdado do texto: em `loading` o rótulo é substituído
+      // pelo spinner, e sem isto o botão fica sem nome nenhum para o leitor de
+      // tela justamente no instante em que a pessoa espera saber o que está
+      // acontecendo.
+      accessibilityLabel={label}
       accessibilityState={{ disabled: !!inactive, busy: !!loading }}
       accessibilityHint={accessibilityHint}
       style={({ pressed }) => [

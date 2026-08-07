@@ -35,12 +35,14 @@ config.py       settings de env (pydantic-settings), nada cravado no código
 db.py           engine, SessionLocal, dependency get_db
 orm.py          tabelas SQLAlchemy
 schemas.py      contrato de API em Pydantic — espelha src/api/types.ts
-auth.py         Bearer → tenant_id
+auth.py         JWT → tenant_id · hash de senha · hash de token (ADR 0012)
 domain/         REGRAS DE NEGÓCIO puras, com fonte citada
 leitura.py      adaptadores persistência → domínio, compartilhados entre routers
 routers/        dividas · resumo · simulacoes · parcelas · perfil · lembretes · contratos · chat
-                caixa · revisao
+                caixa · revisao · auth · conta
 llm/            ÚNICO lugar que conhece SDK de modelo (ADR 0007)
+correio/        ÚNICO lugar que fala SMTP — mesmo desenho da camada llm/
+web/            exclusao.html, a página pública servida em GET /exclusao
 assistente/     o assistente do chat, sobre a camada llm/
 extracao/       base.py (Protocol) · regras.py (prompt) · extrator_llm.py · factory
 alembic/        migrations
@@ -53,9 +55,14 @@ tests/          pytest
 `Numeric`, nenhuma `Float`, em nenhuma tabela. A regra dos centavos vale no banco, não só no
 app — é aqui que ela para de ser convenção e vira estrutura.
 
-**Toda query filtra por `tenant_id`.** Com um usuário só isso parece cerimônia, mas é o que faz
-a troca por JWT multiusuário depois ser trabalho de auth, e não uma auditoria de isolamento em
-cada rota. O cliente nunca envia tenant; ele vem do token.
+**Toda query filtra por `tenant_id`.** Parecia cerimônia com um usuário só, e o M8 cobrou a
+aposta: trocar o token fixo (ADR 0006) por conta de verdade (ADR 0012) foi trabalho de auth, e
+não uma auditoria de isolamento em cada rota — nenhum router precisou mudar. O cliente nunca
+envia tenant; ele vem do `sub` do access token.
+
+A mesma disciplina rendeu de novo na exclusão de conta: como toda tabela de dado do usuário tem
+`tenant_id`, a varredura de exclusão é DERIVADA de `orm.Base.metadata` em vez de escrita à mão.
+Tabela nova entra na exclusão no commit em que nasce.
 
 ---
 
@@ -291,7 +298,7 @@ Recurso de outro tenant devolve **404, nunca 403**: um 403 confirmaria que o id 
 > BUDDY_TEST_DATABASE_URL=postgresql+psycopg://buddy:buddy@localhost:5433/buddy_test pytest
 > ```
 >
-> Os 370 testes passam nos dois. **A fixture `engine` precisa de `eng.dispose()` no `finally`**:
+> Os 420 testes passam nos dois. **A fixture `engine` precisa de `eng.dispose()` no `finally`**:
 > sem ele, um engine por teste esgota o `max_connections` do Postgres ("sorry, too many clients
 > already"). Em SQLite em memória isso passava despercebido, e a suíte só quebrou quando cresceu
 > o bastante para estourar o limite — no M6. É exatamente o tipo de divergência que rodar só em
@@ -308,5 +315,21 @@ Recurso de outro tenant devolve **404, nunca 403**: um 403 confirmaria que o id 
 > um com artigo, súmula ou resolução no docstring. Ver **ADR 0008** e as limitações 8 a 12
 > acima.
 
-> **Auth é de beta: um token, um tenant.** Suficiente para um usuário; insuficiente no dia em que
-> houver dois. A troca por JWT não muda o cliente, que já manda `Bearer` e trata 401.
+> ~~**Auth é de beta: um token, um tenant.**~~ — **resolvido no M8.** Há conta, login, sessão
+> revogável e recuperação de senha (ADR 0012). A previsão de que "a troca não muda o cliente"
+> valeu pela metade: ele já mandava `Bearer` e já tratava 401, mas ganhou renovação silenciosa —
+> a peça mais fácil de quebrar do milestone, e a única que exige aparelho para se ter certeza.
+
+> **Recuperação de senha depende de SMTP configurado.** Sem `BUDDY_SMTP_HOST` e
+> `BUDDY_SMTP_REMETENTE`, `POST /v1/auth/senha/recuperacao` continua respondendo `202` — ela
+> responde 202 sempre, de propósito — mas nenhum código sai, e quem esqueceu a senha fica sem
+> caminho de volta para dados financeiros que são só dele. O envio é plugável
+> (`BUDDY_CORREIO=smtp|memoria`), e `memoria` serve para desenvolvimento e para a suíte.
+>
+> É a única dependência externa do produto cuja ausência não tem contorno pela interface. As
+> outras degradam com frase útil e caminho manual: sem chave de LLM o chat responde 503 e a
+> leitura de contrato oferece o cadastro à mão.
+
+> **Um access token sobrevive até 15 minutos à exclusão da conta.** É o preço de o JWT não
+> consultar o banco. Mitigado onde importa: a exclusão reconfirma a senha e apaga as sessões
+> junto, então token roubado sozinho não apaga conta nem sobrevive a um logout.

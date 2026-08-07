@@ -1,13 +1,17 @@
+from pathlib import Path
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from config import get_settings
 from routers import (
+    auth,
     caixa,
     chat,
+    conta,
     contratos,
     dividas,
     lembretes,
@@ -77,9 +81,24 @@ app.include_router(lembretes.router)
 app.include_router(contratos.router)
 app.include_router(chat.router)
 app.include_router(caixa.router)
+app.include_router(auth.router)
+app.include_router(conta.router)
 
 
 @app.get("/")
 def raiz():
-    """Health check. Único endpoint sem auth."""
+    """Health check."""
     return {"status": "ok", "message": "Buddy Financeiro API"}
+
+
+@app.get("/exclusao", response_class=FileResponse, include_in_schema=False)
+def pagina_de_exclusao():
+    """
+    Página pública de solicitação de exclusão de conta — exigência do Google,
+    ADICIONAL à exclusão dentro do app, não substituta dela.
+
+    Fora de `/v1/` e sem autenticação de propósito: quem perdeu o acesso à conta
+    é justamente quem mais precisa dela. Servir daqui dá URL real desde o
+    primeiro dia; é um arquivo estático e muda de host quando houver domínio.
+    """
+    return FileResponse(Path(__file__).parent / "web" / "exclusao.html")

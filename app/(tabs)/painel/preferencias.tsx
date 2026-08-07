@@ -10,6 +10,7 @@ import { OptionGroup, type Option } from '../../../src/components/ui/OptionGroup
 import { LoadingState } from '../../../src/components/ui/LoadingState';
 import { ErrorState } from '../../../src/components/ui/ErrorState';
 import { useAtualizarPerfil, usePerfil } from '../../../src/hooks/usePainel';
+import { useSair } from '../../../src/hooks/useConta';
 import { HORA_MAXIMA, HORA_MINIMA, horaValida, pedirPermissao } from '../../../src/notificacoes';
 import type { PerfilFinanceiro } from '../../../src/api/types';
 import { ApiError } from '../../../src/api/client';
@@ -59,6 +60,8 @@ export default function Preferencias() {
 }
 
 function Formulario({ inicial, onPronto }: { inicial: PerfilFinanceiro; onPronto: () => void }) {
+  const router = useRouter();
+  const encerrar = useSair();
   const [dependentes, setDependentes] = useState(String(inicial.dependentes ?? 0));
   const [hora, setHora] = useState(inicial.horaLembrete ?? '09:00');
   const [antecedencia, setAntecedencia] = useState(String(inicial.diasAntecedenciaLembrete ?? 3));
@@ -171,6 +174,22 @@ function Formulario({ inicial, onPronto }: { inicial: PerfilFinanceiro; onPronto
           />
 
           <Button label="Salvar" onPress={salvar} loading={atualizar.isPending} />
+
+          <View style={styles.secao}>
+            <Text style={styles.tituloSecao}>Sua conta</Text>
+          </View>
+
+          <Button
+            label="Sair"
+            onPress={() => encerrar.mutate(undefined, { onSuccess: () => router.replace('/login') })}
+            loading={encerrar.isPending}
+            variant="secondary"
+          />
+          <Button
+            label="Excluir minha conta"
+            onPress={() => router.push('/painel/excluir-conta')}
+            variant="ghost"
+          />
         </View>
       </ScrollView>
     </Screen>

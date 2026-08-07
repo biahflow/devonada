@@ -55,8 +55,10 @@ O front **não retenta `4xx`**; retenta `0` (sem conexão) e `5xx` no máximo du
 > que já não existem (`id: int`, `tipo` sem validação, sem persistência, auth ignorada). Todas
 > foram resolvidas no Bloco 0 da fila. O que sobrou está abaixo.
 
-1. **Auth é de beta: um token, um tenant.** Suficiente para um usuário, insuficiente no dia em
-   que houver dois. A troca por JWT não muda o cliente, que já manda `Bearer` e trata `401`.
+1. ~~**Auth é de beta: um token, um tenant.**~~ — **resolvida no M8.** Há cadastro, login, sessão
+   revogável e recuperação de senha (ADR 0012). A previsão de que "a troca não muda o cliente" só
+   valeu pela metade: ele de fato já mandava `Bearer` e já tratava `401`, mas ganhou renovação
+   silenciosa, e o `401` deixou de ser assunto de tela.
 2. **LLM exige chave do provedor configurado** (`OPENAI_API_KEY` por padrão; ver ADR 0007). Sem
    ela, o chat responde `503` e a leitura de contrato responde `status: "falhou"`, ambos com
    frase útil — o app trata os dois estados e oferece o caminho manual.
@@ -758,6 +760,134 @@ linha existente.
 
 ---
 
+### M8 — Conta de usuário
+
+Spec em `docs/features/008-conta-de-usuario.md`; as decisões, na ADR 0012.
+
+**As rotas de `/v1/auth` são públicas** — são as únicas do contrato que não exigem
+`Authorization`. `DELETE /v1/conta` exige, e mais a senha no corpo.
+
+#### Sessão
+
+Toda entrada bem-sucedida devolve o mesmo corpo:
+
+```json
+{ "sessao": { "acesso": "eyJhbGci...", "refresh": "8f3c...", "expiraEm": "2026-08-07T14:15:00Z" } }
+```
+
+- **`acesso`** — JWT HS256 de 15 minutos, enviado como `Authorization: Bearer`. É dele que sai o
+  `tenant_id`; o cliente continua não conhecendo tenant (guardrail 6).
+- **`refresh`** — valor opaco de 30 dias. O servidor guarda **o hash**, nunca o valor.
+- **`expiraEm`** — instante de expiração do `acesso`. O app não precisa dele para funcionar: a
+  renovação é reativa ao `401`. Ele existe para permitir renovar antes de falhar, se um dia isso
+  for desejável.
+
+Os dois ficam no `expo-secure-store`. Nenhum deles em `AsyncStorage` (guardrails, seção 5).
+
+#### `POST /v1/auth/registro`
+
+```json
+{ "email": "voce@exemplo.com", "senha": "uma senha boa" }
+```
+
+`201` com o corpo de sessão. E-mail é normalizado (aparas e minúsculas) antes de qualquer coisa.
+
+| Status | Quando |
+|---|---|
+| `409` | e-mail já cadastrado — a `message` manda para o login |
+| `422` | e-mail inválido ou senha com menos de 8 caracteres, com `campo` |
+
+**O primeiro cadastro num banco sem usuários adota `BUDDY_TENANT_ID`** (ADR 0012, item 2). Os
+demais recebem um UUID novo. Nada disso é visível no contrato — é comportamento de servidor.
+
+#### `POST /v1/auth/login`
+
+```json
+{ "email": "voce@exemplo.com", "senha": "uma senha boa" }
+```
+
+`200` com o corpo de sessão.
+
+| Status | Quando |
+|---|---|
+| `401` | credencial inválida — **a mesma `message` para senha errada e e-mail inexistente** |
+| `429` | conta temporariamente bloqueada por excesso de tentativas |
+
+A indistinguibilidade do `401` é requisito, não detalhe de implementação: mensagens diferentes
+transformariam a rota num verificador de cadastro.
+
+#### `POST /v1/auth/refresh`
+
+```json
+{ "refresh": "8f3c..." }
+```
+
+`200` com um par **novo**. O refresh enviado é revogado no mesmo instante — **rotação a cada uso**.
+Refresh desconhecido, expirado ou já rotacionado devolve `401`, e o app vai para o login.
+
+Esta é a única rota que o `src/api/client.ts` chama fora do interceptor de renovação. Ela não
+pode passar por ele: um `401` aqui dispararia uma renovação que chamaria esta rota de novo.
+
+#### `POST /v1/auth/logout`
+
+```json
+{ "refresh": "8f3c..." }
+```
+
+`204`. Revoga aquela sessão. Corpo vazio revoga **todas** as sessões do usuário — é o
+"sair de todos os aparelhos". Autenticada.
+
+#### `POST /v1/auth/senha/recuperacao`
+
+```json
+{ "email": "voce@exemplo.com" }
+```
+
+**`202` sempre**, o e-mail existindo ou não, e sem corpo que distinga os dois casos. Envia um
+código de 6 dígitos, válido por 30 minutos.
+
+Código, e não link: link que abre o app exige *universal link* com domínio associado nas duas
+plataformas, e não há host https. O e-mail leva **o código e nada mais** (guardrail 5).
+
+#### `POST /v1/auth/senha/redefinicao`
+
+```json
+{ "email": "voce@exemplo.com", "codigo": "418302", "senha": "outra senha boa" }
+```
+
+`200` com sessão nova. **Todas as sessões anteriores são revogadas** — quem troca a senha em geral
+perdeu o aparelho, e uma troca que não derruba o aparelho perdido não protege de nada.
+
+| Status | Quando |
+|---|---|
+| `400` | código incorreto, expirado ou já usado — frases distintas entre si |
+| `422` | senha nova com menos de 8 caracteres |
+
+Aqui a distinção entre os erros **ajuda e não vaza**: quem chegou até esta rota já provou ter
+acesso ao e-mail.
+
+#### `DELETE /v1/conta`
+
+```json
+{ "senha": "uma senha boa" }
+```
+
+`204`. Autenticada, **e** reconfirmando a senha: exclusão é irreversível, e um celular desbloqueado
+esquecido na mesa não pode apagar a vida financeira de alguém em dois toques.
+
+Apaga **fisicamente**, numa transação, todas as linhas do tenant em todas as tabelas, mais o
+usuário, as sessões e os códigos de recuperação. É o oposto da regra de `divida`, e pelo motivo
+certo: lá a exclusão lógica protege o histórico do usuário; aqui ele está pedindo que o histórico
+suma. Senha errada devolve `401`.
+
+#### `GET /exclusao` — página pública
+
+HTML, **fora de `/v1/`** e sem autenticação. Exigência do Google, adicional à exclusão dentro do
+app — não a substitui. Diz o que é apagado, em quanto tempo, como fazer pelo app, e um contato
+para quem perdeu o acesso.
+
+---
+
 ## 4. Fila do backend
 
 > **Esta é a fila de trabalho canônica do backend.** `roadmap.md` aponta para cá e não repete a
@@ -895,6 +1025,33 @@ pela forma do modelo; sobram o recebimento variável e o gasto que muda de valor
 - [x] `rendaMensal` ausente no corpo do `PUT` não apaga a fonte
 - [x] `margemDisponivel` = `aporteMaximo` quando o caixa conhece a saída; piso legal no Nível 0
 - [x] Teste cruzando caixa e resumo — a ponte que faltava, e por onde o defeito passou
+
+### Bloco 10 — M8 · conta de usuário
+*Destrava: publicar. Os três itens de "Conta de usuário" do pré-lançamento dependiam deste bloco,
+e dois deles são código.*
+
+- [~] `usuario`, `sessao` e `codigo_recuperacao` — migration `a71d4e9c05b2`, exercitada em
+      Postgres com `upgrade`, `downgrade` e `upgrade` de novo
+- [~] `POST /v1/auth/registro` · `/login` · `/refresh` · `/logout` — JWT de 15 min mais refresh
+      opaco rotacionado a cada uso (ADR 0012)
+- [~] `POST /v1/auth/senha/recuperacao` · `/senha/redefinicao` — código de 6 dígitos por e-mail,
+      com hash no banco, teto de tentativas e revogação de todas as sessões ao redefinir
+- [x] **Login não distingue senha errada de e-mail inexistente**, nem por mensagem nem por tempo:
+      o bcrypt roda contra um hash falso quando não há usuário
+- [x] **`recuperacao` responde `202` sempre** — responder `404` faria da rota um verificador de
+      cadastro
+- [x] Trava de força bruta: `login_max_falhas` tentativas e a conta bloqueia por
+      `login_bloqueio_minutos`
+- [~] `DELETE /v1/conta` — exclusão **física**, em transação, reconfirmando a senha
+- [x] **A varredura de exclusão é derivada do metadata**, não uma lista à mão: tabela nova com
+      `tenant_id` entra na exclusão no commit em que nasce. Há teste que falha se alguma tabela
+      ficar fora — sem ele, a próxima migration deixaria dado órfão em silêncio
+- [~] `GET /exclusao` — página pública, exigência do Google
+- [x] Correio plugável (`BUDDY_CORREIO`), no padrão da ADR 0007. A suíte usa o de memória: e-mail
+      entra na regra de que **nenhum teste toca a rede**
+- [x] O token fixo do beta **saiu** de `config.py`, de `auth.py` e do app
+- [x] A fixture `auth` do `conftest.py` passou a criar conta de verdade — os 370 testes anteriores
+      não conheciam o mecanismo, e por isso nenhum deles mudou
 
 ### Estado observado em device
 

@@ -215,3 +215,33 @@ editável, nunca como algo que o app envia sozinho.
 Lista de embasamentos curados (por exemplo, artigos do CDC) que sustentam o valor justo. São as
 `fonte` dos [achados](#achado), deduplicadas. Texto vindo do backend — o front nunca compõe
 citação legal localmente.
+
+---
+
+## 6. Conta
+
+### conta
+O registro de quem usa o app: e-mail e senha. Coisa diferente de **tenant** — a conta é quem
+entra, o tenant é de quem são os dados. Hoje há uma conta por tenant; conta compartilhada seria
+duas contas apontando para o mesmo tenant, e o modelo já a suporta.
+
+Na interface, dizemos "sua conta", nunca "seu usuário": usuário é palavra de quem escreve
+software.
+
+### sessão
+Um aparelho autenticado. É o que **logout, troca de senha e exclusão de conta encerram** — no
+servidor, não só no aparelho. O usuário vê a palavra em duas frases: "encerra a sessão em todos
+os aparelhos" e "sua sessão terminou".
+
+### acesso · refresh
+Os dois tokens (`Sessao`, em `src/api/types.ts`). Nomes de infraestrutura, e por isso **nunca
+aparecem na tela**: para o usuário existe estar entrado ou não. Se um deles vazar para a copy,
+é bug de texto.
+
+### código
+Os seis dígitos da recuperação de senha. Não é "token", não é "PIN", não é "chave" — a tela e o
+e-mail dizem "código", nas duas pontas.
+
+### excluir a conta
+Apagar tudo, de vez. A copy nunca diz "desativar", "cancelar" ou "encerrar": as três sugerem
+algo reversível, e esta operação não é. Ver `guardrails.md`, seção 6.1.

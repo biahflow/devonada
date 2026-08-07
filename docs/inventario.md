@@ -1,7 +1,7 @@
 # Inventário do Buddy Financeiro
 
-> **Documento derivado e datado.** Levantado em **07/08/2026**, sobre o commit `c64c490`
-> (fim do M7).
+> **Documento derivado e datado.** Levantado em **07/08/2026**, sobre o fim do **M8**
+> (conta de usuário).
 > Ele **descreve**, não decide: em qualquer divergência, quem manda é o documento canônico
 > apontado em cada seção (`docs/agent-guidelines.md`, seção "Ordem de precedência").
 > Não faz parte da ordem de precedência e não deve ser citado como fonte de regra.
@@ -45,6 +45,7 @@ distinção é do `roadmap.md` e este documento não a apaga.
 | M6 | Revisão de cobrança: achados com fonte legal e script de negociação | Entregue e exercitado por request real; **falta device** |
 | M7 | Módulo de caixa: renda, gastos, provisões e a capacidade real de pagamento | Entregue; **falta device** |
 | M7.2 | Uma renda só: `fonte_renda` vira a fonte de verdade e o painel volta a exibir comprometimento | Entregue; **falta device** |
+| M8 | Conta de usuário: cadastro, login, sessão revogável, recuperação de senha e exclusão de conta | Entregue; **falta device** |
 
 ## Stack, em uma tabela
 
@@ -160,13 +161,16 @@ Canônico: `docs/architecture.md` · ADR 0003.
 - **Dinheiro é centavo inteiro** em todo lugar, e **taxa é basis point** — no app, no schema e
   nas colunas do banco. Nenhuma coluna `Numeric`, nenhuma `Float`.
 - **Multi-tenant desde o primeiro commit.** `tenant_id` vem do token; o cliente nunca o envia;
-  toda query filtra por ele. Id de outro tenant devolve **404, nunca 403**.
+  toda query filtra por ele. Id de outro tenant devolve **404, nunca 403**. O M8 cobrou a aposta:
+  trocar o token fixo por conta de verdade não tocou um único router.
 - **Cache com prefixo `['dividas']`** (ADR 0002): resumo, parcelas e revisão vivem dentro do
   prefixo, então as mutações de dívida revalidam tudo sem código novo.
 
-## 3. Superfície de API — 37 operações em 25 rotas
+## 3. Superfície de API — 46 operações em 33 rotas, mais a página de exclusão
 
-Canônico: `docs/api-contract.md`. Autenticação: `Authorization: Bearer <token>` em tudo.
+Canônico: `docs/api-contract.md`. Autenticação: `Authorization: Bearer <access>`, um JWT de 15
+minutos (ADR 0012). As únicas rotas públicas são as seis de `/v1/auth`, o health check e
+`GET /exclusao`.
 
 | Router | Método e rota | O que faz |
 |---|---|---|
@@ -257,7 +261,8 @@ instrui a não pagar (`docs/guardrails.md`, seção 3).
 | **Chat** | `(tabs)/index` |
 | **Dívidas** | `dividas/index` (lista) · `nova` · `simulador` · `contrato/index` (envio) · `contrato/[id]` (revisão da extração) · `[id]/index` (detalhe) · `[id]/editar` · `[id]/plano` · `[id]/renegociar` · `[id]/revisao` |
 | **Caixa** | `caixa/index` (a cascata) · `renda` · `gastos` · `provisoes` · `metas` |
-| **Painel** | `painel/index` · `painel/preferencias` · `painel/token` (conexão de beta) |
+| **Painel** | `painel/index` · `painel/preferencias` · `painel/excluir-conta` |
+| **(fora das abas)** | `(auth)/login` · `registro` · `esqueci-senha` · `redefinir-senha` — login com barra de abas embaixo é convite a tocar numa aba que vai 401ar |
 
 ### Design system — `docs/design-system.md`
 
@@ -304,12 +309,13 @@ Isso é o "falta device" que aparece em quase todos os milestones.
 | 0003 | Todo cálculo financeiro fica no backend |
 | 0004 | Paleta híbrida: pine primário, dourado acento (superseded pela 0010) |
 | 0005 | O arquivo do contrato é descartado após a extração |
-| 0006 | Postgres, token fixo e extrator plugável (extrator substituído pela 0007) |
+| 0006 | Postgres, token fixo e extrator plugável (extrator substituído pela 0007; token fixo, pela 0012) |
 | 0007 | Camada de provedor de LLM, e OpenAI como padrão |
 | 0008 | `valorJusto` é soma de achados citáveis, não estimativa |
 | 0009 | O usuário decide a ordem dos potes; o app mostra a aritmética |
 | 0010 | Paleta derivada de Pierre e Budgi (superseded pela 0011) |
 | 0011 | A forma vem das telas do produto, não do CSS da landing |
+| 0012 | Conta de usuário: JWT curto, refresh rotacionado e a sessão como único estado global |
 
 ADR aceita nunca é reescrita — decisão que muda vira ADR nova.
 
@@ -359,7 +365,9 @@ deixou de ser aproximação e `proximosVencimentos` deixou de voltar vazio.)
 | **Anexar contrato a dívida já cadastrada** | **Não existe.** O fluxo de contrato é global e sempre cria dívida nova. Pior: o vazio da revisão diz "envie o contrato **desta dívida**" e manda para `/dividas/contrato` (`app/(tabs)/dividas/[id]/revisao.tsx:73`) — seguir o convite duplica a dívida. Precisa de mudança de contrato de API, não só de tela |
 | **Validação em device** | Pendência transversal de M1.5 a M6 |
 | **Telas do M1 não exercitadas** | Cadastro, detalhe, edição, quitação e exclusão contra o backend real |
-| **Login de verdade** | Hoje é token fixo colado na tela `painel/token` (ADR 0006). A tela some quando entrar autenticação |
+| ~~**Login de verdade**~~ | **Fechada no M8.** Cadastro, login, sessão revogável e recuperação de senha (ADR 0012). A tela de token do beta foi removida |
+| **Recuperação de senha sem SMTP** | Sem `BUDDY_SMTP_*` configurado, nenhum código é enviado — e a rota continua respondendo 202, porque responder outra coisa a transformaria em verificador de cadastro. É a única dependência externa do produto cuja ausência não tem contorno pela interface |
+| **URL pública de exclusão** | `GET /exclusao` existe, mas só onde a API existe. A exigência do Google é uma URL pública — falta domínio |
 | **CI** | Nenhum pipeline. Os gates dependem de disciplina |
 | **Tetos do consignado** | Sem default e sem rotina de atualização — mudam por resolução do CNPS |
 

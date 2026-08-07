@@ -6,9 +6,18 @@ from pathlib import Path
 # O backend não é um pacote instalável; os módulos são importados pela raiz.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-TOKEN = "token-de-teste"
-os.environ["BUDDY_API_TOKEN"] = TOKEN
+os.environ["BUDDY_JWT_SECRET"] = "segredo-de-teste-que-nao-existe-em-lugar-nenhum"
 os.environ["BUDDY_DATABASE_URL"] = "sqlite+pysqlite:///:memory:"
+
+# E-MAIL TAMBÉM NÃO TOCA A REDE. O correio de memória guarda numa lista, e é
+# por ele que o teste de recuperação de senha lê o código — a alternativa seria
+# um mock por teste, que provaria menos e quebraria mais.
+os.environ["BUDDY_CORREIO"] = "memoria"
+
+# Custo de bcrypt no teste: 4 rodadas em vez de 12. A suíte cria usuário em
+# quase todo teste, e 12 rodadas custam ~250 ms cada — a suíte inteira passaria
+# de 3 s para minutos. O custo de produção continua no código, não aqui.
+os.environ["BUDDY_BCRYPT_ROUNDS"] = "4"
 
 # A suíte NÃO herda a configuração de LLM da máquina de quem roda. Sem estas
 # linhas, `backend/.env` decide qual provedor e qual implementação os testes
@@ -50,6 +59,12 @@ ambiente, não uma edição de código.
 """
 
 URL_TESTE = os.environ.get("BUDDY_TEST_DATABASE_URL")
+
+# A conta que a fixture `auth` cria. Ela é a PRIMEIRA do banco em todo teste, e
+# por isso adota `BUDDY_TENANT_ID` — o mesmo tenant que os testes anteriores ao
+# M8 já assumiam sem saber.
+CONTA_EMAIL = "teste@exemplo.com"
+CONTA_SENHA = "senha-de-teste"
 
 
 @pytest.fixture
@@ -111,8 +126,34 @@ def client(engine, sessao) -> Iterator[TestClient]:
 
 
 @pytest.fixture
-def auth() -> dict[str, str]:
-    return {"Authorization": f"Bearer {TOKEN}"}
+def auth(client) -> dict[str, str]:
+    """
+    Uma conta de verdade, criada pela rota de verdade.
+
+    A suíte inteira autentica por aqui — os 370 testes que existiam antes do M8
+    não conhecem o mecanismo, e por isso a troca do token fixo (ADR 0006) por
+    conta de usuário (ADR 0012) custou esta fixture e nada mais.
+
+    Cadastrar pela ROTA, e não semeando a tabela, é o que garante que o tenant
+    usado pelos testes é o mesmo que o registro produz. Semear teria deixado
+    passar o caminho de adoção do tenant do beta.
+    """
+    r = client.post("/v1/auth/registro", json={"email": CONTA_EMAIL, "senha": CONTA_SENHA})
+    assert r.status_code == 201, r.text
+    return {"Authorization": f"Bearer {r.json()['sessao']['acesso']}"}
+
+
+@pytest.fixture(autouse=True)
+def caixa_de_email_limpa():
+    """
+    Mensagem de um teste vazando para o seguinte transformaria asserção de
+    conteúdo em falso positivo — o mesmo motivo de a base ser recriada por teste.
+    """
+    from correio.memoria import limpar
+
+    limpar()
+    yield
+    limpar()
 
 
 @pytest.fixture

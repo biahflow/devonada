@@ -1,10 +1,8 @@
 import { KeyboardAvoidingView, Platform, View, Text, StyleSheet } from 'react-native';
 import { useChat } from '../hooks/useChat';
-import { isAuthError } from '../api/client';
 import { MessageList } from '../components/chat/MessageList';
 import { ChatComposer } from '../components/chat/ChatComposer';
 import { LoadingState } from '../components/ui/LoadingState';
-import { ConfigurarConexaoButton } from '../components/ui/ConfigurarConexaoButton';
 import { colors, spacing, typography } from '../theme/theme';
 
 export function ChatScreen() {
@@ -29,12 +27,12 @@ export function ChatScreen() {
       </View>
 
       {/* Faixa, e não ErrorState de tela cheia: mesmo sem histórico dá para
-          conversar. Só o 401 ganha ação, porque é o único erro daqui que a
-          pessoa consegue resolver sozinha. */}
+          conversar. Nenhum erro daqui ganha ação — o 401, que era o único que
+          ganhava, deixou de precisar: a sessão se renova sozinha, e quando não
+          dá, o app já está indo para o login. */}
       {error ? (
         <View style={styles.errorBox}>
           <Text style={styles.error}>{error.texto}</Text>
-          {isAuthError(error.causa) ? <ConfigurarConexaoButton /> : null}
         </View>
       ) : null}
 

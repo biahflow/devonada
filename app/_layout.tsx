@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Stack } from 'expo-router';
+import { Redirect, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -11,6 +11,7 @@ import {
   NunitoSans_700Bold,
 } from '@expo-google-fonts/nunito-sans';
 import { ApiError } from '../src/api/client';
+import { carregarSessao, useSessao } from '../src/api/sessao';
 import { colors } from '../src/theme/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -41,22 +42,48 @@ const queryClient = new QueryClient({
   },
 });
 
+/**
+ * O redirecionamento vive num filho do `Stack`, e não no `RootLayout`.
+ *
+ * `expo-router` precisa que a árvore de rotas esteja montada antes de qualquer
+ * navegação: devolver `<Redirect>` no lugar do `<Stack>` navegaria para uma rota
+ * que ainda não existe.
+ */
+function PortaDeEntrada() {
+  const sessao = useSessao();
+
+  // Sem sessão, nenhuma tela de dado financeiro chega a montar (RF-001).
+  if (sessao === 'anonimo') return <Redirect href="/login" />;
+  return null;
+}
+
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     NunitoSans_400Regular,
     NunitoSans_600SemiBold,
     NunitoSans_700Bold,
   });
+  const sessao = useSessao();
+
+  useEffect(() => {
+    carregarSessao();
+  }, []);
+
+  const pronto = (fontsLoaded || fontError) && sessao !== 'carregando';
 
   useEffect(() => {
     // Falha ao carregar a fonte não impede o uso do app — cai no fallback de
     // sistema. Segurar a splash para sempre seria pior que uma fonte diferente.
-    if (fontsLoaded || fontError) {
+    //
+    // A splash também espera a leitura do SecureStore: escondê-la antes faria a
+    // tela do app piscar por um instante antes de o login aparecer, para quem
+    // não está logado.
+    if (pronto) {
       SplashScreen.hideAsync().catch(() => {});
     }
-  }, [fontsLoaded, fontError]);
+  }, [pronto]);
 
-  if (!fontsLoaded && !fontError) return null;
+  if (!pronto) return null;
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -68,6 +95,7 @@ export default function RootLayout() {
             contentStyle: { backgroundColor: colors.background },
           }}
         />
+        <PortaDeEntrada />
       </SafeAreaProvider>
     </QueryClientProvider>
   );

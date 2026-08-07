@@ -72,7 +72,13 @@ como paga, por exemplo). Nunca em criação de recurso, onde o `id` só existe d
 
 ```
 app/
-  _layout.tsx                    QueryClientProvider, SafeArea, fontes, tema
+  _layout.tsx                    QueryClientProvider, SafeArea, fontes, tema, gate de sessão
+  (auth)/
+    _layout.tsx                  pilha das telas de conta (M8)
+    login.tsx                    entrar
+    registro.tsx                 criar conta
+    esqueci-senha.tsx            pede o código
+    redefinir-senha.tsx          código + senha nova
   (tabs)/
     _layout.tsx                  quatro abas: Chat · Dívidas · Caixa · Painel
     index.tsx                    Chat
@@ -98,16 +104,20 @@ app/
     painel/
       _layout.tsx                pilha da aba
       index.tsx                  painel de endividamento
-      renda.tsx                  perfil de renda (M2)
-      token.tsx                  configuração de conexão
+      preferencias.tsx           dependentes, lembretes, sair e excluir conta
+      excluir-conta.tsx          confirmação da exclusão (M8)
 ```
 
 **Por que Caixa é aba e não uma tela do Painel:** o Painel responde "quanto eu devo"; o Caixa
 responde "quanto eu consigo pagar". A segunda pergunta é a que restringe todo plano que o produto
 propõe, e enterrá-la dentro de outra aba a trataria como detalhe do diagnóstico de dívida.
 
-Tudo vive **dentro de `(tabs)/`**: uma rota fora do grupo perde a barra de abas, e sair do
-simulador ou do plano levaria o usuário para fora da navegação em vez de voltar para a lista.
+Todo o **produto** vive dentro de `(tabs)/`: uma rota fora do grupo perde a barra de abas, e sair
+do simulador ou do plano levaria o usuário para fora da navegação em vez de voltar para a lista.
+
+A exceção é `(auth)/`, e ela é fora **pelo mesmo raciocínio invertido**: login com a barra de abas
+embaixo é convite a tocar numa aba que vai `401`ar, e exibir quatro abas de dado financeiro a quem
+ainda não entrou anuncia um app que a pessoa ainda não tem.
 
 Rota é a unidade de deep link: um card do chat consegue apontar para `dividas/[id]` sem
 conhecer a pilha de navegação. Isso é o que viabiliza M5 — e, no M6, o `valor_justo` aponta para

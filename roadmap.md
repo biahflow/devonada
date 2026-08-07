@@ -426,6 +426,65 @@ mesma resposta para "quanto ainda cabe".
 
 ---
 
+## M8 — Conta de usuário — entregue, aguardando validação em device
+
+Primeiro milestone que não entrega feature: entrega a condição para publicar. Os três itens de
+"Conta de usuário" do pré-lançamento existiam porque o acesso era um token fixo colado no
+aparelho por QR, e a própria ADR 0006 escreveu por que aquilo não duraria — "não distingue
+dispositivos e não tem revogação granular; inaceitável no primeiro convidado". Spec em
+`docs/features/008-conta-de-usuario.md`; as decisões, na ADR 0012.
+
+- [x] **A troca custou uma fixture.** Os 370 testes do backend autenticavam por `auth` em
+      `conftest.py`, e nenhum deles conhecia o mecanismo — trocar token fixo por conta de verdade
+      não tocou um único router. Foi o retorno do investimento que a ADR 0006 justificou: filtrar
+      por `tenant_id` em toda query com um usuário só parecia cerimônia.
+- [x] Cadastro, login, `refresh` e `logout`. Access JWT de 15 minutos, refresh opaco em tabela,
+      **rotacionado a cada uso** — o mesmo refresh apresentado duas vezes significa duas cópias, e
+      a segunda leva `401`. É o que dá revogação de verdade: logout, troca de senha e exclusão
+      derrubam a sessão no servidor, não só no aparelho.
+- [x] **A autenticação não conta quem tem conta.** Senha errada e e-mail inexistente saem com a
+      mesma frase E o mesmo tempo — o bcrypt roda contra um hash falso quando não há usuário,
+      senão o relógio responde o que a mensagem se recusou a responder. `senha/recuperacao`
+      devolve `202` sempre.
+- [x] Recuperação por código de 6 dígitos, com hash no banco, teto de tentativas e validade de 30
+      minutos. Código, e não link: link que abre o app exige *universal link* com domínio
+      associado nas duas plataformas, e não há host https.
+- [x] Correio plugável (`BUDDY_CORREIO`), no padrão da ADR 0007. A suíte usa o de memória — a
+      regra de que **nenhum teste toca a rede** passou a valer para e-mail também.
+- [x] **O primeiro cadastro adota o tenant do beta.** Sem isso, as dívidas e o caixa já
+      cadastrados ficariam alcançáveis por nenhum login e apagáveis por nenhuma exclusão de conta.
+      A condição é `count(usuario) == 0`, e ela deixa de valer no instante em que é usada.
+- [x] **Exclusão de conta física, em transação, reconfirmando a senha** — Apple, diretriz
+      5.1.1(v). É o oposto da regra de `divida`, e pelo motivo certo: lá a exclusão lógica protege
+      o histórico do usuário; aqui é ele pedindo que o histórico deixe de existir.
+- [x] **A varredura de exclusão é derivada do metadata, não escrita à mão.** Lista à mão envelhece
+      na primeira migration que alguém escrever sem lembrar da rota, e o dado órfão só apareceria
+      numa auditoria de loja. Há teste que falha se uma tabela ficar fora das duas listas.
+- [x] Página pública `GET /exclusao` — exigência do Google, **adicional** à do app.
+- [x] **Renovação silenciosa com uma promise compartilhada.** Sem ela, o app abre, dez telas
+      montam juntas com o access vencido, cada uma rotaciona o mesmo refresh, nove ficam com token
+      revogado — e a sessão morre no boot sem o usuário ter feito nada. Há teste que dispara dez
+      requisições concorrentes e exige **uma** renovação.
+- [x] Falha de **rede** na renovação não desloga. Deslogar ali expulsaria quem entrou no elevador,
+      e a credencial dele continua boa.
+- [x] O grupo `(auth)/` fica fora de `(tabs)/`: login com barra de abas embaixo é convite a tocar
+      numa aba que vai `401`ar.
+- [x] Saíram a tela de token, o `ConfigurarConexaoButton`, o ramo `semToken` do `ErrorState`, o
+      `isAuthError` e o script `token:qr`. Nenhuma tela decide mais o que fazer com `401`.
+- [x] **Um defeito de acessibilidade apareceu no caminho:** `Button` em `loading` trocava o texto
+      pelo spinner e ficava sem nome nenhum para o leitor de tela, justamente no instante em que a
+      pessoa espera saber o que está acontecendo. Corrigido com `accessibilityLabel` explícito.
+- [ ] **Validação em device pendente.** O teclado sobre o campo de senha, o gerenciador de senhas
+      do sistema se oferecendo para salvar, a confirmação de exclusão em tela pequena e — o mais
+      importante — **o app voltando do background com o access vencido**. A renovação silenciosa é
+      a peça mais fácil de quebrar do milestone e nenhum gate a exercita como o aparelho a
+      exercita.
+
+**Sai com:** entrar no app em qualquer aparelho com e-mail e senha, recuperar o acesso sem falar
+com ninguém, e apagar tudo o que é seu sem pedir permissão.
+
+---
+
 ## Pré-lançamento — o que bloqueia publicar e cobrar
 
 > **Escopo maior que o front.** O resto deste documento fala do cliente Expo; esta seção fala do
@@ -437,14 +496,14 @@ mesma resposta para "quanto ainda cabe".
 > multi-tenant desde o primeiro commit, nenhum segredo no bundle, todo cálculo no servidor,
 > exclusão lógica de dívida — já estão certas. O que falta é a camada de conta e a burocracia.
 
-**Conta de usuário — hoje não existe.**
+**Conta de usuário — entregue no M8.**
 
-- [ ] Autenticação real. O acesso hoje é um token fixo entregue por QR (ADR 0006), que era
-      solução de beta e não passa em revisão de loja quando há dado pessoal.
-- [ ] **Exclusão de conta dentro do app** — Apple, diretriz 5.1.1(v), obrigatória sempre que há
-      criação de conta.
-- [ ] **Página web de solicitação de exclusão** — exigência do Google, e ela é *adicional* à do
-      app, não substitui.
+- [x] Autenticação real. O token fixo por QR (ADR 0006) saiu; entrou conta com e-mail e senha,
+      sessão revogável e recuperação (ADR 0012).
+- [x] **Exclusão de conta dentro do app** — Apple, diretriz 5.1.1(v). Física, em transação, com a
+      senha reconfirmada.
+- [x] **Página web de solicitação de exclusão** — `GET /exclusao`, servida pelo backend. Continua
+      precisando de **URL pública** quando houver domínio: hoje ela só existe onde a API existe.
 
 **Declarações — nenhuma escrita.**
 
@@ -475,9 +534,9 @@ mesma resposta para "quanto ainda cabe".
 
 **Validação em device.**
 
-- [ ] M0 a M7, milestone a milestone. Está detalhado em cada um acima e não se resolve em lote:
-      nenhum gate automático prova que a tela é legível, que o teclado não cobre o campo ou que a
-      notificação toca na hora certa.
+- [ ] M0 a M8, milestone a milestone. Está detalhado em cada um acima e não se resolve em lote:
+      nenhum gate automático prova que a tela é legível, que o teclado não cobre o campo, que a
+      notificação toca na hora certa ou que a sessão se renova quando o app volta do background.
 
 ---
 
@@ -487,8 +546,11 @@ mesma resposta para "quanto ainda cabe".
   assistente. Ver `docs/data-ingestion.md`. É o que transforma o produto de "assistente de
   dívidas" em planejador financeiro, e é também o maior salto de complexidade e de risco.
 - **Renda, orçamento e metas** — o outro lado do fluxo de caixa.
-- **Onboarding, signup e billing** — o cliente já é multi-tenant, então não há retrofit de
-  isolamento a fazer.
+- **Billing** — signup entregue no M8; falta o in-app purchase, que está no pré-lançamento.
+- **Segundo fator e login social** — ficaram de fora do M8 de propósito (ver os não objetivos da
+  spec 008). Adotar login social obriga a oferecer *Sign in with Apple*, diretriz 4.8.
+- **Conta compartilhada** — casal olhando o mesmo caixa. O modelo já suporta: `usuario.tenant_id`
+  é coluna separada de `usuario.id` exatamente por isso. Falta rota de convite.
 - **Offline-first** com storage cifrado. `AsyncStorage` cru está descartado por `guardrails.md`,
   seção 5.
 - **Proteção contra screenshot** nas telas de dívida.
