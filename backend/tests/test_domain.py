@@ -78,12 +78,18 @@ class TestCorrecao:
 
 
 class TestMinimoExistencial:
-    def test_vinte_e_cinco_por_cento_do_salario_minimo(self):
-        assert minimo_existencial(151800, 2500) == 37950
+    def test_valor_fixo_de_seiscentos_reais(self):
+        # Decreto 11.150/2022, art. 3º, na redação do Decreto 11.567/2023.
+        # NÃO é 25% do salário mínimo — essa redação foi substituída.
+        assert minimo_existencial(60000) == 60000
+
+    def test_sem_configuracao_devolve_none(self):
+        # Piso chutado é pior que piso nenhum: ele vira número na tela.
+        assert minimo_existencial(0) is None
 
     def test_margem_pode_ser_negativa(self):
         # Endividado além da renda: o número negativo É a informação.
-        assert margem_disponivel(300000, 37950, 400000) == -137950
+        assert margem_disponivel(300000, 60000, 400000) == -160000
 
 
 class TestCustoMedioJuros:

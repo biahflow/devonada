@@ -136,11 +136,12 @@ def resumo(
     comprometimento_bps = None
     margem = None
     if renda:
-        minimo = minimo_existencial(
-            settings.salario_minimo_centavos, settings.minimo_existencial_bps
-        )
+        minimo = minimo_existencial(settings.minimo_existencial_centavos)
         comprometimento_bps = comprometimento_renda_bps(comprometido, renda)
-        margem = margem_disponivel(renda, minimo, comprometido)
+        # Sem piso configurado não há margem: subtrair zero devolveria um número
+        # otimista com cara de calculado. Ausente é a resposta honesta.
+        if minimo is not None:
+            margem = margem_disponivel(renda, minimo, comprometido)
 
     _registrar_snapshot(db, tenant, mes_alvo, total_devido)
 

@@ -205,7 +205,27 @@ class TestResumo:
         client.put("/v1/perfil", json={"rendaMensal": 550000}, headers=auth)
         resumo = client.get("/v1/dividas/resumo", headers=auth).json()["resumo"]
         assert resumo["rendaMensal"] == 550000
-        assert resumo["minimoExistencial"] == 37950  # 25% de R$ 1.518,00
+        # R$ 600,00 fixos — Decreto 11.150/2022, art. 3º, na redação do
+        # Decreto 11.567/2023. A redação antiga (25% do salário mínimo,
+        # R$ 379,50) deixou de valer e não pode voltar por descuido.
+        assert resumo["minimoExistencial"] == 60000
+
+    def test_sem_piso_configurado_minimo_e_margem_vem_ausentes(self, client, auth):
+        # Piso desligado não vira zero: zero faria a margem parecer a renda
+        # inteira, que é o número mais perigoso que este produto poderia exibir.
+        from config import Settings, get_settings
+        from main import app
+
+        app.dependency_overrides[get_settings] = lambda: Settings(
+            minimo_existencial_centavos=0
+        )
+        try:
+            client.put("/v1/perfil", json={"rendaMensal": 550000}, headers=auth)
+            resumo = client.get("/v1/dividas/resumo", headers=auth).json()["resumo"]
+            assert resumo["minimoExistencial"] is None
+            assert resumo["margemDisponivel"] is None
+        finally:
+            del app.dependency_overrides[get_settings]
 
     def test_distribuicao_por_criticidade_em_ordem_de_ataque(self, client, auth):
         client.post("/v1/dividas", json=_nova(tipo="consumo"), headers=auth)

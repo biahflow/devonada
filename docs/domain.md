@@ -97,8 +97,14 @@ A copy nunca sugere que o usuário errou ao contrair a dívida.
 
 ### mínimo existencial
 A parcela da renda que não pode ser comprometida com dívida porque cobre necessidades básicas.
-O backend calcula; o painel exibe como limite. Nenhuma sugestão do assistente pode propor um
-plano que invada esse mínimo.
+Hoje é um **valor fixo de R$ 600,00** definido por decreto (11.150/2022, art. 3º, na redação do
+11.567/2023) — não é 25% do salário mínimo, que era a redação anterior. O backend o fornece; o
+painel o exibe como limite. Nenhuma sugestão do assistente pode propor um plano que o invada.
+
+**Não confundir com custo de vida.** O mínimo existencial é um **piso legal de proteção contra
+o credor**, não o quanto uma pessoa precisa para viver. Quem tem aluguel, carro e filhos gasta
+muitas vezes esse valor. Usar o piso como se fosse custo de vida produz uma margem otimista e um
+plano que a pessoa não consegue honrar.
 
 ### comprometimento de renda
 Percentual da renda mensal já destinado a pagamento de dívida. Calculado no backend.

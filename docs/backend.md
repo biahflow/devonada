@@ -63,7 +63,7 @@ cada rota. O cliente nunca envia tenant; ele vem do token.
 |---|---|---|---|
 | `possivelPrescricao` | 5 anos completos desde a origem | Código Civil, art. 206, §5º, I | `domain/prescricao.py` |
 | `valorCorrigido` | Juros compostos pela taxa **do próprio contrato** | O contrato do usuário | `domain/correcao.py` |
-| `minimoExistencial` | 25% do salário mínimo vigente | Decreto 11.150/2022, art. 3º | `domain/minimo_existencial.py` |
+| `minimoExistencial` | **R$ 600,00 fixos** (config datada, sem derivar do salário mínimo) | Decreto 11.150/2022, art. 3º, **na redação do Decreto 11.567/2023** | `domain/minimo_existencial.py` |
 | `custoMedioJurosMensal` | Média das taxas **ponderada pelo saldo** | — (escolha de método, documentada) | `domain/resumo.py` |
 | Valor da parcela | Divisão inteira com a **sobra na última** | — (aritmética; a soma tem de fechar) | `domain/parcelas.py` |
 | `situacao` da parcela | Vencimento < hoje e não paga | — (derivada no servidor, nunca no cliente) | `domain/parcelas.py` |
@@ -120,6 +120,16 @@ Estão aqui porque escondê-las seria pior que tê-las.
     anterior quando existe outra dívida do mesmo credor, mais antiga, cadastrada no app.
     Relacionamento com a instituição é mais amplo — por isso o achado declara o indício e
     devolve a conclusão ao usuário, condicionada.
+13. **As exclusões do art. 4º do Decreto 11.150 não estão implementadas.** O decreto manda
+    **não computar** na aferição do mínimo existencial as parcelas de financiamento imobiliário,
+    crédito com garantia real, crédito com fiança ou aval, crédito rural, financiamento de
+    atividade produtiva, dívida já renegociada na forma do CDC, tributos e despesas de condomínio,
+    **crédito consignado regido por lei específica** e operações de antecipação, desconto ou
+    cessão. O app só conhece a modalidade da dívida quando o contrato foi lido, e aplicar a
+    exclusão sem saber a modalidade erraria para os dois lados. Enquanto isso, a margem exibida é
+    **mais conservadora** que a do decreto — ela desconta parcelas que a lei mandaria ignorar, e
+    errar propondo menos é o lado certo de errar. O consignado, além disso, tem ADPFs pendentes
+    no STF (1005, 1006 e 1097), o que é mais um motivo para não antecipar a regra.
 
 ### A simulação e o teto de 600 meses
 

@@ -613,7 +613,8 @@ existencial não têm o que exibir.*
 
 - [~] `GET /v1/perfil` — implementado; campos ausentes quando não informados
 - [~] `PUT /v1/perfil` — implementado
-- [x] Mínimo existencial pelo Decreto 11.150/2022 (25% do salário mínimo).
+- [x] Mínimo existencial pelo Decreto 11.150/2022, art. 3º, na redação do Decreto 11.567/2023
+      (R$ 600,00 fixos). Piso não configurado ⇒ `minimoExistencial` e `margemDisponivel` ausentes.
       **`dependentes` não entra na fórmula** — o decreto não escala por dependente
 
 ### Bloco 3 — M2 · resumo

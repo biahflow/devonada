@@ -96,15 +96,21 @@ def _validar_aporte(
     Recusa aporte que invade o mínimo existencial.
 
     O produto não sugere plano que comprometa o básico da vida (Decreto
-    11.150/2022, art. 3º, via domain/minimo_existencial.py).
+    11.150/2022, art. 3º, na redação do Decreto 11.567/2023, via
+    domain/minimo_existencial.py).
 
     LIMITAÇÃO DECLARADA: sem renda informada no perfil não há o que comparar, e
     a simulação segue. Bloquear quem não preencheu a renda tiraria a ferramenta
-    de quem mais precisa dela; o painel já convida a informar.
+    de quem mais precisa dela; o painel já convida a informar. O mesmo vale para
+    o piso não configurado.
     """
     perfil = db.scalar(select(orm.Perfil).where(orm.Perfil.tenant_id == tenant))
     renda = perfil.renda_mensal if perfil and perfil.renda_mensal else None
     if not renda:
+        return
+
+    minimo = minimo_existencial(settings.minimo_existencial_centavos)
+    if minimo is None:
         return
 
     # O comprometimento aqui é a soma das MESMAS parcelas mínimas que o motor
@@ -112,7 +118,6 @@ def _validar_aporte(
     # da que a simulação enxerga, e o usuário veria o aporte ser recusado por um
     # número que não aparece em lugar nenhum da tela.
     comprometido = sum(d.parcela_minima for d in dividas)
-    minimo = minimo_existencial(settings.salario_minimo_centavos, settings.minimo_existencial_bps)
     margem = margem_disponivel(renda, minimo, comprometido)
 
     if aporte > margem:
