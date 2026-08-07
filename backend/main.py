@@ -6,6 +6,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from config import get_settings
 from routers import (
+    caixa,
     chat,
     contratos,
     dividas,
@@ -75,6 +76,7 @@ app.include_router(perfil.router)
 app.include_router(lembretes.router)
 app.include_router(contratos.router)
 app.include_router(chat.router)
+app.include_router(caixa.router)
 
 
 @app.get("/")

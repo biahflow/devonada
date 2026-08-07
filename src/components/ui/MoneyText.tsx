@@ -3,7 +3,7 @@ import { colors, typography } from '../../theme/theme';
 import { formatBRL } from '../../util/money';
 
 type Size = 'body' | 'numeric' | 'display';
-type Tone = 'ink' | 'inkSoft' | 'accent' | 'onPrimary';
+type Tone = 'ink' | 'inkSoft' | 'accent' | 'onPrimary' | 'warning';
 
 interface Props {
   /** Valor em CENTAVOS inteiros. Nunca reais, nunca float. */
@@ -26,6 +26,10 @@ const tones: Record<Tone, string> = {
   inkSoft: colors.inkSoft,
   accent: colors.accent,
   onPrimary: colors.onPrimary,
+  // Para valor negativo que o usuário precisa notar — capacidade que não fecha.
+  // `warning`, nunca `danger`: quem chega nesse número já está com medo, e o
+  // vermelho de alarme é o que os apps tradicionais fazem (guardrail 4).
+  warning: colors.warning,
 };
 
 /**

@@ -232,6 +232,11 @@ class Simulacao(Camel):
     # Nulo quando o cenário de pagar só o mínimo não quita dentro do teto: sem
     # o outro lado da comparação, não há economia a afirmar.
     economiaVsMinimo: int | None = None
+    # O plano passa dos 5 anos que o CDC, art. 104-A, fixa como prazo máximo do
+    # plano apresentado numa repactuação judicial. É INFORMAÇÃO, não impedimento:
+    # plano mais longo não é ilegal, mas saber que existe um teto legal para o
+    # caminho judicial muda a conversa com o credor.
+    acimaDoPrazoDeRepactuacao: bool = False
     ordemPagamento: list[ItemOrdemPagamento]
     evolucaoSaldo: list[PontoEvolucao]
 
@@ -483,3 +488,191 @@ class Erro(Camel):
 
     message: str
     campo: str | None = None
+
+
+# --- Módulo de caixa (M7) ----------------------------------------------------
+
+TipoFonteRenda = Literal["pj_hora", "clt", "autonomo", "beneficio", "aluguel", "outro"]
+CategoriaGasto = Literal[
+    "moradia", "alimentacao", "transporte", "contas", "saude", "dependentes", "outros"
+]
+OrigemRenda = Literal["informada", "pior_mes_registrado"]
+NivelPreenchimento = Literal["vazio", "nivel_0", "nivel_1"]
+
+
+class Caixa(Camel):
+    """
+    A cascata inteira, calculada em `domain/caixa.py`. O cliente formata e
+    exibe; não soma nada (ADR 0003).
+    """
+
+    rendaBrutaTipica: int
+    origemRenda: OrigemRenda
+    impostoReservado: int
+    rendaLiquida: int
+    essenciais: int
+    naoEssenciais: int
+    provisaoMensal: int
+    aporteReserva: int
+    aporteAposentadoria: int
+    comprometidoDividas: int
+    # Podem ser NEGATIVAS, e o negativo é a informação — sem `ge=0` de propósito.
+    capacidadeHoje: int
+    capacidadeMaxima: int
+    aporteMaximo: int
+    minimoExistencial: int | None = None
+    minimoExistencialVigenteEm: str | None = None
+    # `None` quando não há piso configurado: um `False` diria "conferimos e está
+    # tudo bem", que é afirmação diferente de "não sabemos".
+    abaixoDoPiso: bool | None = None
+    # FATO ARITMÉTICO, não diagnóstico. Nunca se chama `superendividado`: a
+    # definição legal (CDC art. 54-A, § 1º) exige boa-fé e dívida de consumo, e
+    # nenhum dos dois é apurável por software.
+    naoFecha: bool
+    preenchimento: NivelPreenchimento
+
+
+class RespostaCaixa(Camel):
+    caixa: Caixa
+
+
+class NovaFonteRenda(Camel):
+    nome: str = Field(min_length=1, max_length=120)
+    tipo: TipoFonteRenda
+    valorTipicoInformado: int | None = Field(default=None, ge=0)
+    variavel: bool = False
+    ativo: bool = True
+
+
+class FonteRendaPatch(Camel):
+    nome: str | None = Field(default=None, min_length=1, max_length=120)
+    tipo: TipoFonteRenda | None = None
+    valorTipicoInformado: int | None = Field(default=None, ge=0)
+    variavel: bool | None = None
+    ativo: bool | None = None
+
+
+class FonteRenda(NovaFonteRenda):
+    id: str
+
+
+class RespostaFonteRenda(Camel):
+    fonte: FonteRenda
+
+
+class ListaFontesRenda(Camel):
+    fontes: list[FonteRenda]
+
+
+class NovoRecebimento(Camel):
+    mes: str = Field(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")
+    valor: int = Field(ge=0)
+
+
+class Recebimento(NovoRecebimento):
+    id: str
+
+
+class RespostaRecebimento(Camel):
+    recebimento: Recebimento
+
+
+class NovoGasto(Camel):
+    descricao: str = Field(min_length=1, max_length=120)
+    categoria: CategoriaGasto
+    # Quem classifica é o USUÁRIO: o que é cortável na vida de alguém não é
+    # decisão do app.
+    essencial: bool = True
+    fixo: bool = True
+    valorMensal: int = Field(ge=0)
+    ativo: bool = True
+
+
+class GastoPatch(Camel):
+    descricao: str | None = Field(default=None, min_length=1, max_length=120)
+    categoria: CategoriaGasto | None = None
+    essencial: bool | None = None
+    fixo: bool | None = None
+    valorMensal: int | None = Field(default=None, ge=0)
+    ativo: bool | None = None
+
+
+class Gasto(NovoGasto):
+    id: str
+
+
+class RespostaGasto(Camel):
+    gasto: Gasto
+
+
+class ListaGastos(Camel):
+    gastos: list[Gasto]
+
+
+class NovaProvisao(Camel):
+    descricao: str = Field(min_length=1, max_length=120)
+    valorAnual: int = Field(ge=0)
+    mesVencimento: int = Field(ge=1, le=12)
+    saldoAcumulado: int = Field(default=0, ge=0)
+    ativa: bool = True
+
+
+class ProvisaoPatch(Camel):
+    descricao: str | None = Field(default=None, min_length=1, max_length=120)
+    valorAnual: int | None = Field(default=None, ge=0)
+    mesVencimento: int | None = Field(default=None, ge=1, le=12)
+    saldoAcumulado: int | None = Field(default=None, ge=0)
+    ativa: bool | None = None
+
+
+class Provisao(NovaProvisao):
+    id: str
+    # DERIVADOS no servidor: o aporte divide o que falta pelos meses que faltam
+    # até o vencimento, nunca por 12 fixo.
+    aporteMensal: int
+    mesesRestantes: int
+
+
+class RespostaProvisao(Camel):
+    provisao: Provisao
+
+
+class ListaProvisoes(Camel):
+    provisoes: list[Provisao]
+
+
+class MetasCaixa(Camel):
+    """
+    Todos opcionais, e a ausência é significativa em cada um (ADR 0009):
+    sem `impostoBps` nada é reservado e a tela diz isso; sem
+    `rendimentoEsperadoBps` nenhuma comparação dívida × investimento aparece.
+    """
+
+    impostoBps: int | None = Field(default=None, ge=0, le=10000)
+    reservaMetaMeses: int | None = Field(default=None, ge=0, le=60)
+    reservaSaldo: int | None = Field(default=None, ge=0)
+    # O único dos três de reserva que entra na cascata: saldo é o que já existe,
+    # meta é aonde se quer chegar, aporte é o que sai do mês.
+    reservaAporte: int | None = Field(default=None, ge=0)
+    aposentadoriaAporte: int | None = Field(default=None, ge=0)
+    rendimentoEsperadoBps: int | None = Field(default=None, ge=0, le=10000)
+
+
+class RespostaMetas(Camel):
+    metas: MetasCaixa
+
+
+class SnapshotCaixa(Camel):
+    id: str
+    calculadoEm: datetime
+    rendaBrutaTipica: int
+    rendaLiquida: int
+    essenciais: int
+    capacidadeHoje: int
+    capacidadeMaxima: int
+    aporteMaximo: int
+    naoFecha: bool
+
+
+class HistoricoCaixa(Camel):
+    snapshots: list[SnapshotCaixa]

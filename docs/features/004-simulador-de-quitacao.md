@@ -92,7 +92,7 @@ Todas em `backend/domain/simulacao.py`, com o porquê no docstring:
 | Dívida sem cronograma | parcela mínima **zero** | nenhum valor de prestação é inventado |
 | Juros | incidem **antes** do pagamento do mês | é a ordem do mundo real |
 | Teto | 600 meses, ou saldo que não cai | plano que não quita não recebe prazo fictício |
-| Mínimo existencial | recusa aporte acima da margem | Decreto 11.150/2022, art. 3º |
+| Mínimo existencial | recusa aporte acima da margem | Decreto 11.150/2022, art. 3º, na redação do Decreto 11.567/2023 |
 
 ## Guardrails desta feature
 

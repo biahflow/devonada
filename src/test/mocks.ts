@@ -1,5 +1,6 @@
 import type { ExtracaoContrato } from '../api/contratos';
 import type {
+  Caixa,
   Divida,
   PerfilFinanceiro,
   RespostaSimulacao,
@@ -100,6 +101,30 @@ export function umaExtracao(over: Partial<ExtracaoContrato> = {}): ExtracaoContr
       totalParcelas: { valor: 12, confianca: 'alta', trecho: 'Em 12 parcelas' },
       cet: { valor: 18000, confianca: 'baixa', trecho: 'CET: 180,00% a.a.' },
     },
+    ...over,
+  };
+}
+
+export function umCaixa(over: Partial<Caixa> = {}): Caixa {
+  return {
+    rendaBrutaTipica: 1000000,
+    origemRenda: 'informada',
+    impostoReservado: 0,
+    rendaLiquida: 1000000,
+    essenciais: 400000,
+    naoEssenciais: 0,
+    provisaoMensal: 0,
+    aporteReserva: 0,
+    aporteAposentadoria: 0,
+    comprometidoDividas: 0,
+    capacidadeHoje: 600000,
+    capacidadeMaxima: 600000,
+    aporteMaximo: 600000,
+    minimoExistencial: 60000,
+    minimoExistencialVigenteEm: '2023-06-19',
+    abaixoDoPiso: false,
+    naoFecha: false,
+    preenchimento: 'nivel_0',
     ...over,
   };
 }

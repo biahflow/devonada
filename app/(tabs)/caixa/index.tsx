@@ -1,0 +1,206 @@
+import { ScrollView, View, Text, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Screen } from '../../../src/components/ui/Screen';
+import { PageHeader } from '../../../src/components/ui/PageHeader';
+import { Card } from '../../../src/components/ui/Card';
+import { Button } from '../../../src/components/ui/Button';
+import { Feedback } from '../../../src/components/ui/Feedback';
+import { StatTile } from '../../../src/components/ui/StatTile';
+import { LoadingState } from '../../../src/components/ui/LoadingState';
+import { ErrorState } from '../../../src/components/ui/ErrorState';
+import { EmptyState } from '../../../src/components/ui/EmptyState';
+import { Cascata, type Degrau } from '../../../src/components/caixa/Cascata';
+import { useCaixa } from '../../../src/hooks/useCaixa';
+import { isoParaBR } from '../../../src/util/date';
+import { colors, spacing, typography } from '../../../src/theme/theme';
+
+export default function CaixaScreen() {
+  const router = useRouter();
+  const { caixa, isPending, error, refetch, isRefetching } = useCaixa();
+
+  const cabecalho = (
+    <PageHeader
+      eyebrow="Seu mês"
+      title="Caixa"
+      description="Quanto entra, quanto sai e o que sobra de verdade para pagar dívida."
+    />
+  );
+
+  if (isPending) {
+    return (
+      <Screen>
+        {cabecalho}
+        <LoadingState label="Somando seu mês" />
+      </Screen>
+    );
+  }
+
+  if (error || !caixa) {
+    return (
+      <Screen>
+        {cabecalho}
+        <ErrorState error={error} onRetry={refetch} />
+      </Screen>
+    );
+  }
+
+  // O vazio convida ao Nível 0 — dois campos e o número aparece. Quem está
+  // endividado e com medo não preenche formulário, então o valor tem de vir
+  // antes do esforço, não depois.
+  if (caixa.preenchimento === 'vazio') {
+    return (
+      <Screen>
+        {cabecalho}
+        <EmptyState
+          icon="inbox"
+          title="Leva 20 segundos"
+          description="Diga o que você ganha e quanto gasta com o essencial. Já dá para ver quanto sobra por mês — e é esse número que define o plano que você consegue manter."
+          actionLabel="Informar renda"
+          onAction={() => router.push('/caixa/renda')}
+          secondaryLabel="Informar gastos"
+          onSecondary={() => router.push('/caixa/gastos')}
+        />
+      </Screen>
+    );
+  }
+
+  const degraus: Degrau[] = [];
+  if (caixa.impostoReservado > 0) {
+    degraus.push({
+      rotulo: 'Imposto reservado',
+      centavos: caixa.impostoReservado,
+      contexto: 'Sai antes de tudo: essa parte nunca foi sua.',
+    });
+  }
+  degraus.push({ rotulo: 'Contas essenciais', centavos: caixa.essenciais });
+  if (caixa.provisaoMensal > 0) {
+    degraus.push({
+      rotulo: 'Provisões do ano',
+      centavos: caixa.provisaoMensal,
+      contexto: 'IPVA, seguro e o que mais vence de uma vez.',
+    });
+  }
+  if (caixa.aporteReserva > 0) {
+    degraus.push({ rotulo: 'Reserva de emergência', centavos: caixa.aporteReserva });
+  }
+  if (caixa.aporteAposentadoria > 0) {
+    degraus.push({ rotulo: 'Aposentadoria', centavos: caixa.aporteAposentadoria });
+  }
+  if (caixa.naoEssenciais > 0) {
+    degraus.push({
+      rotulo: 'Gastos não essenciais',
+      centavos: caixa.naoEssenciais,
+      contexto: 'O que você pode cortar se decidir acelerar.',
+    });
+  }
+
+  const folgaCortando = caixa.capacidadeMaxima - caixa.capacidadeHoje;
+
+  return (
+    <Screen>
+      <ScrollView
+        contentContainerStyle={styles.conteudo}
+        showsVerticalScrollIndicator={false}
+        refreshControl={undefined}
+      >
+        {cabecalho}
+
+        {caixa.abaixoDoPiso ? (
+          <Feedback
+            tone="warning"
+            message="O que sobra depois das contas está abaixo do mínimo existencial que a lei protege. Enquanto for assim, não sugerimos nenhum plano de pagamento."
+          />
+        ) : null}
+
+        {caixa.naoFecha ? (
+          <Feedback
+            tone="warning"
+            message="As parcelas que você já paga não cabem no que sobra, nem cortando o não essencial. Vale procurar o Procon ou a Defensoria para conhecer a repactuação de dívidas — é um caminho previsto em lei."
+          />
+        ) : null}
+
+        <Card>
+          <Cascata
+            bruta={caixa.rendaBrutaTipica}
+            degraus={degraus}
+            totalRotulo="Sobra por mês"
+            total={caixa.capacidadeHoje}
+          />
+        </Card>
+
+        {caixa.origemRenda === 'pior_mes_registrado' ? (
+          <Feedback
+            tone="info"
+            message="Sua renda aqui é a do seu pior mês registrado, não a média. Um plano dimensionado pela média quebra justamente no mês fraco."
+          />
+        ) : null}
+
+        <View style={styles.tiles}>
+          <StatTile
+            rotulo="Cabe no aporte extra"
+            centavos={caixa.aporteMaximo}
+            contexto="Depois das parcelas que você já paga."
+          />
+          {folgaCortando > 0 ? (
+            <StatTile
+              rotulo="Cortando o não essencial"
+              centavos={caixa.capacidadeMaxima}
+              contexto="É a sua alavanca — a escolha é sua, não do app."
+            />
+          ) : null}
+        </View>
+
+        {caixa.minimoExistencial != null ? (
+          <Card>
+            <Text style={styles.notaTitulo}>Piso protegido por lei</Text>
+            <Text style={styles.nota}>
+              Nenhum plano que sugerimos invade o mínimo existencial. O valor vigente vem do
+              Decreto 11.150/2022, na redação de{' '}
+              {caixa.minimoExistencialVigenteEm
+                ? isoParaBR(caixa.minimoExistencialVigenteEm)
+                : 'decreto posterior'}
+              .
+            </Text>
+          </Card>
+        ) : null}
+
+        <View style={styles.acoes}>
+          <Button
+            label="Renda"
+            onPress={() => router.push('/caixa/renda')}
+            variant="secondary"
+          />
+          <Button
+            label="Gastos"
+            onPress={() => router.push('/caixa/gastos')}
+            variant="secondary"
+          />
+          <Button
+            label="Provisões do ano"
+            onPress={() => router.push('/caixa/provisoes')}
+            variant="secondary"
+          />
+          <Button
+            label="Reserva, aposentadoria e imposto"
+            onPress={() => router.push('/caixa/metas')}
+            variant="secondary"
+          />
+          <Button
+            label="Atualizar"
+            onPress={refetch}
+            variant="ghost"
+            loading={isRefetching}
+          />
+        </View>
+      </ScrollView>
+    </Screen>
+  );
+}
+
+const styles = StyleSheet.create({
+  conteudo: { paddingBottom: spacing.xxl, gap: spacing.lg },
+  tiles: { gap: spacing.lg },
+  notaTitulo: { ...typography.bodyStrong, color: colors.ink, marginBottom: spacing.xs },
+  nota: { ...typography.caption, color: colors.inkSoft },
+  acoes: { gap: spacing.md },
+});

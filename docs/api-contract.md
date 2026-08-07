@@ -577,6 +577,137 @@ card sumiu — o modo de falha exato do guardrail 7.1.
 
 ---
 
+### M7 — Módulo de caixa
+
+Spec em `docs/features/007-modulo-de-caixa.md`. Todos os valores em **centavos inteiros**;
+`impostoBps` e `rendimentoEsperadoBps` em **basis points**. Toda rota filtra `tenant_id`; id
+alheio devolve **404, nunca 403**.
+
+#### `GET /v1/caixa`
+
+A cascata inteira, calculada no servidor (ADR 0003).
+
+```json
+{
+  "caixa": {
+    "rendaBrutaTipica": 1200000,
+    "origemRenda": "informada",
+    "impostoReservado": 72000,
+    "rendaLiquida": 1128000,
+    "essenciais": 620000,
+    "naoEssenciais": 90000,
+    "provisaoMensal": 41667,
+    "aporteReserva": 50000,
+    "aporteAposentadoria": 30000,
+    "comprometidoDividas": 180000,
+    "capacidadeHoje": 116333,
+    "capacidadeMaxima": 206333,
+    "aporteMaximo": -63667,
+    "minimoExistencial": 60000,
+    "minimoExistencialVigenteEm": "2023-06-19",
+    "abaixoDoPiso": false,
+    "naoFecha": false,
+    "preenchimento": "nivel_1"
+  }
+}
+```
+
+- `origemRenda`: `"informada"` | `"pior_mes_registrado"`. O usuário vê de onde saiu o número.
+- `preenchimento`: `"vazio"` | `"nivel_0"` | `"nivel_1"`. É o que a tela usa para escolher entre
+  o convite e o conteúdo.
+- `capacidadeHoje` e `capacidadeMaxima` **podem ser negativas** — o negativo é a informação.
+- **As parcelas de dívida não entram na cascata.** A capacidade é o total que pode ir para
+  dívida, e as parcelas atuais já são dívida — descontá-las ali as contaria duas vezes. Quem
+  precisa do teto do aporte **extra** usa `aporteMaximo` = `capacidadeHoje − comprometidoDividas`,
+  que também pode ser negativo (as parcelas atuais já não cabem).
+- `minimoExistencial` é `null` com piso não configurado, e nesse caso `abaixoDoPiso` também é
+  `null`. Nunca `false` otimista.
+- `naoFecha`: soma das parcelas mínimas > `capacidadeMaxima`. É **fato aritmético**, não
+  diagnóstico de superendividamento — o campo nunca se chama `superendividado` e a copy não
+  afirma direito (ver o FDD, "O que a leitura da lei mudou").
+
+#### `GET · POST · PATCH · DELETE /v1/caixa/fontes[/{id}]`
+
+```json
+{ "fonte": { "id": "…", "nome": "Contrato PJ", "tipo": "pj_hora",
+             "valorTipicoInformado": 1200000, "variavel": true, "ativo": true } }
+```
+
+`tipo`: `pj_hora` | `clt` | `autonomo` | `beneficio` | `aluguel` | `outro`.
+
+#### `POST /v1/caixa/fontes/{id}/recebimentos`
+
+O que **de fato** caiu. É daqui que sai a renda típica real.
+
+```json
+{ "recebimento": { "id": "…", "mes": "2026-07", "valor": 980000 } }
+```
+
+#### `GET · POST · PATCH · DELETE /v1/caixa/gastos[/{id}]`
+
+```json
+{ "gasto": { "id": "…", "descricao": "Aluguel", "categoria": "moradia",
+             "essencial": true, "fixo": true, "valorMensal": 250000, "ativo": true } }
+```
+
+`categoria`: `moradia` | `alimentacao` | `transporte` | `contas` | `saude` | `dependentes` |
+`outros`.
+
+#### `GET · POST · PATCH · DELETE /v1/caixa/provisoes[/{id}]`
+
+```json
+{ "provisao": { "id": "…", "descricao": "IPVA do carro", "valorAnual": 180000,
+                "mesVencimento": 1, "saldoAcumulado": 30000,
+                "aporteMensal": 30000, "mesesRestantes": 5, "ativo": true } }
+```
+
+`aporteMensal` e `mesesRestantes` são **derivados no servidor**: o aporte divide o que falta
+pelos meses restantes até o vencimento, nunca por 12 fixo.
+
+#### `PUT /v1/caixa/metas`
+
+```json
+{ "metas": { "impostoBps": 600, "reservaMetaMeses": 6, "reservaSaldo": 150000,
+             "reservaAporte": 50000, "aposentadoriaAporte": 30000,
+             "rendimentoEsperadoBps": null } }
+```
+
+Todos opcionais, e `null` **grava** ausência — é como o usuário desfaz uma meta.
+
+Os três campos de reserva são coisas diferentes, e só um entra na cascata: `reservaSaldo` é o
+que já existe, `reservaMetaMeses` é aonde se quer chegar, e **`reservaAporte` é o que sai do
+mês** — este é o que a capacidade desconta.
+
+`rendimentoEsperadoBps` ausente ⇒ **nenhuma comparação dívida × investimento é exibida**
+(ADR 0009). `impostoBps` ausente ⇒ nada é reservado, e a tela diz isso.
+
+#### `GET /v1/caixa/metas`
+
+Mesmo corpo. Perfil inexistente devolve todos os campos ausentes, nunca zerados.
+
+#### Efeitos no módulo de dívida
+
+- **`POST /v1/dividas/simulacoes`** valida o aporte contra `aporteMaximo` quando há caixa
+  preenchido. Sem caixa, cai no critério antigo (piso legal), que é otimista mas mantém a
+  ferramenta disponível para quem ainda não preencheu. A `message` do `422` **não carrega
+  valor** — renda não vaza em corpo de erro (guardrail 5).
+- **`Simulacao`** ganha `acimaDoPrazoDeRepactuacao: boolean`. Verdadeiro quando o plano passa de
+  60 meses — o prazo máximo do plano apresentado em repactuação (CDC, art. 104-A). É informação,
+  **não** impedimento: a simulação continua devolvendo `200`.
+- **`script`** da revisão ganha uma frase com o valor que o usuário consegue comprometer por mês,
+  por template determinístico. Só aparece com caixa preenchido e capacidade positiva. O valor é
+  `capacidadeHoje` menos as parcelas das **outras** dívidas: o acordo substitui a prestação desta,
+  mas as demais continuam saindo.
+- **Card `plano_sugerido`** usa a capacidade como aporte padrão quando o assistente não pede um
+  valor, em vez de zero. O número vem do servidor, nunca do modelo (guardrail 7.1).
+
+#### `GET /v1/caixa/historico`
+
+Os `caixa_snapshot`, do mais recente ao mais antigo. **Append-only**: nenhuma rota atualiza uma
+linha existente.
+
+---
+
 ## 4. Fila do backend
 
 > **Esta é a fila de trabalho canônica do backend.** `roadmap.md` aponta para cá e não repete a
@@ -613,7 +744,8 @@ existencial não têm o que exibir.*
 
 - [~] `GET /v1/perfil` — implementado; campos ausentes quando não informados
 - [~] `PUT /v1/perfil` — implementado
-- [x] Mínimo existencial pelo Decreto 11.150/2022 (25% do salário mínimo).
+- [x] Mínimo existencial pelo Decreto 11.150/2022, art. 3º, na redação do Decreto 11.567/2023
+      (R$ 600,00 fixos). Piso não configurado ⇒ `minimoExistencial` e `margemDisponivel` ausentes.
       **`dependentes` não entra na fórmula** — o decreto não escala por dependente
 
 ### Bloco 3 — M2 · resumo
@@ -665,6 +797,22 @@ nenhum produtor.*
       `multaMoratoriaMensal` — todos sujeitos ao guardrail 8.1
 - [x] Tetos do consignado em config **datada e sem default**: teto ausente ⇒ achado ausente
 - [x] `script` de negociação por template determinístico, sem LLM
+
+### Bloco 7 — M7 · módulo de caixa
+*Destrava: a capacidade real de pagamento. Sem ela, todo plano que o produto propõe é um chute
+sobre quanto a pessoa consegue pagar.*
+
+- [x] **Mínimo existencial corrigido** — estava na redação revogada (25% do salário mínimo);
+      o Decreto 11.567/2023 fixou R$ 600,00. Config datada, `None` quando não configurado
+- [x] `backend/domain/caixa.py` — motor puro, sem I/O, com as escolhas de método no docstring
+- [~] Tabelas `fonte_renda`, `recebimento`, `gasto`, `provisao_anual`, `caixa_snapshot`
+- [~] Campos novos em `perfil`; `renda_mensal` copiada para `fonte_renda` na migration
+- [~] `GET /v1/caixa` e o CRUD de fontes, gastos e provisões
+- [~] `GET`/`PUT /v1/caixa/metas` e `GET /v1/caixa/historico`
+- [~] `_validar_aporte` passa a usar a capacidade real no lugar do piso legal
+- [~] Frase do caixa no `script` de negociação, por template determinístico
+- [~] `acimaDoPrazoDeRepactuacao` na simulação — CDC art. 104-A, 5 anos
+- [~] Card `plano_sugerido` do chat usa a capacidade como aporte padrão, não zero
 
 ### Estado observado em device
 

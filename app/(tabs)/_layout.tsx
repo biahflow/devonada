@@ -33,6 +33,13 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="caixa"
+        options={{
+          title: 'Caixa',
+          tabBarIcon: ({ color, size }) => <Feather name="inbox" color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
         name="painel"
         options={{
           title: 'Painel',

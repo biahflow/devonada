@@ -317,6 +317,13 @@ export interface Simulacao {
    * calculado".
    */
   economiaVsMinimo?: number | null;
+  /**
+   * O plano passa dos 5 anos que o CDC, art. 104-A, fixa como prazo máximo do
+   * plano apresentado numa repactuação judicial. É **informação, não
+   * impedimento**: plano mais longo não é ilegal, e a copy não pode sugerir que
+   * seja. Ausente é tratado como `false`.
+   */
+  acimaDoPrazoDeRepactuacao?: boolean;
   ordemPagamento: ItemOrdemPagamento[];
   evolucaoSaldo: PontoEvolucao[];
 }
@@ -396,4 +403,125 @@ export interface RevisaoCobranca {
   fundamentos: string[];
   /** data de vigência do teto que embasou algum achado (ISO). */
   baseLegalVigenteEm?: IsoDate | null;
+}
+
+// --- Módulo de caixa (M7) ----------------------------------------------------
+
+export type TipoFonteRenda = 'pj_hora' | 'clt' | 'autonomo' | 'beneficio' | 'aluguel' | 'outro';
+
+export type CategoriaGasto =
+  | 'moradia'
+  | 'alimentacao'
+  | 'transporte'
+  | 'contas'
+  | 'saude'
+  | 'dependentes'
+  | 'outros';
+
+/** De onde saiu a renda que o plano está usando. O usuário precisa saber. */
+export type OrigemRenda = 'informada' | 'pior_mes_registrado';
+
+/** Quanto o usuário já preencheu. É o que a tela usa entre convite e conteúdo. */
+export type NivelPreenchimento = 'vazio' | 'nivel_0' | 'nivel_1';
+
+/**
+ * A cascata do caixa, calculada inteira no backend (ADR 0003). O app formata e
+ * exibe; não soma pote nenhum.
+ */
+export interface Caixa {
+  rendaBrutaTipica: number;
+  origemRenda: OrigemRenda;
+  impostoReservado: number;
+  rendaLiquida: number;
+  essenciais: number;
+  naoEssenciais: number;
+  provisaoMensal: number;
+  aporteReserva: number;
+  aporteAposentadoria: number;
+  comprometidoDividas: number;
+  /**
+   * O que sobra sem mudar nada de vida. **Pode ser negativo**, e o negativo é a
+   * informação — a tela nunca o esconde nem o zera.
+   */
+  capacidadeHoje: number;
+  /** O que sobraria cortando o não essencial. A diferença é a alavanca do usuário. */
+  capacidadeMaxima: number;
+  /** Teto do aporte extra: capacidade menos o que já está comprometido. */
+  aporteMaximo: number;
+  minimoExistencial?: number | null;
+  minimoExistencialVigenteEm?: string | null;
+  /** `null` sem piso configurado: ausência, nunca um `false` otimista. */
+  abaixoDoPiso?: boolean | null;
+  /**
+   * As parcelas não cabem nem cortando o não essencial. É **fato aritmético**,
+   * não diagnóstico — a copy nunca diz "superendividado" (CDC art. 54-A, § 1º
+   * exige boa-fé e dívida de consumo, que nenhum software apura).
+   */
+  naoFecha: boolean;
+  preenchimento: NivelPreenchimento;
+}
+
+export interface FonteRenda {
+  id: Uuid;
+  nome: string;
+  tipo: TipoFonteRenda;
+  /** Em centavos. Ausente = não informado, nunca zero. */
+  valorTipicoInformado?: number | null;
+  variavel: boolean;
+  /** Chave de liga/desliga: preserva o histórico sem entrar na conta. */
+  ativo: boolean;
+}
+
+export interface Recebimento {
+  id: Uuid;
+  mes: IsoMes;
+  valor: number;
+}
+
+export interface Gasto {
+  id: Uuid;
+  descricao: string;
+  categoria: CategoriaGasto;
+  /** Classificação do USUÁRIO. O que é cortável na vida dele não é decisão nossa. */
+  essencial: boolean;
+  fixo: boolean;
+  valorMensal: number;
+  ativo: boolean;
+}
+
+export interface ProvisaoAnual {
+  id: Uuid;
+  descricao: string;
+  valorAnual: number;
+  /** 1 a 12. */
+  mesVencimento: number;
+  saldoAcumulado: number;
+  ativa: boolean;
+  /** Derivados no servidor: divide o que falta pelos meses que faltam, nunca por 12. */
+  aporteMensal: number;
+  mesesRestantes: number;
+}
+
+export interface MetasCaixa {
+  /** Basis points. Ausente ⇒ nada é reservado, e a tela diz isso (ADR 0009). */
+  impostoBps?: number | null;
+  reservaMetaMeses?: number | null;
+  reservaSaldo?: number | null;
+  /** O único dos três de reserva que entra na cascata. */
+  reservaAporte?: number | null;
+  aposentadoriaAporte?: number | null;
+  /** Ausente ⇒ nenhuma comparação dívida × investimento é exibida (ADR 0009). */
+  rendimentoEsperadoBps?: number | null;
+}
+
+export interface SnapshotCaixa {
+  id: Uuid;
+  calculadoEm: string;
+  rendaBrutaTipica: number;
+  rendaLiquida: number;
+  essenciais: number;
+  capacidadeHoje: number;
+  capacidadeMaxima: number;
+  aporteMaximo: number;
+  naoFecha: boolean;
 }

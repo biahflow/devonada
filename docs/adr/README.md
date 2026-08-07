@@ -55,3 +55,4 @@ quanto o das certas — ele impede que o mesmo caminho seja tentado duas vezes.
 | [0006](0006-postgres-token-fixo-e-extrator-plugavel.md) | Postgres, token fixo e extrator plugável | aceito (extrator plugável substituído pela 0007) |
 | [0007](0007-camada-de-provedor-de-llm.md) | Camada de provedor de LLM, e OpenAI como padrão | aceito |
 | [0008](0008-valor-justo-e-soma-de-achados.md) | `valorJusto` é soma de achados citáveis, não estimativa | aceito |
+| [0009](0009-o-usuario-decide-a-ordem-dos-potes.md) | O usuário decide a ordem dos potes; o app mostra a aritmética | aceito |

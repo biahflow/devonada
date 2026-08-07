@@ -97,11 +97,49 @@ A copy nunca sugere que o usuário errou ao contrair a dívida.
 
 ### mínimo existencial
 A parcela da renda que não pode ser comprometida com dívida porque cobre necessidades básicas.
-O backend calcula; o painel exibe como limite. Nenhuma sugestão do assistente pode propor um
-plano que invada esse mínimo.
+Hoje é um **valor fixo de R$ 600,00** definido por decreto (11.150/2022, art. 3º, na redação do
+11.567/2023) — não é 25% do salário mínimo, que era a redação anterior. O backend o fornece; o
+painel o exibe como limite. Nenhuma sugestão do assistente pode propor um plano que o invada.
+
+**Não confundir com custo de vida.** O mínimo existencial é um **piso legal de proteção contra
+o credor**, não o quanto uma pessoa precisa para viver. Quem tem aluguel, carro e filhos gasta
+muitas vezes esse valor. Usar o piso como se fosse custo de vida produz uma margem otimista e um
+plano que a pessoa não consegue honrar.
 
 ### comprometimento de renda
 Percentual da renda mensal já destinado a pagamento de dívida. Calculado no backend.
+
+### capacidade
+Quanto sobra por mês, de verdade, para pagar dívida — depois de imposto, custo de vida,
+provisões e os potes que o usuário definiu. É o número que o módulo de caixa existe para
+produzir, e o teto de tudo que o produto propõe. Vem em dois: **capacidade hoje** (sem mudar
+nada de vida) e **capacidade máxima** (cortando o não essencial). A diferença entre as duas é a
+alavanca do usuário; o app a mostra e não puxa por ele. Pode ser negativa, e o negativo é a
+informação.
+
+### essencial
+Gasto que a pessoa não consegue cortar sem perder o básico — moradia, alimentação, transporte,
+contas, saúde, dependentes. Não confundir com **mínimo existencial**, que é piso legal. Quem
+classifica é o usuário, não o app.
+
+### provisão
+Dinheiro separado todo mês para uma despesa anual conhecida — IPVA, seguro, licenciamento. O
+aporte divide o que falta pelos **meses restantes até o vencimento**, nunca por 12 fixo: quem
+começa em agosto com IPVA em janeiro tem cinco meses, e dividir por doze deixa a pessoa curta
+justamente no mês que a provisão existe para proteger.
+
+### renda típica
+A renda que o plano deve suportar quando o mês é ruim — a **menor** dos últimos recebimentos
+registrados, não a média. Dimensionar pela média quebra o plano em todo mês fraco, e quem ganha
+por hora tem mês fraco. Sem histórico, é o valor que o usuário informou, e a tela diz qual das
+duas origens está em uso.
+
+### não fecha
+As parcelas mínimas das dívidas excedem a capacidade máxima. É **fato aritmético sobre os
+números que o usuário informou**, não diagnóstico. O produto nunca diz "você está
+superendividado": a definição legal (CDC art. 54-A, § 1º) exige boa-fé e dívida de consumo, que
+software não apura. A copy nomeia a repactuação como caminho a investigar, no tom de
+`possivelPrescricao`.
 
 ---
 

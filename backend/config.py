@@ -23,13 +23,18 @@ class Settings(BaseSettings):
     # mas manter restrito evita que a API responda a qualquer página web.
     cors_origins: str = "http://localhost:8081,http://localhost:19006"
 
-    # Salário mínimo vigente, em centavos. Base do mínimo existencial
-    # (Decreto 11.150/2022). Muda todo ano — por isso não é constante no código.
-    salario_minimo_centavos: int = 151800
+    # MÍNIMO EXISTENCIAL, em centavos. Valor FIXO, não derivado do salário
+    # mínimo: Decreto 11.150/2022, art. 3º, com a redação dada pelo Decreto
+    # 11.567, de 19/06/2023 — R$ 600,00. A redação anterior (25% do salário
+    # mínimo) foi substituída, e o § 2º que a congelava, revogado.
+    # Compete ao Conselho Monetário Nacional atualizar o valor (art. 3º, § 3º),
+    # por isso ele vive aqui e não no código.
+    minimo_existencial_centavos: int = 60000
 
-    # Percentual do salário mínimo que compõe o mínimo existencial, em basis
-    # points. 2500 = 25%, conforme o Decreto 11.150/2022, art. 3º.
-    minimo_existencial_bps: int = 2500
+    # Data da redação que fixou o valor acima, em ISO. Viaja na resposta do
+    # resumo e aparece na tela: piso velho fica visível ao usuário, em vez de
+    # ser confiado às cegas. Mesma disciplina dos tetos do consignado.
+    minimo_existencial_vigente_em: str = "2023-06-19"
 
     # TETOS DE JUROS DO CONSIGNADO, em basis points ao mês. Definidos por
     # resolução do CNPS, que os revê periodicamente — por isso NÃO TÊM DEFAULT.

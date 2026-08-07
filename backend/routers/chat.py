@@ -17,10 +17,12 @@ from assistente import (
     obter_assistente,
 )
 from auth import tenant_atual
+from config import get_settings
 from db import get_db
 from domain.simulacao import economia_vs_minimo, simular
+from leitura import capacidade_atual, carregar_dividas_simulaveis
 from routers.revisao import revisar_divida
-from routers.simulacoes import carregar_dividas_simulaveis, mes_atual
+from routers.simulacoes import mes_atual
 
 router = APIRouter(prefix="/v1/chat", tags=["Chat"])
 
@@ -153,7 +155,15 @@ def montar_cards(db: Session, tenant: str, pedidos: list[PedidoDeCard]) -> list[
             if not dividas:
                 continue
 
-            aporte = pedido.aporte_extra_mensal or 0
+            # Sem aporte pedido pelo assistente, o default é a CAPACIDADE REAL
+            # (M7), não zero. Zero produzia o plano de quem só paga o mínimo —
+            # que é o pior plano possível e não é o que a pessoa perguntou.
+            # A capacidade nunca vem do modelo: ele escolhe a pergunta, o
+            # servidor preenche o número (guardrail 7.1).
+            aporte = pedido.aporte_extra_mensal
+            if aporte is None:
+                caixa = capacidade_atual(db, tenant, get_settings())
+                aporte = max(caixa.aporte_maximo, 0) if caixa else 0
             mes = mes_atual()
             # A MESMA função do simulador (M4). Uma segunda implementação de
             # amortização produziria dois números para a mesma pergunta.
