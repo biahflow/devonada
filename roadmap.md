@@ -326,11 +326,31 @@ plano que ele propunha era um chute sobre a capacidade real de pagar. Spec em
       coeficientes `× 0,5 / 0,7 / 0,9` do desenho original ficaram de fora — são a mesma classe
       do `* 1.1`. Sem rendimento informado, nenhuma comparação dívida × investimento aparece.
 - [x] FDD, contrato de API (Bloco 7), vocabulário e roadmap escritos antes do código.
-- [ ] `backend/domain/caixa.py` — motor puro: cascata da capacidade, renda típica pelo pior mês,
-      provisão pelos meses restantes, os sinais de piso e de "não fecha".
+- [x] `backend/domain/caixa.py` — motor puro: cascata da capacidade, renda típica pelo pior mês,
+      provisão pelos meses restantes, os sinais de piso e de "não fecha". 38 testes.
 - [ ] Cinco tabelas, migration com migração de `perfil.renda_mensal`, e os endpoints do Bloco 7.
 - [ ] Integração com o módulo de dívida: `_validar_aporte`, aporte sugerido, frase do script.
 - [ ] Quarta aba **Caixa**, com captura progressiva em dois níveis.
+
+### M7.1 — Fechamento do mês
+
+**Gasto fixo já não se redigita:** `gasto`, `fonte_renda` e `provisao_anual` são registros
+permanentes com valor mensal, não lançamentos datados. Aluguel entra uma vez e vale até ser
+alterado ou desativado (`ativo: false`, que é a chave de liga/desliga). Isso sai de graça no M7.
+
+O que sobra é o que muda de valor: o `recebimento` do PJ, que é mensal por natureza, e o gasto
+variável.
+
+- [ ] Tela de fechamento que abre **pré-preenchida com o mês anterior**, para o usuário confirmar
+      ou ajustar em vez de digitar do zero.
+- [ ] Lembrete opcional de fechamento, reusando o `expo-notifications` do M3.
+- [ ] Sinal quando o caixa está velho: capacidade calculada sobre número de três meses atrás é
+      um número que envelheceu, e a tela precisa dizer isso.
+
+**Replicação automática e silenciosa está descartada.** Número que o usuário nunca confirmou
+entrando na capacidade — e daí no plano que ele leva a um credor — é o mesmo erro de gravar
+extração de LLM sem revisão (`guardrails.md`, seção 8.1). Pré-preencher e pedir confirmação
+custa dois toques e mantém a garantia.
 
 **Sai com:** o simulador recusando o aporte que hoje ele aceita, porque agora ele conhece o
 custo de vida real — e o usuário sabendo, em janeiro, que o IPVA já está guardado.

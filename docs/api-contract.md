@@ -602,6 +602,7 @@ A cascata inteira, calculada no servidor (ADR 0003).
     "comprometidoDividas": 180000,
     "capacidadeHoje": 116333,
     "capacidadeMaxima": 206333,
+    "aporteMaximo": -63667,
     "minimoExistencial": 60000,
     "minimoExistencialVigenteEm": "2023-06-19",
     "abaixoDoPiso": false,
@@ -615,6 +616,10 @@ A cascata inteira, calculada no servidor (ADR 0003).
 - `preenchimento`: `"vazio"` | `"nivel_0"` | `"nivel_1"`. É o que a tela usa para escolher entre
   o convite e o conteúdo.
 - `capacidadeHoje` e `capacidadeMaxima` **podem ser negativas** — o negativo é a informação.
+- **As parcelas de dívida não entram na cascata.** A capacidade é o total que pode ir para
+  dívida, e as parcelas atuais já são dívida — descontá-las ali as contaria duas vezes. Quem
+  precisa do teto do aporte **extra** usa `aporteMaximo` = `capacidadeHoje − comprometidoDividas`,
+  que também pode ser negativo (as parcelas atuais já não cabem).
 - `minimoExistencial` é `null` com piso não configurado, e nesse caso `abaixoDoPiso` também é
   `null`. Nunca `false` otimista.
 - `naoFecha`: soma das parcelas mínimas > `capacidadeMaxima`. É **fato aritmético**, não
@@ -772,7 +777,7 @@ sobre quanto a pessoa consegue pagar.*
 
 - [x] **Mínimo existencial corrigido** — estava na redação revogada (25% do salário mínimo);
       o Decreto 11.567/2023 fixou R$ 600,00. Config datada, `None` quando não configurado
-- [ ] `backend/domain/caixa.py` — motor puro, sem I/O, com as escolhas de método no docstring
+- [x] `backend/domain/caixa.py` — motor puro, sem I/O, com as escolhas de método no docstring
 - [ ] Tabelas `fonte_renda`, `recebimento`, `gasto`, `provisao_anual`, `caixa_snapshot`
 - [ ] Campos novos em `perfil`; `renda_mensal` migrada para `fonte_renda` e derivada na leitura
 - [ ] `GET /v1/caixa` e o CRUD de fontes, gastos e provisões

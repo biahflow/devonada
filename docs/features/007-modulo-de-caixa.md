@@ -32,6 +32,26 @@ campo capturado só se justifica se melhora esse número.
 - **Não faz Open Finance.** O modelo de dados o comporta; a integração é pós-MVP
   (`docs/data-ingestion.md`).
 
+## Recorrência: por que não há lançamento mês a mês
+
+Digitar os mesmos gastos todo mês é o que faz as pessoas abandonarem app de finanças na terceira
+semana. O desenho evita isso pela **forma do modelo**, não por uma função de cópia:
+
+**`gasto` é um registro permanente, não um lançamento mensal.** Ele guarda `valorMensal` e vale
+até ser alterado ou desativado (`ativo: false`). Aluguel de R$ 2.500 é digitado **uma vez**;
+nos meses seguintes ele já está lá. Não existe "replicar para o mês seguinte" porque não existe
+mês nenhum no registro. O mesmo vale para `fonte_renda` e `provisao_anual`.
+
+`ativo` é justamente a chave de liga/desliga: gasto que acabou é desativado, e some da conta
+sem apagar o histórico — mesma disciplina da exclusão lógica de dívida.
+
+**Onde a fricção sobra de verdade:** o `recebimento` do PJ, que é por definição mensal, e o
+gasto variável que muda de valor. Para esses, a solução **não** é replicar automaticamente:
+número que o usuário nunca confirmou entrando na capacidade é o mesmo erro de o LLM gravar dado
+sem revisão (guardrail 8.1). A solução é o **fechamento do mês** — a tela abre pré-preenchida
+com o mês anterior e o usuário confirma ou ajusta. Está no roadmap como próximo passo do M7,
+fora deste milestone.
+
 ## O que a leitura da lei mudou neste desenho
 
 Conferido no Planalto antes do código, como manda o `agent-guidelines.md`. A leitura mudou três
@@ -133,6 +153,7 @@ metas. A capacidade fica mais precisa e a proposta de negociação, mais afiada.
     "comprometidoDividas": 180000,
     "capacidadeHoje": 116333,
     "capacidadeMaxima": 206333,
+    "aporteMaximo": -63667,
     "minimoExistencial": 60000,
     "minimoExistencialVigenteEm": "2023-06-19",
     "abaixoDoPiso": false,
@@ -182,8 +203,9 @@ metas. A capacidade fica mais precisa e a proposta de negociação, mais afiada.
 - **RF-008** — `naoFecha` é verdadeiro quando a soma das parcelas mínimas excede
   `capacidadeMaxima`. A copy é aritmética e convida a investigar; **não** afirma
   superendividamento nem direito.
-- **RF-009** — `capacidadeHoje` vira o default do aporte no simulador e o teto de
-  `_validar_aporte`.
+- **RF-009** — `aporteMaximo` (= `capacidadeHoje − comprometidoDividas`) vira o default do aporte
+  no simulador e o teto de `_validar_aporte`. **Não** é `capacidadeHoje`: as parcelas atuais já
+  são dívida, e usar a capacidade cheia como teto do aporte **extra** as contaria duas vezes.
 - **RF-010** — O script de negociação ganha a frase ancorada no caixa por **template
   determinístico**; sem caixa preenchido, a frase não aparece.
 - **RF-011** — Plano simulado acima de 60 meses exibe o prazo máximo do art. 104-A como
