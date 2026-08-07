@@ -44,16 +44,16 @@ export function ListRow({
 }: Props) {
   const conteudo = (
     <View style={styles.linha}>
-      {estado !== 'neutro' ? (
-        <View
-          style={[
-            styles.ponto,
-            { backgroundColor: estado === 'atencao' ? colors.warning : colors.accent },
-          ]}
-        />
-      ) : (
-        <View style={styles.pontoVazio} />
-      )}
+      {/* O ponto existe SEMPRE, inclusive neutro: um espaçador invisível deixava
+          a linha desalinhada e tirava o ritmo que a lista do reference tem. No
+          neutro ele é recessivo, não ausente. */}
+      <View
+        style={[
+          styles.ponto,
+          estado === 'atencao' && { backgroundColor: colors.warning },
+          estado === 'concluido' && { backgroundColor: colors.accent },
+        ]}
+      />
 
       {icon ? <CategoriaIcon icon={icon} cor={cor} /> : null}
 
@@ -103,8 +103,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     minHeight: 64,
   },
-  ponto: { width: 8, height: 8, borderRadius: radius.pill },
-  pontoVazio: { width: 8 },
+  ponto: { width: 8, height: 8, borderRadius: radius.pill, backgroundColor: colors.border },
   texto: { flex: 1, gap: 2 },
   titulo: { ...typography.bodyStrong, color: colors.ink },
   subtitulo: { ...typography.caption, color: colors.inkSoft },

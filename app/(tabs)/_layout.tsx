@@ -1,20 +1,15 @@
 import { Tabs } from 'expo-router';
 import Feather from '@expo/vector-icons/Feather';
-import { colors, fontFamily, typography } from '../../src/theme/theme';
+import { TabBar } from '../../src/components/ui/TabBar';
 
 export default function TabsLayout() {
   return (
     <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.inkSoft,
-        tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.border,
-        },
-        tabBarLabelStyle: { ...typography.caption, fontFamily: fontFamily.medium, fontSize: 12 },
-      }}
+      // A barra padrão só troca a cor do ícone — em aparelho ela lê como rodapé
+      // estático. A nossa desliza uma pílula entre as abas, respeitando
+      // `isReduceMotionEnabled`. Ver src/components/ui/TabBar.tsx.
+      tabBar={(props) => <TabBar {...props} />}
+      screenOptions={{ headerShown: false }}
     >
       <Tabs.Screen
         name="index"
