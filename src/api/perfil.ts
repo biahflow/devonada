@@ -2,9 +2,12 @@ import { request } from './client';
 import type { PerfilFinanceiro } from './types';
 
 /**
- * Renda e dependentes do usuário. É o insumo de `comprometimentoRenda` e
- * `minimoExistencial` — que continuam sendo calculados no BACKEND. O front
- * coleta e exibe; não aplica nenhuma regra de mínimo existencial.
+ * Dependentes e preferências de lembrete.
+ *
+ * `rendaMensal` viaja aqui, mas é uma VISTA de `fonte_renda` (ver o campo em
+ * `types.ts`): quem edita renda é `src/api/caixa.ts`. `comprometimentoRenda` e
+ * `minimoExistencial` continuam sendo calculados no BACKEND — o front coleta e
+ * exibe, e não aplica nenhuma regra de mínimo existencial.
  */
 export function getPerfil() {
   return request<{ perfil: PerfilFinanceiro }>('/v1/perfil');

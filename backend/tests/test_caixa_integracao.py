@@ -49,7 +49,9 @@ def _simular(client, auth, aporte):
 
 
 class TestValidacaoDeAporte:
-    def test_o_caixa_recusa_o_aporte_que_o_piso_legal_aceitava(self, client, auth):
+    def test_o_caixa_recusa_o_aporte_que_o_piso_legal_aceitava(
+        self, client, auth, renda_legada
+    ):
         """
         O buraco que o M7 fecha, em um teste.
 
@@ -57,8 +59,12 @@ class TestValidacaoDeAporte:
         (R$ 600,00), a margem seria quase R$ 9.400 e um aporte de R$ 5.000
         passaria. Pelo custo de vida real, sobram R$ 1.000 — e o aporte é
         recusado, que é a resposta honesta.
+
+        A renda da primeira perna vem da COLUNA LEGADA de propósito. Informá-la
+        por `PUT /v1/perfil` hoje criaria uma fonte, e a segunda perna somaria
+        duas rendas de R$ 10.000 — o teste passaria a comparar outra coisa.
         """
-        client.put("/v1/perfil", json={"rendaMensal": 1000000}, headers=auth)
+        renda_legada(1000000)
         _divida(client, auth)
 
         # Sem caixa preenchido: o fallback do piso legal aceita.

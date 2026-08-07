@@ -113,3 +113,27 @@ def client(engine, sessao) -> Iterator[TestClient]:
 @pytest.fixture
 def auth() -> dict[str, str]:
     return {"Authorization": f"Bearer {TOKEN}"}
+
+
+@pytest.fixture
+def renda_legada(sessao):
+    """
+    Semeia `perfil.renda_mensal` direto na tabela: a linha de antes do M7.
+
+    Desde que a renda passou a morar em `fonte_renda`, `PUT /v1/perfil` cria uma
+    fonte — e o caminho do piso legal deixou de ser alcançável pela API. Ele
+    continua no código para a linha antiga que nunca ganhou fonte, e semear a
+    coluna é o único jeito honesto de exercitá-lo. Um teste que chamasse
+    `PUT /v1/perfil` e dissesse estar testando o piso passaria pelo motivo
+    errado.
+    """
+    import orm as orm_module
+    from config import get_settings
+
+    def semear(valor: int) -> None:
+        sessao.add(
+            orm_module.Perfil(tenant_id=get_settings().tenant_id, renda_mensal=valor)
+        )
+        sessao.commit()
+
+    return semear

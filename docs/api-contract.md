@@ -270,6 +270,35 @@ Request do `PUT`: o mesmo objeto sem envelope.
 | `rendaMensal` | centavos | não informado — **nunca zero** |
 | `dependentes` | contagem | zero dependentes |
 
+> **`rendaMensal` aqui é uma VISTA de `fonte_renda`** (M7.2), não uma coluna. A leitura é a soma
+> do `valorTipicoInformado` das fontes ativas; sem fonte nenhuma, cai na coluna legada
+> `perfil.renda_mensal`. A escrita continua aceita — app instalado que não atualizou ainda envia
+> o campo —, e o valor pousa na fonte:
+>
+> | Fontes ativas | `PUT` com `rendaMensal` faz |
+> |---|---|
+> | 0 | cria a fonte `"Renda informada"` (`tipo: "outro"`, `variavel: false`) |
+> | 1 | atualiza o `valorTipicoInformado` dela |
+> | 2 ou mais | **`422`** com `campo: "rendaMensal"` |
+>
+> O `422` existe porque um escalar não se reparte entre várias fontes: dividir o valor ou eleger
+> uma para sobrescrever inventaria dado. A tela que trata o caso é a do Caixa.
+>
+> **`rendaMensal` ausente no corpo não apaga a renda.** A tela de preferências deixou de enviá-lo,
+> e tratar ausente como zero apagaria a fonte de quem só queria mudar o horário do lembrete.
+
+> **Atenção: `rendaMensal` aqui e em `/v1/dividas/resumo` são números diferentes, de propósito.**
+>
+> | Endpoint | O que é | Exemplo |
+> |---|---|---|
+> | `GET /v1/perfil` | o que o usuário **informou**, somado e bruto | `960000` |
+> | `GET /v1/dividas/resumo` | renda **típica e líquida** — pior mês registrado, menos o imposto reservado | `902400` |
+>
+> O perfil devolve o informado porque é o que um formulário precisa reexibir: devolver o valor
+> derivado faria um app antigo mostrar um número que o usuário nunca digitou e, ao salvar,
+> sobrescrever o informado com ele. Quem quer o número que o **plano** usa pede
+> `GET /v1/caixa`, que traz junto o `origemRenda` — e é lá que a tela diz de onde ele veio.
+
 > **`minimoExistencial` continua sendo calculado no backend**, a partir da renda e dos
 > dependentes. O front coleta e exibe; não aplica nenhuma regra de mínimo existencial
 > (guardrail 1, ADR 0003). Nenhuma sugestão do produto pode propor plano que invada esse mínimo.
@@ -319,6 +348,27 @@ Unidades, sem exceção:
 `rendaMensal`, `comprometimentoRenda`, `minimoExistencial` e `margemDisponivel` são opcionais —
 se o usuário ainda não informou a renda, vêm ausentes e o painel exibe um convite a preencher,
 não um zero.
+
+> **De onde sai a renda deste resumo** (M7.2). O caixa é a fonte; o perfil é fallback — o mesmo
+> caminho de `POST /v1/dividas/simulacoes`. `rendaMensal` é a renda **líquida** da cascata do
+> caixa: o limite de 30% se lê sobre o que de fato entra, e sem `imposto_bps` informado a líquida
+> degrada para a bruta, então ninguém perde número por não ter preenchido imposto.
+>
+> **`margemDisponivel` tem duas definições, e a diferença importa:**
+>
+> | Estado | `margemDisponivel` |
+> |---|---|
+> | Caixa conhece a saída (há gasto, provisão ou pote) | `aporteMaximo` de `GET /v1/caixa` — o mesmo número, para as duas abas não divergirem |
+> | Caixa só com renda (Nível 0), ou sem caixa | `renda − mínimo existencial − comprometido do mês` |
+> | Piso não configurado, no segundo caso | **ausente** |
+>
+> É `aporteMaximo` e não `capacidadeHoje` porque só o primeiro desconta as parcelas que já
+> existem — `capacidadeHoje` é o total que *pode* ir para dívida, parcelas incluídas, e exibi-lo
+> como sobra contaria duas vezes o dinheiro que já sai. De quebra, é o teto que o simulador
+> aplica ao aporte extra: o painel para de anunciar uma sobra que o simulador recusa.
+>
+> No Nível 0 a margem **não** vem do caixa: ali sabemos o que entra e nada do que sai, e devolver
+> quase a renda inteira como sobra seria o número mais perigoso do produto.
 
 `evolucaoSaldo` traz no máximo 12 pontos, do mais antigo ao mais recente. O front só desenha.
 
@@ -807,6 +857,11 @@ sobre quanto a pessoa consegue pagar.*
 - [x] `backend/domain/caixa.py` — motor puro, sem I/O, com as escolhas de método no docstring
 - [~] Tabelas `fonte_renda`, `recebimento`, `gasto`, `provisao_anual`, `caixa_snapshot`
 - [~] Campos novos em `perfil`; `renda_mensal` copiada para `fonte_renda` na migration
+- [x] **A derivação que faltava (M7.2).** A migration declarava que `renda_mensal` continuaria
+      sendo lida "derivada da soma das fontes ativas", e essa metade nunca virou código: o resumo
+      seguia lendo a coluna, e quem preenchia o caixa via o painel vazio. `GET /v1/perfil` agora
+      deriva, `PUT` grava na fonte (`422` com 2+ fontes) e `GET /v1/dividas/resumo` lê o caixa
+      com o perfil como fallback
 - [~] `GET /v1/caixa` e o CRUD de fontes, gastos e provisões
 - [~] `GET`/`PUT /v1/caixa/metas` e `GET /v1/caixa/historico`
 - [~] `_validar_aporte` passa a usar a capacidade real no lugar do piso legal
@@ -831,6 +886,16 @@ pela forma do modelo; sobram o recebimento variável e o gasto que muda de valor
 - [x] `domain/caixa.caixa_defasado` — o limiar de 2 meses é escolha de método, declarada no
       docstring: um mês de atraso é o estado normal entre fechamentos
 
+### Bloco 9 — M7.2 · uma renda só
+*Não destrava tela nova: conserta a que já existia e aparecia vazia.*
+
+- [x] `GET /v1/dividas/resumo` lê a renda do caixa, perfil como fallback — renda **líquida**
+- [x] `GET /v1/perfil` deriva `rendaMensal` das fontes ativas; `PUT` grava na fonte
+- [x] `422` quando há 2+ fontes ativas: um escalar não se reparte sem inventar dado
+- [x] `rendaMensal` ausente no corpo do `PUT` não apaga a fonte
+- [x] `margemDisponivel` = `aporteMaximo` quando o caixa conhece a saída; piso legal no Nível 0
+- [x] Teste cruzando caixa e resumo — a ponte que faltava, e por onde o defeito passou
+
 ### Estado observado em device
 
 | Endpoint | Estado |
@@ -844,7 +909,12 @@ pela forma do modelo; sobram o recebimento variável e o gasto que muda de valor
 | Leitura de contrato | **destravada** — contrato sintético lido com trecho literal nos sete campos |
 | M6 (`GET .../revisao`, card `valor_justo`) | implementado e coberto por teste; **ainda não visto no app** |
 
-Suíte do backend: **260 testes**, verdes em SQLite e em Postgres, **sem tocar a rede**.
+> **Um emulador Android rodou** (commit `e0f1def`) e produziu cinco correções de UI que nenhum
+> gate pegaria — inclusive um rótulo que perdia uma palavra em silêncio. Foi **olhar telas, não
+> exercitar fluxo**: nenhuma linha desta tabela mudou por causa dele, e nenhum `[~]` da fila virou
+> `[x]`. Ver a tela renderizar e ver o fluxo funcionar são afirmações diferentes.
+
+Suíte do backend: **370 testes**, verdes em SQLite e em Postgres, **sem tocar a rede**.
 
 Nenhum endpoint da fila continua sem implementação. O que falta em todos é a mesma coisa:
 **ver funcionando no aplicativo, em aparelho**.

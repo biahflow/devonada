@@ -5,7 +5,7 @@
 | Feature | Módulo de caixa |
 | Slug | `007-modulo-de-caixa` |
 | Milestone | M7 (ver `roadmap.md`) |
-| Telas | quarta aba: `app/(tabs)/caixa/index` · `renda` · `gastos` · `provisoes` · `metas`. Entradas em `dividas/simulador` e no Painel |
+| Telas | quarta aba: `app/(tabs)/caixa/index` · `renda` · `gastos` · `provisoes` · `metas`. Entradas em `dividas/simulador` e no Painel (esta última só passou a existir no M7.2) |
 | Endpoints | `GET /v1/caixa`, `/v1/caixa/fontes`, `/v1/caixa/gastos`, `/v1/caixa/provisoes`, `PUT /v1/caixa/metas`, `GET /v1/caixa/historico` (todos novos) |
 | Depende de | M1 (dívida persistida), M3 (parcelas reais), M4 (simulador), ADR 0009 |
 

@@ -143,12 +143,14 @@ export default function Painel() {
             <View style={styles.convite}>
               <Text style={styles.conviteTitulo}>Quanto da sua renda isso ocupa?</Text>
               <Text style={styles.conviteTexto}>
-                Informe sua renda e eu calculo o comprometimento e o mínimo existencial — o que não
-                pode ser sacrificado para pagar dívida.
+                Informe de onde vem seu dinheiro no Caixa e eu calculo o comprometimento e o mínimo
+                existencial — o que não pode ser sacrificado para pagar dívida.
               </Text>
+              {/* Leva ao Caixa, que é onde a renda mora desde o M7. Um segundo
+                  campo de renda aqui daria dois donos para o mesmo número. */}
               <Button
-                label="Informar renda"
-                onPress={() => router.push('/painel/renda')}
+                label="Informar renda no Caixa"
+                onPress={() => router.push('/caixa/renda')}
                 variant="secondary"
               />
             </View>
@@ -178,7 +180,7 @@ export default function Painel() {
           <LinhaEvolucao pontos={resumo.evolucaoSaldo} largura={larguraGrafico} />
         </Card>
 
-        <CardLembretes onConfigurar={() => router.push('/painel/renda')} />
+        <CardLembretes onConfigurar={() => router.push('/painel/preferencias')} />
 
         <Card>
           <Text style={styles.tituloSecao}>Próximos vencimentos</Text>

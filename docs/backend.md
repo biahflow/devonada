@@ -17,7 +17,7 @@ docker compose up -d                      # Postgres na 5433
 source venv/bin/activate
 alembic upgrade head
 uvicorn main:app --host 0.0.0.0 --port 8001 --reload
-pytest                                     # 260 testes
+pytest                                     # 370 testes
 ```
 
 **Portas escolhidas por colisão, não por gosto:** a 8000 e a 5432 já são do stack do
@@ -37,7 +37,9 @@ orm.py          tabelas SQLAlchemy
 schemas.py      contrato de API em Pydantic — espelha src/api/types.ts
 auth.py         Bearer → tenant_id
 domain/         REGRAS DE NEGÓCIO puras, com fonte citada
+leitura.py      adaptadores persistência → domínio, compartilhados entre routers
 routers/        dividas · resumo · simulacoes · parcelas · perfil · lembretes · contratos · chat
+                caixa · revisao
 llm/            ÚNICO lugar que conhece SDK de modelo (ADR 0007)
 assistente/     o assistente do chat, sobre a camada llm/
 extracao/       base.py (Protocol) · regras.py (prompt) · extrator_llm.py · factory
@@ -130,6 +132,19 @@ Estão aqui porque escondê-las seria pior que tê-las.
     **mais conservadora** que a do decreto — ela desconta parcelas que a lei mandaria ignorar, e
     errar propondo menos é o lado certo de errar. O consignado, além disso, tem ADPFs pendentes
     no STF (1005, 1006 e 1097), o que é mais um motivo para não antecipar a regra.
+14. **`margemDisponivel` tem duas definições** (M7.2). Com o caixa conhecendo a saída, ela é o
+    `aporteMaximo`: renda líquida menos custo de vida real, provisões, potes e as parcelas
+    atuais. Sem caixa — ou com caixa só de renda, no Nível 0 — ela volta a ser
+    `renda − mínimo existencial − comprometido`, que usa o piso legal como proxy de custo de vida
+    e é **bem mais otimista**. O mesmo campo responde a duas perguntas parecidas, e pela tela o
+    usuário não sabe qual está vendo. Unificar à força seria pior: a segunda definição é o melhor
+    possível para quem não preencheu o caixa. O que falta é a tela **nomear a origem**, como o
+    caixa já faz com a origem da renda — e ela ainda não nomeia.
+15. **Renda deixou de ser editável fora do caixa** (M7.2). `PUT /v1/perfil` com `rendaMensal`
+    devolve `422` quando há duas ou mais fontes ativas: um escalar não se reparte entre fontes
+    sem inventar dado. Um app instalado que não atualizou e tenha múltiplas fontes recebe esse
+    erro ao salvar o perfil — é o preço de não sobrescrever renda em silêncio, e some quando o
+    aparelho atualiza, porque a tela nova não envia mais o campo.
 
 ### A simulação e o teto de 600 meses
 
@@ -276,7 +291,7 @@ Recurso de outro tenant devolve **404, nunca 403**: um 403 confirmaria que o id 
 > BUDDY_TEST_DATABASE_URL=postgresql+psycopg://buddy:buddy@localhost:5433/buddy_test pytest
 > ```
 >
-> Os 260 testes passam nos dois. **A fixture `engine` precisa de `eng.dispose()` no `finally`**:
+> Os 370 testes passam nos dois. **A fixture `engine` precisa de `eng.dispose()` no `finally`**:
 > sem ele, um engine por teste esgota o `max_connections` do Postgres ("sorry, too many clients
 > already"). Em SQLite em memória isso passava despercebido, e a suíte só quebrou quando cresceu
 > o bastante para estourar o limite — no M6. É exatamente o tipo de divergência que rodar só em

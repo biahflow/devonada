@@ -7,7 +7,7 @@
 | Feature | Painel de endividamento |
 | Slug | `painel-de-endividamento` |
 | Milestone | M2 (ver `roadmap.md`) |
-| Telas | `app/(tabs)/painel/index.tsx`, `painel/renda.tsx` |
+| Telas | `app/(tabs)/painel/index.tsx`, `painel/preferencias.tsx` |
 | Endpoints | `GET /v1/dividas/resumo`, `GET/PUT /v1/perfil` |
 | Depende de | M1 (dívidas cadastradas para agregar) |
 
@@ -31,7 +31,8 @@ no ano lado a lado, comprometimento de renda com o limite marcado, distribuiçã
 evolução do saldo e próximos vencimentos. As setas navegam entre meses; o futuro é bloqueado.
 
 Quando a renda ainda não foi informada, o bloco de comprometimento vira um convite com ação
-direta para `painel/renda` — o convite tem destino, que era a lacuna do contrato original.
+direta para `caixa/renda` — o convite tem destino, que era a lacuna do contrato original. (No
+M2 o destino era `painel/renda`; o M7.2 o moveu para o Caixa, que é onde a renda passou a morar.)
 
 **Os quatro estados:**
 
@@ -58,7 +59,8 @@ direta para `painel/renda` — o convite tem destino, que era a lacuna do contra
 - **RF-002** — Todo valor exibido vem calculado do backend. Nenhuma soma, média ou percentual é
   produzido no cliente.
 - **RF-003** — Campo ausente exibe "ainda não calculado", **nunca R$ 0,00**.
-- **RF-004** — Sem renda informada, o bloco de comprometimento convida a preencher, com ação.
+- **RF-004** — Sem renda informada, o bloco de comprometimento convida a preencher, com ação
+  que leva ao **Caixa** (M7.2). Um segundo campo de renda aqui daria dois donos ao mesmo número.
 - **RF-005** — O comprometimento é exibido em medidor com o limite saudável (30%) marcado.
 - **RF-006** — Acima do limite, o estado é anunciado por **ícone e texto**, não só por cor, e usa
   `warning` — nunca `danger`.
@@ -67,7 +69,9 @@ direta para `painel/renda` — o convite tem destino, que era a lacuna do contra
 - **RF-009** — O eixo do gráfico começa na base; nada de eixo truncado.
 - **RF-010** — As setas navegam entre meses e **bloqueiam o futuro**.
 - **RF-011** — O estado vazio distingue "nenhuma dívida" de "nada neste mês".
-- **RF-012** — A tela de renda coleta renda em centavos inteiros e dependentes.
+- **RF-012** — ~~A tela de renda coleta renda em centavos inteiros e dependentes.~~ **Revisto no
+  M7.2:** renda é coletada no Caixa. `painel/preferencias` ficou com dependentes e lembretes, e
+  salvar não exige mais renda — quem só quer mudar o horário do aviso não redigita nada.
 - **RF-013** — Salvar a renda revalida o resumo, porque o comprometimento muda.
 - **RF-014** — Vencimento atrasado é sinalizado com `warning` e a palavra "atrasada"; a situação
   vem do backend, não de comparação de data no cliente.

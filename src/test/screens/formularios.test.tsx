@@ -1,7 +1,7 @@
 import { screen, waitFor, fireEvent } from '@testing-library/react-native';
 import NovaDivida from '../../../app/(tabs)/dividas/nova';
 import EditarDivida from '../../../app/(tabs)/dividas/[id]/editar';
-import Renda from '../../../app/(tabs)/painel/renda';
+import Preferencias from '../../../app/(tabs)/painel/preferencias';
 import ChatTab from '../../../app/(tabs)/index';
 import { limparMocksDeRede, nuncaResponde, requestMock, responderPorRota } from '../api';
 import { umaDivida, umPerfil } from '../mocks';
@@ -113,39 +113,45 @@ describe('rascunho vindo do chat', () => {
   });
 });
 
-describe('tela de renda', () => {
+describe('tela de preferências', () => {
   it('mostra o carregamento do perfil', () => {
     nuncaResponde();
-    renderizarTela(<Renda />);
+    renderizarTela(<Preferencias />);
     expect(screen.getByText('Carregando seu perfil')).toBeTruthy();
   });
 
-  it('pré-preenche a renda já informada', async () => {
+  it('não coleta renda — ela mora no Caixa', async () => {
+    // A garantia de que a segunda porta para o mesmo dado não volta. Enquanto
+    // ela existiu, quem preenchia o Caixa via o painel vazio.
     responderPorRota({ '/v1/perfil': { perfil: umPerfil({ rendaMensal: 550000 }) } });
-    renderizarTela(<Renda />);
+    renderizarTela(<Preferencias />);
 
-    await waitFor(() =>
-      expect(screen.getByLabelText('Renda mensal').props.value).toBe('R$ 5.500,00'),
-    );
+    await waitFor(() => expect(screen.getByText('Salvar')).toBeTruthy());
+    expect(screen.queryByLabelText('Renda mensal')).toBeNull();
   });
 
-  it('não salva com renda zerada', async () => {
-    responderPorRota({ '/v1/perfil': { perfil: {} } });
-    renderizarTela(<Renda />);
+  it('salva sem renda e sem exigi-la', async () => {
+    // Antes o formulário travava em "Informe sua renda mensal" — quem só queria
+    // mudar o horário do lembrete tinha de redigitar a renda que já estava no
+    // Caixa. E `rendaMensal` não pode ir no corpo: ausente é "não mexe".
+    responderPorRota({ '/v1/perfil': { perfil: umPerfil({ rendaMensal: 550000 }) } });
+    renderizarTela(<Preferencias />);
 
     await waitFor(() => expect(screen.getByText('Salvar')).toBeTruthy());
     requestMock.mockClear();
     fireEvent.press(screen.getByText('Salvar'));
 
-    expect(screen.getByText('Informe sua renda mensal.')).toBeTruthy();
-    expect(requestMock).not.toHaveBeenCalled();
+    await waitFor(() => expect(requestMock).toHaveBeenCalled());
+    const corpo = requestMock.mock.calls[0]?.[1]?.body as Record<string, unknown>;
+    expect(corpo).toHaveProperty('horaLembrete');
+    expect(corpo).not.toHaveProperty('rendaMensal');
   });
 
-  it('explica o que é feito com o dado — é informação sensível', async () => {
+  it('aponta para onde a renda é editada', async () => {
     responderPorRota({ '/v1/perfil': { perfil: {} } });
-    renderizarTela(<Renda />);
+    renderizarTela(<Preferencias />);
 
-    await waitFor(() => expect(screen.getByText(/Guardamos só o valor/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/renda fica na aba Caixa/)).toBeTruthy());
   });
 });
 

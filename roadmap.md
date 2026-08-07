@@ -67,7 +67,7 @@ reescrever tudo em M2.
 
 ---
 
-## M1 — CRUD de dívidas — front entregue, aguardando backend
+## M1 — CRUD de dívidas — entregue, aguardando validação em device
 
 A prioridade declarada. Primeira vez que `src/api/debts.ts` sai do limbo.
 Spec completa em `docs/features/001-crud-de-dividas.md`.
@@ -85,19 +85,20 @@ Spec completa em `docs/features/001-crud-de-dividas.md`.
       `OptionGroup` e `PercentInput` opcional.
 - [x] Quitação e exclusão com confirmação nativa. (`guardrails.md`, seção 7.2)
 - [x] Estado vazio que convida ao primeiro cadastro.
-Validação em device, tela a tela:
+Validação em device, tela a tela. **Os cinco endpoints existem** — o que falta em todos é a mesma
+coisa, e não é backend:
 
 - [x] **Lista** — carrega do backend e exibe as dívidas.
-- [~] **Cadastro** — `POST /v1/dividas` corrigido (`id: str`), ainda não exercitado no app.
-- [ ] **Detalhe** — depende de `GET /v1/dividas/{id}`.
-- [ ] **Edição** — depende de `PATCH /v1/dividas/{id}`.
-- [ ] **Quitação e exclusão** — dependem de `POST .../quitacao` e `DELETE`.
+- [~] **Cadastro** — `POST /v1/dividas` exercitado por request; ainda não no app.
+- [ ] **Detalhe** — `GET /v1/dividas/{id}` pronto; falta exercitar no app.
+- [ ] **Edição** — `PATCH /v1/dividas/{id}` pronto; falta exercitar no app.
+- [ ] **Quitação e exclusão** — `POST .../quitacao` e `DELETE` prontos (exclusão lógica, e `409`
+      ao quitar duas vezes); falta exercitar no app.
 
-Fila do backend em `docs/api-contract.md`, seção 4, Bloco 1.
+Estado por endpoint em `docs/api-contract.md`, seção 4, Bloco 1.
 
 **Sai com:** cadastrar, ver, editar, quitar e excluir uma dívida ponta a ponta contra o backend
-real, com os quatro estados verificáveis em cada tela. **Ainda não fechado** — o front está
-pronto; falta o backend.
+real, com os quatro estados verificáveis em cada tela. **Ainda não fechado** — falta o device.
 
 ---
 
@@ -134,15 +135,16 @@ os trechos citados e confirmar a criação da dívida. **Ainda não fechado** �
 
 ---
 
-## M2 — Painel de endividamento — front entregue, aguardando backend
+## M2 — Painel de endividamento — entregue, aguardando validação em device
 
 O que transforma uma lista num diagnóstico. Zero agregação no cliente: todo número vem de
 `GET /v1/dividas/resumo`. Spec em `docs/features/003-painel-de-endividamento.md`.
 
 - [x] `src/api/resumo.ts` + `useResumo(mes)`, com a chave dentro do prefixo `['dividas']` — as
       mutações do M1 revalidam o painel de graça.
-- [x] **Lacuna do contrato resolvida:** `GET/PUT /v1/perfil` especificado e tela `painel/renda`
-      construída. Sem endpoint de renda, o convite a preencher não tinha destino.
+- [x] **Lacuna do contrato resolvida:** `GET/PUT /v1/perfil` especificado, e o convite a informar
+      renda ganhou destino. **Revisto no M7.2:** o destino passou a ser o Caixa, e a tela do
+      painel virou `painel/preferencias` — só dependentes e lembretes.
 - [x] `StatTile` para o total devido, juros médios e quitado no ano. Ausência exibe "ainda não
       calculado", nunca zero.
 - [x] `Meter` de comprometimento com o limite de 30% marcado. Acima do limite usa `warning` com
@@ -153,11 +155,12 @@ O que transforma uma lista num diagnóstico. Zero agregação no cliente: todo n
 - [x] **Paleta de gráfico validada por script, não estimada.** A proposta de uma cor por
       criticidade falhou no piso de distinção; a decisão e o motivo estão em
       `docs/design-system.md`, seção 4b.
-- [ ] **Validação em device bloqueada.** Nenhum dos dois endpoints existe — fila em
-      `docs/api-contract.md`, seção 4, Blocos 2 e 3.
+- [ ] **Validação em device pendente.** Os dois endpoints existem — `GET/PUT /v1/perfil` e
+      `GET /v1/dividas/resumo`, Blocos 2 e 3 de `docs/api-contract.md`, seção 4. O que falta é
+      exercitar a tela no aparelho.
 
 **Sai com:** aba Painel exibindo apenas números vindos do backend — nenhuma soma, média ou
-percentual calculado em TypeScript. **Ainda não fechado** — falta o backend.
+percentual calculado em TypeScript. **Ainda não fechado** — falta o device.
 
 ---
 
@@ -383,6 +386,43 @@ custa dois toques e mantém a garantia.
 
 **Sai com:** o simulador recusando o aporte que hoje ele aceita, porque agora ele conhece o
 custo de vida real — e o usuário sabendo, em janeiro, que o IPVA já está guardado.
+
+### M7.2 — Uma renda só
+
+O M7 mudou a renda de casa e não avisou o painel. `fonte_renda` passou a ser onde a renda mora,
+mas `GET /v1/dividas/resumo` continuou lendo `perfil.renda_mensal` — então quem preenchia o Caixa
+via o painel vazio, com a renda cadastrada bem ali, a uma aba de distância. Duas fontes de verdade
+para o mesmo número, e ele não aparecendo em nenhuma.
+
+O desenho certo já estava escrito: a migration do M7 declara, em comentário, que `renda_mensal`
+"continua sendo lida por `GET /v1/perfil`, agora derivada da soma das fontes ativas". A derivação
+nunca virou código. Isto não inventa arquitetura — implementa a que o M7 documentou.
+
+- [x] `GET /v1/dividas/resumo` lê a renda do caixa, com o perfil como fallback — o mesmo caminho
+      que `simulacoes._validar_aporte` já usava. Usa a renda **líquida**: o limite de 30% se lê
+      sobre o que de fato entra, e sem `imposto_bps` informado ela degrada para a bruta.
+- [x] `GET /v1/perfil` devolve `rendaMensal` **derivado** das fontes ativas. `PUT` continua
+      aceitando o campo — app instalado que não atualizou ainda o envia —, mas o valor pousa na
+      fonte. Com duas ou mais fontes ativas a rota **recusa** com `422` em vez de escolher uma:
+      um escalar não se reparte entre fontes sem inventar dado.
+- [x] **`margemDisponivel` passa a ser `aporteMaximo`** quando o caixa conhece a saída. As duas
+      abas respondiam "quanto sobra" com números diferentes, e o painel anunciava uma sobra que o
+      simulador recusava. Não é `capacidadeHoje`: essa não desconta as parcelas atuais, e exibi-la
+      como sobra contaria duas vezes o dinheiro que já sai.
+- [x] **Renda sem gasto não vira margem.** No Nível 0 sabemos o que entra e nada do que sai; ali a
+      margem continua saindo do piso legal. Devolver quase a renda inteira como sobra seria o
+      número mais perigoso do produto — tem cara de calculado e afirma que dá para comprometer
+      tudo.
+- [x] Uma porta só para informar renda: `painel/renda` virou `painel/preferencias` (dependentes e
+      lembretes) e o convite do painel leva ao Nível 0 do Caixa. O formulário antigo **exigia**
+      renda para salvar, obrigando quem já preenchera o Caixa a redigitá-la para mudar o horário
+      de um lembrete.
+- [x] Teste ligando as duas pontas — fonte cadastrada ⇒ painel preenchido —, que era exatamente o
+      que não existia: nenhum teste cruzava o módulo de caixa com o resumo, e por isso o defeito
+      passou por quatro gates verdes.
+
+**Sai com:** renda informada em um lugar só, aparecendo em todos — e painel e simulador dando a
+mesma resposta para "quanto ainda cabe".
 
 ---
 

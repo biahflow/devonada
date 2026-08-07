@@ -161,6 +161,46 @@ class TestPerfil:
         client.put("/v1/perfil", json={"rendaMensal": 700000}, headers=auth)
         assert client.get("/v1/perfil", headers=auth).json()["perfil"]["rendaMensal"] == 700000
 
+    def test_renda_informada_aqui_vira_fonte_de_renda(self, client, auth):
+        # A renda mora em `fonte_renda` desde o M7. Esta rota continua aceitando
+        # o campo por causa do app instalado que não atualizou, mas o valor
+        # pousa na fonte — senão volta a haver dois donos para a mesma renda.
+        client.put("/v1/perfil", json={"rendaMensal": 550000}, headers=auth)
+        fontes = client.get("/v1/caixa/fontes", headers=auth).json()["fontes"]
+        assert len(fontes) == 1
+        assert fontes[0]["valorTipicoInformado"] == 550000
+
+    def test_renda_lida_de_volta_vem_da_fonte(self, client, auth):
+        client.post(
+            "/v1/caixa/fontes",
+            json={"nome": "Salário", "tipo": "clt", "valorTipicoInformado": 480000},
+            headers=auth,
+        )
+        assert client.get("/v1/perfil", headers=auth).json()["perfil"]["rendaMensal"] == 480000
+
+    def test_renda_ausente_no_corpo_nao_apaga_a_fonte(self, client, auth):
+        # A tela de preferências deixou de enviar renda. Tratar ausente como
+        # zero apagaria a renda de quem só queria mudar o horário do lembrete.
+        client.put("/v1/perfil", json={"rendaMensal": 550000}, headers=auth)
+        client.put("/v1/perfil", json={"horaLembrete": "08:00"}, headers=auth)
+        assert client.get("/v1/perfil", headers=auth).json()["perfil"]["rendaMensal"] == 550000
+
+    def test_com_duas_fontes_a_rota_recusa_em_vez_de_escolher_uma(self, client, auth):
+        for nome in ("Salário", "Aluguel"):
+            client.post(
+                "/v1/caixa/fontes",
+                json={"nome": nome, "tipo": "outro", "valorTipicoInformado": 300000},
+                headers=auth,
+            )
+        r = client.put("/v1/perfil", json={"rendaMensal": 900000}, headers=auth)
+        assert r.status_code == 422
+        assert r.json()["campo"] == "rendaMensal"
+        # Guardrail 5: mensagem exibida ao usuário não carrega valor.
+        assert "R$" not in r.json()["message"]
+        # E não sobrescreveu nada pelo caminho.
+        fontes = client.get("/v1/caixa/fontes", headers=auth).json()["fontes"]
+        assert [f["valorTipicoInformado"] for f in fontes] == [300000, 300000]
+
 
 class TestResumo:
     def test_resumo_vazio(self, client, auth):
@@ -226,6 +266,71 @@ class TestResumo:
             assert resumo["margemDisponivel"] is None
         finally:
             del app.dependency_overrides[get_settings]
+
+    def test_renda_do_caixa_alimenta_o_painel(self, client, auth):
+        """
+        O defeito que este teste existe para não voltar.
+
+        O M7 moveu a renda para `fonte_renda` e ninguém reconectou esta rota,
+        que seguia lendo `perfil.renda_mensal`. Quem preenchia o caixa via o
+        painel vazio: comprometimento, mínimo existencial e margem ausentes com
+        a renda cadastrada bem ali. Nenhum teste ligava as duas pontas, e é por
+        isso que passou.
+        """
+        client.post("/v1/dividas", json=_nova(), headers=auth)
+        client.post(
+            "/v1/caixa/fontes",
+            json={"nome": "Salário", "tipo": "clt", "valorTipicoInformado": 550000},
+            headers=auth,
+        )
+        resumo = client.get("/v1/dividas/resumo", headers=auth).json()["resumo"]
+        assert resumo["rendaMensal"] == 550000
+        assert resumo["comprometimentoRenda"] is not None
+        assert resumo["minimoExistencial"] == 60000
+
+    def test_margem_do_painel_bate_com_a_capacidade_do_caixa(self, client, auth):
+        """
+        Duas abas, uma resposta. `margemDisponivel` e `aporteMaximo` respondem a
+        mesma pergunta — quanto ainda cabe — e divergir faria o painel anunciar
+        uma sobra que o simulador recusa.
+        """
+        client.post("/v1/dividas", json=_nova(), headers=auth)
+        client.post(
+            "/v1/caixa/fontes",
+            json={"nome": "Salário", "tipo": "clt", "valorTipicoInformado": 800000},
+            headers=auth,
+        )
+        client.post(
+            "/v1/caixa/gastos",
+            json={
+                "descricao": "Custo de vida",
+                "categoria": "moradia",
+                "essencial": True,
+                "fixo": True,
+                "valorMensal": 300000,
+            },
+            headers=auth,
+        )
+        resumo = client.get("/v1/dividas/resumo", headers=auth).json()["resumo"]
+        caixa = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        assert resumo["margemDisponivel"] == caixa["aporteMaximo"]
+
+    def test_renda_sem_gasto_nao_vira_margem_do_caixa(self, client, auth):
+        """
+        Nível 0 sabe o que entra e nada do que sai. Devolver quase a renda
+        inteira como sobra seria o número mais perigoso do produto — tem cara de
+        calculado e afirma que dá para comprometer tudo. Ali a margem continua
+        saindo do piso legal.
+        """
+        client.post(
+            "/v1/caixa/fontes",
+            json={"nome": "Salário", "tipo": "clt", "valorTipicoInformado": 800000},
+            headers=auth,
+        )
+        resumo = client.get("/v1/dividas/resumo", headers=auth).json()["resumo"]
+        assert resumo["rendaMensal"] == 800000
+        # 800.000 − 60.000 de piso, sem parcelas: o cálculo do piso, não a renda.
+        assert resumo["margemDisponivel"] == 740000
 
     def test_distribuicao_por_criticidade_em_ordem_de_ataque(self, client, auth):
         client.post("/v1/dividas", json=_nova(tipo="consumo"), headers=auth)

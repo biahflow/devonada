@@ -31,14 +31,18 @@ describe('tela do painel', () => {
     expect(screen.getByText('em 3 dívidas')).toBeTruthy();
   });
 
-  it('convida a informar a renda quando ela não veio', async () => {
+  it('convida a informar a renda no Caixa quando ela não veio', async () => {
+    // O DESTINO É PARTE DO TESTE. O convite levava a um segundo formulário de
+    // renda, que gravava em outro lugar do que o Caixa lê — e o painel seguia
+    // vazio depois de preencher. Uma porta só.
     responderPorRota({
       '/v1/dividas/resumo': { resumo: umResumo({ comprometimentoRenda: undefined }) },
     });
     renderizarTela(<Painel />);
 
     await waitFor(() => expect(screen.getByText('Quanto da sua renda isso ocupa?')).toBeTruthy());
-    expect(screen.getByText('Informar renda')).toBeTruthy();
+    fireEvent.press(screen.getByText('Informar renda no Caixa'));
+    expect(global.mockRouter.push).toHaveBeenCalledWith('/caixa/renda');
   });
 
   it('exibe o medidor quando há comprometimento, sem alarmar dentro do limite', async () => {

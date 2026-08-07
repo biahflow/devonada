@@ -18,6 +18,7 @@ from domain.resumo import (
     comprometimento_renda_bps,
     custo_medio_juros_mensal,
 )
+from leitura import capacidade_atual
 
 router = APIRouter(prefix="/v1/dividas", tags=["Resumo"])
 
@@ -50,6 +51,64 @@ def _registrar_snapshot(db: Session, tenant: str, mes: str, saldo: int) -> None:
     else:
         existente.saldo = saldo
     db.commit()
+
+
+def _renda_minimo_e_margem(
+    db: Session, tenant: str, settings: Settings, comprometido: int
+) -> tuple[int | None, int | None, int | None]:
+    """
+    De onde o painel tira renda, mínimo existencial e margem.
+
+    O CAIXA É A FONTE DA RENDA (M7); o perfil é fallback. `fonte_renda` é onde a
+    renda passou a morar, e a migration do M7 já declarava que `renda_mensal`
+    viraria leitura derivada. Enquanto esta rota lia só a coluna, quem preenchia
+    o caixa via o painel vazio — dois lugares para informar a mesma coisa, e o
+    número aparecendo em nenhum. É o mesmo caminho de `simulacoes._validar_aporte`.
+
+    A RENDA É A LÍQUIDA, não a bruta. O limite de 30% se lê sobre o que de fato
+    entra, e quem é PJ recebe dinheiro que em parte não é dele. Sem `imposto_bps`
+    informado nada é reservado e a líquida degrada para a bruta — ninguém perde
+    número por não ter preenchido imposto.
+
+    A MARGEM SÓ VEM DO CAIXA QUANDO O CAIXA CONHECE A SAÍDA. Renda informada e
+    nenhum gasto é o Nível 0: sabemos o que entra e nada do que sai. A margem ali
+    seria a renda quase inteira — o número mais perigoso que este produto poderia
+    exibir, porque tem cara de calculado e afirma que a pessoa pode comprometer
+    tudo. Sem gasto, provisão ou pote registrado, a margem continua saindo do
+    piso legal, que é o proxy de custo de vida que a lei dá.
+
+    Quando ela vem do caixa, é `aporte_maximo`, não `capacidade_hoje`. As duas
+    descontam custo de vida real, provisões e potes; só `aporte_maximo` desconta
+    também as parcelas que já existem, que é o que a margem antiga
+    (`renda − mínimo − comprometido`) respondia e o que o rótulo "Sobra por mês"
+    promete. `capacidade_hoje` é o total que PODE ir para dívida, parcelas
+    incluídas — exibi-lo como sobra contaria duas vezes o dinheiro que já sai. De
+    quebra, `aporte_maximo` é o mesmo teto que o simulador aplica ao aporte
+    extra: o painel para de anunciar uma sobra que o simulador recusa.
+    """
+    caixa = capacidade_atual(db, tenant, settings)
+    if caixa is not None and caixa.renda_liquida > 0:
+        conhece_saida = (
+            caixa.essenciais > 0
+            or caixa.nao_essenciais > 0
+            or caixa.provisao_mensal > 0
+            or caixa.aporte_reserva > 0
+            or caixa.aporte_aposentadoria > 0
+        )
+        if conhece_saida:
+            return caixa.renda_liquida, caixa.minimo_existencial, caixa.aporte_maximo
+        renda, minimo = caixa.renda_liquida, caixa.minimo_existencial
+    else:
+        perfil = db.scalar(select(orm.Perfil).where(orm.Perfil.tenant_id == tenant))
+        renda = perfil.renda_mensal if perfil and perfil.renda_mensal else None
+        if not renda:
+            return None, None, None
+        minimo = minimo_existencial(settings.minimo_existencial_centavos)
+
+    # Sem piso configurado não há margem: subtrair zero devolveria um número
+    # otimista com cara de calculado. Ausente é a resposta honesta.
+    margem = margem_disponivel(renda, minimo, comprometido) if minimo is not None else None
+    return renda, minimo, margem
 
 
 @router.get("/resumo", response_model=schemas.RespostaResumo)
@@ -110,9 +169,6 @@ def resumo(
         if por_tipo.get(tipo)
     ]
 
-    perfil = db.scalar(select(orm.Perfil).where(orm.Perfil.tenant_id == tenant))
-    renda = perfil.renda_mensal if perfil and perfil.renda_mensal else None
-
     # Parcelas pendentes, com o credor junto: servem para o comprometimento do
     # mês E para os próximos vencimentos. Com elas, as DUAS aproximações
     # declaradas em docs/backend.md deixam de existir.
@@ -132,16 +188,8 @@ def resumo(
         p.valor for p, _ in pendentes if f"{p.vencimento.year}-{p.vencimento.month:02d}" == mes_alvo
     ]
     comprometido = comprometimento_mensal(itens, do_mes if pendentes else None)
-    minimo = None
-    comprometimento_bps = None
-    margem = None
-    if renda:
-        minimo = minimo_existencial(settings.minimo_existencial_centavos)
-        comprometimento_bps = comprometimento_renda_bps(comprometido, renda)
-        # Sem piso configurado não há margem: subtrair zero devolveria um número
-        # otimista com cara de calculado. Ausente é a resposta honesta.
-        if minimo is not None:
-            margem = margem_disponivel(renda, minimo, comprometido)
+    renda, minimo, margem = _renda_minimo_e_margem(db, tenant, settings, comprometido)
+    comprometimento_bps = comprometimento_renda_bps(comprometido, renda) if renda else None
 
     _registrar_snapshot(db, tenant, mes_alvo, total_devido)
 

@@ -221,7 +221,15 @@ export interface ResumoDividas {
 }
 
 export interface PerfilFinanceiro {
-  /** em centavos. Ausente = não informado, nunca zero. */
+  /**
+   * Em centavos. Ausente = não informado, nunca zero.
+   *
+   * DERIVADO de `fonte_renda`, que é onde a renda mora desde o M7 — a leitura é
+   * a soma das fontes ativas. Continua aceito na escrita só por compatibilidade
+   * com app instalado que não atualizou, e ali o valor pousa na fonte. A tela de
+   * renda é `caixa/renda`; enviar este campo de outro lugar recria as duas
+   * fontes de verdade que o M7.2 removeu.
+   */
   rendaMensal?: number;
   dependentes?: number;
   /** `HH:MM` local. O aparelho compõe o instante; o servidor só guarda a preferência. */

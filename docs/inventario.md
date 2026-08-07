@@ -44,6 +44,7 @@ distinção é do `roadmap.md` e este documento não a apaga.
 | M5 | Dívidas dentro do chat: assistente fala sobre os dados reais | Entregue e exercitado com chamada real ao provedor; **falta device** |
 | M6 | Revisão de cobrança: achados com fonte legal e script de negociação | Entregue e exercitado por request real; **falta device** |
 | M7 | Módulo de caixa: renda, gastos, provisões e a capacidade real de pagamento | Entregue; **falta device** |
+| M7.2 | Uma renda só: `fonte_renda` vira a fonte de verdade e o painel volta a exibir comprometimento | Entregue; **falta device** |
 
 ## Stack, em uma tabela
 
@@ -256,7 +257,7 @@ instrui a não pagar (`docs/guardrails.md`, seção 3).
 | **Chat** | `(tabs)/index` |
 | **Dívidas** | `dividas/index` (lista) · `nova` · `simulador` · `contrato/index` (envio) · `contrato/[id]` (revisão da extração) · `[id]/index` (detalhe) · `[id]/editar` · `[id]/plano` · `[id]/renegociar` · `[id]/revisao` |
 | **Caixa** | `caixa/index` (a cascata) · `renda` · `gastos` · `provisoes` · `metas` |
-| **Painel** | `painel/index` · `painel/renda` · `painel/token` (conexão de beta) |
+| **Painel** | `painel/index` · `painel/preferencias` · `painel/token` (conexão de beta) |
 
 ### Design system — `docs/design-system.md`
 
@@ -340,6 +341,9 @@ Estão aqui porque escondê-las inverteria o princípio do projeto. Íntegras em
     não chegou na aba de caixa tiraria a ferramenta de quem mais precisa dela.
 13. **A renda típica precisa de três recebimentos** para deixar de ser o valor informado (M7).
     Com um ou dois pontos não há variação observada, só pontos soltos.
+14. **`margemDisponivel` muda de definição conforme o caixa** (M7.2): `aporteMaximo` quando o
+    caixa conhece a saída, `renda − mínimo existencial − comprometido` quando não. A tela ainda
+    não nomeia qual das duas está exibindo.
 
 (Duas limitações antigas foram **resolvidas** no M3 e não constam acima: `comprometimentoRenda`
 deixou de ser aproximação e `proximosVencimentos` deixou de voltar vazio.)

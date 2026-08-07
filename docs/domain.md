@@ -109,6 +109,11 @@ plano que a pessoa não consegue honrar.
 ### comprometimento de renda
 Percentual da renda mensal já destinado a pagamento de dívida. Calculado no backend.
 
+A renda é a **líquida do caixa** — soma das fontes ativas, menos o imposto que o usuário informou
+reservar. Sem caixa preenchido, cai na renda do perfil. O limite de 30% se lê sobre o que de fato
+entra: para quem é PJ, tratar o bruto como renda faz a pessoa comprometer o dinheiro que vai
+faltar na apuração.
+
 ### capacidade
 Quanto sobra por mês, de verdade, para pagar dívida — depois de imposto, custo de vida,
 provisões e os potes que o usuário definiu. É o número que o módulo de caixa existe para

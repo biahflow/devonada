@@ -164,8 +164,13 @@ class TestEconomia:
 
 
 class TestRecusas:
-    def test_aporte_que_invade_o_minimo_existencial_devolve_422(self, client, auth):
-        client.put("/v1/perfil", json={"rendaMensal": 200000}, headers=auth)
+    def test_aporte_que_invade_o_minimo_existencial_devolve_422(
+        self, client, auth, renda_legada
+    ):
+        # Renda semeada na coluna legada, sem fonte: é o único estado em que o
+        # piso legal ainda decide. Com fonte cadastrada quem recusa é o caixa,
+        # com a mensagem dele — coberto em test_caixa_integracao.
+        renda_legada(200000)
         _com_carne(client, auth, parcelas=12, taxaJurosMensal=200)
 
         r = _simular(client, auth, aporte=500000)

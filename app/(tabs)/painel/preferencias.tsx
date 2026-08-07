@@ -3,11 +3,9 @@ import { ScrollView, View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Screen } from '../../../src/components/ui/Screen';
 import { PageHeader } from '../../../src/components/ui/PageHeader';
-import { Card } from '../../../src/components/ui/Card';
 import { Button } from '../../../src/components/ui/Button';
 import { Feedback } from '../../../src/components/ui/Feedback';
 import { FormField } from '../../../src/components/ui/FormField';
-import { CurrencyInput } from '../../../src/components/ui/CurrencyInput';
 import { OptionGroup, type Option } from '../../../src/components/ui/OptionGroup';
 import { LoadingState } from '../../../src/components/ui/LoadingState';
 import { ErrorState } from '../../../src/components/ui/ErrorState';
@@ -28,7 +26,16 @@ const DIAS_DE_FECHAMENTO: readonly Option<string>[] = [
   { value: '28', label: 'Dia 28', description: 'Antes de o mês virar.' },
 ];
 
-export default function Renda() {
+/**
+ * Dependentes e lembretes. RENDA NÃO ENTRA AQUI.
+ *
+ * Ela mora em `fonte_renda` desde o M7, e a tela que a edita é a do Caixa. Este
+ * formulário coletava renda também, e o resultado era o produto com duas portas
+ * para o mesmo dado: quem preenchia o Caixa via o painel vazio, e quem
+ * preenchia aqui não aparecia no Caixa. Pior, salvar EXIGIA renda — quem só
+ * queria mudar o horário do lembrete tinha de redigitá-la.
+ */
+export default function Preferencias() {
   const router = useRouter();
   const { perfil, isPending, error, refetch } = usePerfil();
 
@@ -52,14 +59,12 @@ export default function Renda() {
 }
 
 function Formulario({ inicial, onPronto }: { inicial: PerfilFinanceiro; onPronto: () => void }) {
-  const [renda, setRenda] = useState(inicial.rendaMensal ?? 0);
   const [dependentes, setDependentes] = useState(String(inicial.dependentes ?? 0));
   const [hora, setHora] = useState(inicial.horaLembrete ?? '09:00');
   const [antecedencia, setAntecedencia] = useState(String(inicial.diasAntecedenciaLembrete ?? 3));
   const [diaFechamento, setDiaFechamento] = useState(
     inicial.fechamentoDiaDoMes ? String(inicial.fechamentoDiaDoMes) : 'off',
   );
-  const [erro, setErro] = useState<string | undefined>();
   const [erroHora, setErroHora] = useState<string | undefined>();
   const atualizar = useAtualizarPerfil();
 
@@ -69,28 +74,18 @@ function Formulario({ inicial, onPronto }: { inicial: PerfilFinanceiro; onPronto
     // agendamento volta a valer se ela permitir depois.
     if (diaFechamento !== 'off') await pedirPermissao();
 
-    let invalido = false;
-
-    if (renda <= 0) {
-      setErro('Informe sua renda mensal.');
-      invalido = true;
-    } else {
-      setErro(undefined);
-    }
-
     // Faixa limitada de propósito: nada deve tocar de madrugada.
     if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(hora) || !horaValida(hora)) {
       setErroHora(`Escolha um horário entre ${HORA_MINIMA}:00 e ${HORA_MAXIMA}:00.`);
-      invalido = true;
-    } else {
-      setErroHora(undefined);
+      return;
     }
+    setErroHora(undefined);
 
-    if (invalido) return;
-
+    // `rendaMensal` fica FORA do corpo de propósito: o backend trata ausente
+    // como "não mexe na renda". Mandar zero apagaria a fonte de quem só veio
+    // configurar o lembrete.
     atualizar.mutate(
       {
-        rendaMensal: renda,
         dependentes: Number.parseInt(dependentes, 10) || 0,
         horaLembrete: hora,
         diasAntecedenciaLembrete: Number.parseInt(antecedencia, 10) || 0,
@@ -109,16 +104,9 @@ function Formulario({ inicial, onPronto }: { inicial: PerfilFinanceiro; onPronto
       >
         <PageHeader
           eyebrow="Seu contexto"
-          title="Sua renda"
-          description="Serve para calcular quanto das suas contas cabe no orçamento — e o que não pode ser sacrificado."
+          title="Preferências"
+          description="Quem depende de você e quando os avisos aparecem. Sua renda fica na aba Caixa."
         />
-
-        <Card>
-          <Text style={styles.explicacao}>
-            Guardamos só o valor. Não pedimos holerite, não conferimos com ninguém e você pode mudar
-            quando quiser.
-          </Text>
-        </Card>
 
         {atualizar.error ? (
           <Feedback
@@ -132,14 +120,6 @@ function Formulario({ inicial, onPronto }: { inicial: PerfilFinanceiro; onPronto
         ) : null}
 
         <View style={styles.form}>
-          <CurrencyInput
-            label="Renda mensal"
-            value={renda}
-            onChangeValue={setRenda}
-            error={erro}
-            hint="O que entra por mês, somando tudo."
-          />
-
           <FormField
             label="Pessoas que dependem de você"
             value={dependentes}
