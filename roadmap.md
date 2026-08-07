@@ -339,7 +339,13 @@ plano que ele propunha era um chute sobre a capacidade real de pagar. Spec em
 - [x] `backend/leitura.py`: as leituras compartilhadas saíram dos routers. Elas nunca foram do
       router — traduzem tabela em entrada de função pura, e três routers precisam da **mesma**
       tradução. Sem isso, `simulacoes` e `caixa` passariam a se importar mutuamente.
-- [ ] Quarta aba **Caixa**, com captura progressiva em dois níveis.
+- [x] Quarta aba **Caixa** (Chat · Dívidas · Caixa · Painel), com cinco telas e captura
+      progressiva. O vazio convida ao Nível 0 — dois campos e o número aparece — porque quem
+      está endividado e com medo não preenche formulário: o valor tem de vir antes do esforço.
+- [x] Teste de copy do caixa, gêmeo dos do M4 e do M6: quebra em "recomendada", "ilegal",
+      "abusiv", "você tem direito" e **"superendividado"**.
+- [ ] **Validação em device pendente.** A cascata em tela pequena, o teclado sobre os campos de
+      valor e a quarta aba na barra inferior exigem aparelho.
 
 ### M7.1 — Fechamento do mês
 

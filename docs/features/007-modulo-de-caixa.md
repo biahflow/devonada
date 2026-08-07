@@ -244,12 +244,12 @@ metas. A capacidade fica mais precisa e a proposta de negociação, mais afiada.
 
 ## Definition of Done
 
-- [ ] `typecheck`, `lint`, `test` e `bundle:check` passam.
-- [ ] `pytest` passa em SQLite **e** em Postgres, sem tocar a rede.
-- [ ] Os quatro estados implementados em cada tela, com o vazio convidando ao Nível 0.
-- [ ] Nenhum valor monetário calculado no cliente.
-- [ ] Teste de copy que falha em "recomendada", "superendividado", "você tem direito".
-- [ ] `caixa_snapshot` provado append-only por teste.
+- [x] `typecheck`, `lint`, `test` (242) e `bundle:check` passam.
+- [x] `pytest` (342) passa em SQLite **e** em Postgres, sem tocar a rede.
+- [x] Os quatro estados implementados em cada tela, com o vazio convidando ao Nível 0.
+- [x] Nenhum valor monetário calculado no cliente.
+- [x] Teste de copy que falha em "recomendada", "superendividado", "você tem direito".
+- [x] `caixa_snapshot` provado append-only por teste.
 - [ ] **Exercitado por request real** contra Postgres, com o caso do dono do produto: PJ por
       hora com meses desiguais, carro e moto, IPVA e seguro em janeiro, reserva a construir.
 - [ ] Documentos canônicos atualizados no mesmo commit.

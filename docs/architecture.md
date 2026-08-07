@@ -74,7 +74,7 @@ como paga, por exemplo). Nunca em criação de recurso, onde o `id` só existe d
 app/
   _layout.tsx                    QueryClientProvider, SafeArea, fontes, tema
   (tabs)/
-    _layout.tsx                  três abas
+    _layout.tsx                  quatro abas: Chat · Dívidas · Caixa · Painel
     index.tsx                    Chat
     dividas/
       _layout.tsx                pilha da aba
@@ -88,12 +88,23 @@ app/
       [id]/revisao.tsx           revisão de cobrança (M6)
       contrato/index.tsx         envio de contrato (M1.5)
       contrato/[id].tsx          revisão da extração (M1.5)
+    caixa/
+      _layout.tsx                pilha da aba
+      index.tsx                  a cascata e as duas capacidades (M7)
+      renda.tsx                  fontes e registro de recebimento (M7)
+      gastos.tsx                 gastos, essenciais e cortáveis (M7)
+      provisoes.tsx              despesas anuais — IPVA, seguro (M7)
+      metas.tsx                  imposto, reserva e aposentadoria (M7)
     painel/
       _layout.tsx                pilha da aba
       index.tsx                  painel de endividamento
       renda.tsx                  perfil de renda (M2)
       token.tsx                  configuração de conexão
 ```
+
+**Por que Caixa é aba e não uma tela do Painel:** o Painel responde "quanto eu devo"; o Caixa
+responde "quanto eu consigo pagar". A segunda pergunta é a que restringe todo plano que o produto
+propõe, e enterrá-la dentro de outra aba a trataria como detalhe do diagnóstico de dívida.
 
 Tudo vive **dentro de `(tabs)/`**: uma rota fora do grupo perde a barra de abas, e sair do
 simulador ou do plano levaria o usuário para fora da navegação em vez de voltar para a lista.

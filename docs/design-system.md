@@ -208,8 +208,18 @@ ainda assim num tom suave de fundo, porque é uma classificação factual de cus
 repreensão.
 
 **`MoneyText`** — exibe centavos via `formatBRL`, com `tabular-nums`. Props `size`
-(`body | numeric | display`) e `tone` (`ink | accent | inkSoft`). Centraliza a exibição de
-dinheiro num componente só — se um dia a formatação mudar, muda em um lugar.
+(`body | numeric | display`) e `tone` (`ink | accent | inkSoft | onPrimary | warning`). Centraliza
+a exibição de dinheiro num componente só — se um dia a formatação mudar, muda em um lugar.
+
+`warning` entrou no M7, para valor **negativo que o usuário precisa notar** — a capacidade que
+não fecha. Continua valendo a regra: `warning`, nunca `danger`. Quem chega nesse número já está
+com medo, e vermelho de alarme é o que os apps tradicionais fazem (guardrail 4).
+
+**`Cascata`** (`src/components/caixa/`) — a renda no topo, o que sai dela em degraus, e o que
+sobra. **Não é gráfico, e não deve virar um:** uma barra por degrau viraria comparação visual
+entre gastos, e a pergunta que a tela responde não é "o que pesa mais" e sim "o que sobra". Cada
+saída leva um `−` explícito, porque uma coluna de números sem sinal pode ser lida como soma — e a
+leitura errada aqui muda a decisão do usuário.
 
 ---
 
