@@ -120,6 +120,25 @@ class Perfil(Base):
     dias_antecedencia_lembrete: Mapped[int] = mapped_column(
         Integer, default=3, server_default="3"
     )
+
+    # METAS DO CAIXA (M7). Todas NULLABLE de propósito: campo não preenchido tem
+    # de sobreviver como ausente, nunca como zero. Zero é uma afirmação — "não
+    # reservo imposto" — e ausente é outra: "não sei ainda".
+    #
+    # `imposto_bps` é informado pelo usuário, jamais estimado: alíquota varia por
+    # enquadramento, anexo e faixa de receita, e chutar para menos faz a pessoa
+    # gastar dinheiro que é do governo (ADR 0009).
+    imposto_bps: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    reserva_meta_meses: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    reserva_saldo: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    # Quanto vai para a reserva POR MÊS. Coisa diferente de `reserva_saldo`
+    # (o que já existe) e de `reserva_meta_meses` (aonde se quer chegar): é o
+    # único dos três que entra na cascata da capacidade.
+    reserva_aporte: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    aposentadoria_aporte: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    # Sem ele, NENHUMA comparação dívida × investimento é exibida (ADR 0009):
+    # projetar rendimento seria dar recomendação de investimento.
+    rendimento_esperado_bps: Mapped[int | None] = mapped_column(Integer, nullable=True)
     atualizado_em: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -201,3 +220,148 @@ class Extracao(Base):
     arquivo_descartado: Mapped[bool] = mapped_column(Boolean, default=True)
 
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class FonteRenda(Base):
+    """
+    De onde vem o dinheiro. N por tenant, porque uma renda só é a exceção e não
+    a regra: PJ com dois contratos, CLT com aluguel, aposentado com um bico.
+
+    `valor_tipico_informado` é o que o usuário DIZ que ganha. O que ele de fato
+    recebeu vive em `Recebimento`, e é de lá que sai a renda que o plano usa
+    quando há histórico — ver `domain/caixa.renda_tipica`.
+    """
+
+    __tablename__ = "fonte_renda"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=novo_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+
+    nome: Mapped[str] = mapped_column(String(120))
+    tipo: Mapped[str] = mapped_column(String(20))
+    valor_tipico_informado: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    variavel: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Registro permanente, não lançamento mensal: a fonte vale até ser
+    # desativada. É o que dispensa redigitar tudo todo mês.
+    ativo: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    criada_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    atualizada_em: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class Recebimento(Base):
+    """
+    O que de fato caiu, por fonte e por mês.
+
+    Existe porque renda variável não se descreve com um número: é daqui que sai
+    o pior mês, que é a renda que o plano precisa aguentar. Um por fonte por
+    mês — reenviar o mesmo mês sobrescreve o valor, em vez de duplicar.
+    """
+
+    __tablename__ = "recebimento"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=novo_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+    fonte_id: Mapped[str] = mapped_column(String(36), index=True)
+
+    mes: Mapped[str] = mapped_column(String(7))  # AAAA-MM
+    valor: Mapped[int] = mapped_column(BigInteger)
+
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Gasto(Base):
+    """
+    Um gasto mensal. REGISTRO PERMANENTE, não lançamento datado: guarda o valor
+    mensal e vale até ser alterado ou desativado.
+
+    `essencial` é classificação do USUÁRIO, não do app: o que é cortável na vida
+    de alguém não é decisão nossa. Ele separa `capacidade_hoje` de
+    `capacidade_maxima` em `domain/caixa.py`.
+    """
+
+    __tablename__ = "gasto"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=novo_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+
+    descricao: Mapped[str] = mapped_column(String(120))
+    categoria: Mapped[str] = mapped_column(String(20))
+    essencial: Mapped[bool] = mapped_column(Boolean, default=True)
+    fixo: Mapped[bool] = mapped_column(Boolean, default=True)
+    valor_mensal: Mapped[int] = mapped_column(BigInteger)
+
+    ativo: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    atualizado_em: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class ProvisaoAnual(Base):
+    """
+    Despesa anual conhecida — IPVA, seguro, licenciamento.
+
+    `saldo_acumulado` é quanto já foi guardado. O aporte do mês sai de
+    `domain/caixa.aporte_de_provisao`, que divide o que falta pelos meses que
+    faltam até o vencimento: quem começa em agosto com IPVA em janeiro tem
+    cinco depósitos, não doze.
+    """
+
+    __tablename__ = "provisao_anual"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=novo_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+
+    descricao: Mapped[str] = mapped_column(String(120))
+    valor_anual: Mapped[int] = mapped_column(BigInteger)
+    mes_vencimento: Mapped[int] = mapped_column(Integer)  # 1 a 12
+    saldo_acumulado: Mapped[int] = mapped_column(BigInteger, default=0)
+
+    ativa: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    criada_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    atualizada_em: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class CaixaSnapshot(Base):
+    """
+    A cascata congelada no instante em que foi calculada. APPEND-ONLY: nenhuma
+    rota faz UPDATE aqui.
+
+    Existe para responder, seis meses depois, "com base em qual renda eu propus
+    aquele acordo?". Um acordo de dívida nasce de uma foto financeira, e sem a
+    foto guardada a decisão fica sem contexto — que é o mesmo motivo de
+    `Renegociacao` guardar o antes e o depois.
+    """
+
+    __tablename__ = "caixa_snapshot"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=novo_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+
+    renda_bruta_tipica: Mapped[int] = mapped_column(BigInteger)
+    origem_renda: Mapped[str] = mapped_column(String(30))
+    imposto_reservado: Mapped[int] = mapped_column(BigInteger)
+    renda_liquida: Mapped[int] = mapped_column(BigInteger)
+    essenciais: Mapped[int] = mapped_column(BigInteger)
+    nao_essenciais: Mapped[int] = mapped_column(BigInteger)
+    provisao_mensal: Mapped[int] = mapped_column(BigInteger)
+    aporte_reserva: Mapped[int] = mapped_column(BigInteger)
+    aporte_aposentadoria: Mapped[int] = mapped_column(BigInteger)
+    comprometido_dividas: Mapped[int] = mapped_column(BigInteger)
+    capacidade_hoje: Mapped[int] = mapped_column(BigInteger)
+    capacidade_maxima: Mapped[int] = mapped_column(BigInteger)
+    aporte_maximo: Mapped[int] = mapped_column(BigInteger)
+    minimo_existencial: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    nao_fecha: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    calculado_em: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )

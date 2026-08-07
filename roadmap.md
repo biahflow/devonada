@@ -328,7 +328,9 @@ plano que ele propunha era um chute sobre a capacidade real de pagar. Spec em
 - [x] FDD, contrato de API (Bloco 7), vocabulário e roadmap escritos antes do código.
 - [x] `backend/domain/caixa.py` — motor puro: cascata da capacidade, renda típica pelo pior mês,
       provisão pelos meses restantes, os sinais de piso e de "não fecha". 38 testes.
-- [ ] Cinco tabelas, migration com migração de `perfil.renda_mensal`, e os endpoints do Bloco 7.
+- [x] Cinco tabelas, migration com migração de `perfil.renda_mensal`, e os 17 endpoints do
+      Bloco 7. A migração de dado foi exercitada contra Postgres de verdade — downgrade, perfil
+      com renda semeado, upgrade, fonte criada. 330 testes, verdes em SQLite **e** em Postgres.
 - [ ] Integração com o módulo de dívida: `_validar_aporte`, aporte sugerido, frase do script.
 - [ ] Quarta aba **Caixa**, com captura progressiva em dois níveis.
 

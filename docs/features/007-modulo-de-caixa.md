@@ -210,7 +210,13 @@ metas. A capacidade fica mais precisa e a proposta de negociação, mais afiada.
   determinístico**; sem caixa preenchido, a frase não aparece.
 - **RF-011** — Plano simulado acima de 60 meses exibe o prazo máximo do art. 104-A como
   informação, sem afirmar direito à repactuação.
-- **RF-012** — `caixa_snapshot` é **append-only**; nenhuma rota faz `UPDATE` nele.
+- **RF-012** — `caixa_snapshot` é **append-only**; nenhuma rota faz `UPDATE` nele. Toda mutação
+  grava uma linha; a leitura de `GET /v1/caixa` **não** grava.
+- **RF-014** — Reenviar um recebimento do mesmo mês **sobrescreve** em vez de duplicar: corrigir
+  valor digitado errado é o caso comum, e duas linhas do mesmo mês fariam o pior mês ser
+  calculado sobre um dado fantasma.
+- **RF-015** — A renda típica é apurada **por fonte**, não sobre o total: uma fonte fixa não pode
+  ser puxada para baixo pelo pior mês de uma fonte variável.
 - **RF-013** — O LLM não calcula nenhum valor deste módulo. Ele só ajuda a estimar um gasto que
   o usuário não sabe, e explica o que já foi calculado.
 

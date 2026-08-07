@@ -668,11 +668,22 @@ pelos meses restantes até o vencimento, nunca por 12 fixo.
 
 ```json
 { "metas": { "impostoBps": 600, "reservaMetaMeses": 6, "reservaSaldo": 150000,
-             "aposentadoriaAporte": 30000, "rendimentoEsperadoBps": null } }
+             "reservaAporte": 50000, "aposentadoriaAporte": 30000,
+             "rendimentoEsperadoBps": null } }
 ```
 
-Todos opcionais. `rendimentoEsperadoBps` ausente ⇒ **nenhuma comparação dívida × investimento é
-exibida** (ADR 0009). `impostoBps` ausente ⇒ nada é reservado, e a tela diz isso.
+Todos opcionais, e `null` **grava** ausência — é como o usuário desfaz uma meta.
+
+Os três campos de reserva são coisas diferentes, e só um entra na cascata: `reservaSaldo` é o
+que já existe, `reservaMetaMeses` é aonde se quer chegar, e **`reservaAporte` é o que sai do
+mês** — este é o que a capacidade desconta.
+
+`rendimentoEsperadoBps` ausente ⇒ **nenhuma comparação dívida × investimento é exibida**
+(ADR 0009). `impostoBps` ausente ⇒ nada é reservado, e a tela diz isso.
+
+#### `GET /v1/caixa/metas`
+
+Mesmo corpo. Perfil inexistente devolve todos os campos ausentes, nunca zerados.
 
 #### `GET /v1/caixa/historico`
 
@@ -778,10 +789,10 @@ sobre quanto a pessoa consegue pagar.*
 - [x] **Mínimo existencial corrigido** — estava na redação revogada (25% do salário mínimo);
       o Decreto 11.567/2023 fixou R$ 600,00. Config datada, `None` quando não configurado
 - [x] `backend/domain/caixa.py` — motor puro, sem I/O, com as escolhas de método no docstring
-- [ ] Tabelas `fonte_renda`, `recebimento`, `gasto`, `provisao_anual`, `caixa_snapshot`
-- [ ] Campos novos em `perfil`; `renda_mensal` migrada para `fonte_renda` e derivada na leitura
-- [ ] `GET /v1/caixa` e o CRUD de fontes, gastos e provisões
-- [ ] `PUT /v1/caixa/metas` e `GET /v1/caixa/historico`
+- [~] Tabelas `fonte_renda`, `recebimento`, `gasto`, `provisao_anual`, `caixa_snapshot`
+- [~] Campos novos em `perfil`; `renda_mensal` copiada para `fonte_renda` na migration
+- [~] `GET /v1/caixa` e o CRUD de fontes, gastos e provisões
+- [~] `GET`/`PUT /v1/caixa/metas` e `GET /v1/caixa/historico`
 - [ ] `_validar_aporte` passa a usar a capacidade real no lugar do piso legal
 - [ ] Frase do caixa no `script` de negociação, por template determinístico
 
