@@ -8,8 +8,10 @@ from auth import tenant_atual
 from config import get_settings
 from db import get_db
 from domain import revisao as dominio
+from domain.dinheiro import formatar_brl
 from domain.parcelas import situacao_da_parcela
 from extracao.base import limpar_campos_sem_evidencia
+from leitura import capacidade_atual, carregar_dividas_simulaveis
 
 router = APIRouter(prefix="/v1", tags=["Revisão"])
 
@@ -109,7 +111,9 @@ def _houve_divida_anterior(db: Session, tenant: str, divida: orm.Divida) -> bool
     return outra is not None
 
 
-def montar_script(credor: str, achados: list[dominio.Achado]) -> str | None:
+def montar_script(
+    credor: str, achados: list[dominio.Achado], capacidade_mensal: int | None = None
+) -> str | None:
     """
     A mensagem de negociação, montada por TEMPLATE.
 
@@ -117,6 +121,15 @@ def montar_script(credor: str, achados: list[dominio.Achado]) -> str | None:
     curado no backend e que o modelo não improvisa citação. Um parágrafo por
     achado, na ordem em que aparecem na tela, para o usuário reconhecer o que
     está mandando.
+
+    `capacidade_mensal` (M7) ancora a proposta no caixa real. É o que muda a
+    conversa com o credor: "quero desconto" é pedido, "consigo pagar R$ X por
+    mês" é oferta — e uma oferta que a pessoa consegue honrar vale mais que um
+    acordo agressivo que quebra no terceiro mês.
+
+    A frase só entra com capacidade CONHECIDA E POSITIVA. Sem caixa preenchido
+    ela não aparece, e capacidade negativa não vira oferta: prometer o que não
+    se tem é pior que não propor valor nenhum.
     """
     if not achados:
         return None
@@ -132,7 +145,44 @@ def montar_script(credor: str, achados: list[dominio.Achado]) -> str | None:
         "Peço o demonstrativo detalhado do débito e a revisão desses pontos. "
         "Fico no aguardo de um retorno.",
     ]
+
+    if capacidade_mensal is not None and capacidade_mensal > 0:
+        linhas.insert(
+            -1,
+            "Tenho interesse em quitar e consigo comprometer até "
+            f"{formatar_brl(capacidade_mensal)} por mês com este acordo.",
+        )
+        linhas.insert(-1, "")
+
     return "\n".join(linhas)
+
+
+def _capacidade_para_oferta(db: Session, tenant: str, divida_id: str) -> int | None:
+    """
+    Quanto o usuário pode oferecer por mês NESTE acordo, ou `None` se não
+    sabemos.
+
+    Duas decisões, e as duas mudam o número que vai para um credor de verdade:
+
+    1. Parte de `capacidade_hoje`, não de `capacidade_maxima`. A oferta tem de
+       caber na vida que a pessoa leva hoje; propor o valor que só existe
+       cortando tudo é como o acordo quebra no terceiro mês.
+
+    2. Desconta as parcelas das OUTRAS dívidas, não as desta. Um acordo sobre
+       este contrato substitui a prestação dele — então ela volta para o bolo —
+       mas as outras continuam saindo todo mês. Oferecer a capacidade cheia a um
+       credor quando existem três é prometer o mesmo dinheiro três vezes.
+    """
+    caixa = capacidade_atual(db, tenant, get_settings())
+    if caixa is None:
+        return None
+
+    outras = sum(
+        d.parcela_minima
+        for d in carregar_dividas_simulaveis(db, tenant, None)
+        if d.divida_id != divida_id
+    )
+    return caixa.capacidade_hoje - outras
 
 
 def revisar_divida(db: Session, tenant: str, divida: orm.Divida) -> schemas.RevisaoCobranca:
@@ -173,7 +223,9 @@ def revisar_divida(db: Session, tenant: str, divida: orm.Divida) -> schemas.Revi
         valorCobrado=divida.valor_cobrado,
         valorJusto=resultado.valor_justo,
         achados=achados,
-        script=montar_script(divida.credor, resultado.achados),
+        script=montar_script(
+            divida.credor, resultado.achados, _capacidade_para_oferta(db, tenant, divida.id)
+        ),
         fundamentos=fundamentos,
         baseLegalVigenteEm=resultado.base_legal_vigente_em,
     )

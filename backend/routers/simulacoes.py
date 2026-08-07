@@ -9,8 +9,10 @@ import schemas
 from auth import tenant_atual
 from config import Settings, get_settings
 from db import get_db
+from domain.caixa import PRAZO_MAXIMO_REPACTUACAO_MESES
 from domain.minimo_existencial import margem_disponivel, minimo_existencial
 from domain.simulacao import DividaSimulavel, economia_vs_minimo, simular
+from leitura import capacidade_atual, carregar_dividas_simulaveis
 
 router = APIRouter(prefix="/v1/dividas", tags=["Simulacoes"])
 
@@ -20,90 +22,47 @@ def mes_atual() -> str:
     return f"{hoje.year}-{hoje.month:02d}"
 
 
-def carregar_dividas_simulaveis(
-    db: Session, tenant: str, ids: list[str] | None
-) -> list[DividaSimulavel]:
-    """
-    Monta a entrada do motor a partir do que está persistido.
-
-    Pública porque o chat (M5) monta o card de plano com exatamente as mesmas
-    dívidas que o simulador usa. Duas leituras diferentes dariam dois planos
-    diferentes para a mesma pergunta.
-
-    SALDO E PARCELA MÍNIMA VÊM DAS PARCELAS REAIS quando existe cronograma. Sem
-    cronograma, o saldo é o valor cobrado e a parcela mínima é ZERO — nenhum
-    valor de prestação é inventado. Na prática, essa dívida só recebe pagamento
-    quando chega à frente da fila, e é assim que ela deve entrar: sem número
-    que o usuário não forneceu.
-    """
-    consulta = select(orm.Divida).where(
-        orm.Divida.tenant_id == tenant,
-        orm.Divida.excluido_em.is_(None),
-        orm.Divida.situacao != "quitada",
-    )
-    if ids is not None:
-        consulta = consulta.where(orm.Divida.id.in_(ids))
-
-    dividas = db.scalars(consulta).all()
-
-    if ids is not None and len(dividas) != len(set(ids)):
-        # 404, nunca 403: um 403 confirmaria que o id existe em outro tenant.
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"message": "Não encontramos alguma das dívidas escolhidas."},
-        )
-
-    simulaveis: list[DividaSimulavel] = []
-    for d in dividas:
-        pendentes = db.scalars(
-            select(orm.Parcela)
-            .where(
-                orm.Parcela.divida_id == d.id,
-                orm.Parcela.tenant_id == tenant,
-                orm.Parcela.cancelada_em.is_(None),
-                orm.Parcela.paga_em.is_(None),
-            )
-            .order_by(orm.Parcela.vencimento)
-        ).all()
-
-        if pendentes:
-            saldo = sum(p.valor for p in pendentes)
-            minima = pendentes[0].valor
-        else:
-            saldo = d.valor_cobrado
-            minima = 0
-
-        if saldo <= 0:
-            continue
-
-        simulaveis.append(
-            DividaSimulavel(
-                divida_id=d.id,
-                credor=d.credor,
-                saldo=saldo,
-                taxa_mensal_bps=d.taxa_juros_mensal,
-                parcela_minima=minima,
-            )
-        )
-
-    return simulaveis
-
-
 def _validar_aporte(
     db: Session, tenant: str, aporte: int, dividas: list[DividaSimulavel], settings: Settings
 ) -> None:
     """
-    Recusa aporte que invade o mínimo existencial.
+    Recusa aporte que a pessoa não tem como sustentar.
 
-    O produto não sugere plano que comprometa o básico da vida (Decreto
-    11.150/2022, art. 3º, na redação do Decreto 11.567/2023, via
-    domain/minimo_existencial.py).
+    DOIS CRITÉRIOS, e o primeiro é muito melhor que o segundo.
 
-    LIMITAÇÃO DECLARADA: sem renda informada no perfil não há o que comparar, e
-    a simulação segue. Bloquear quem não preencheu a renda tiraria a ferramenta
-    de quem mais precisa dela; o painel já convida a informar. O mesmo vale para
-    o piso não configurado.
+    1. CAPACIDADE REAL (M7), quando o usuário preencheu o caixa. O teto é
+       `aporte_maximo` — o que sobra depois de imposto, custo de vida real,
+       provisões e os potes que ele definiu, já descontadas as parcelas atuais.
+
+    2. MÍNIMO EXISTENCIAL, o comportamento antigo, para quem ainda não preencheu
+       o caixa. Ele usa o piso legal (R$ 600,00) como se fosse custo de vida, e
+       isso é OTIMISTA a ponto de ser perigoso: aceita plano que consome quase
+       toda a renda de quem tem aluguel e carro. Continua aqui porque recusar
+       tudo de quem não preencheu o caixa tiraria a ferramenta de quem ainda não
+       chegou nela — mas é fallback, não o caminho principal.
+
+    LIMITAÇÃO DECLARADA: sem caixa e sem renda no perfil não há o que comparar,
+    e a simulação segue sem validação.
     """
+    caixa = capacidade_atual(db, tenant, settings)
+    if caixa is not None:
+        if aporte > caixa.aporte_maximo:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={
+                    # Sem valor na mensagem (guardrail 5). O número certo já
+                    # está na tela de caixa, e repeti-lo aqui vazaria renda para
+                    # um corpo de erro.
+                    "message": (
+                        "Esse valor passa do que sobra no seu mês depois das contas, "
+                        "das provisões e do que você já separa. Um plano que você "
+                        "consegue manter vale mais que um plano rápido no papel."
+                    ),
+                    "campo": "aporteExtraMensal",
+                },
+            )
+        return
+
     perfil = db.scalar(select(orm.Perfil).where(orm.Perfil.tenant_id == tenant))
     renda = perfil.renda_mensal if perfil and perfil.renda_mensal else None
     if not renda:
@@ -182,6 +141,9 @@ def simulacoes(
                 totalPago=r.total_pago,
                 economiaVsMinimo=economia_vs_minimo(
                     dividas, entrada.aporteExtraMensal, estrategia, mes
+                ),
+                acimaDoPrazoDeRepactuacao=(
+                    r.meses_ate_quitacao > PRAZO_MAXIMO_REPACTUACAO_MESES
                 ),
                 ordemPagamento=[
                     schemas.ItemOrdemPagamento(

@@ -232,6 +232,11 @@ class Simulacao(Camel):
     # Nulo quando o cenário de pagar só o mínimo não quita dentro do teto: sem
     # o outro lado da comparação, não há economia a afirmar.
     economiaVsMinimo: int | None = None
+    # O plano passa dos 5 anos que o CDC, art. 104-A, fixa como prazo máximo do
+    # plano apresentado numa repactuação judicial. É INFORMAÇÃO, não impedimento:
+    # plano mais longo não é ilegal, mas saber que existe um teto legal para o
+    # caminho judicial muda a conversa com o credor.
+    acimaDoPrazoDeRepactuacao: bool = False
     ordemPagamento: list[ItemOrdemPagamento]
     evolucaoSaldo: list[PontoEvolucao]
 

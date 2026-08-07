@@ -317,6 +317,13 @@ export interface Simulacao {
    * calculado".
    */
   economiaVsMinimo?: number | null;
+  /**
+   * O plano passa dos 5 anos que o CDC, art. 104-A, fixa como prazo máximo do
+   * plano apresentado numa repactuação judicial. É **informação, não
+   * impedimento**: plano mais longo não é ilegal, e a copy não pode sugerir que
+   * seja. Ausente é tratado como `false`.
+   */
+  acimaDoPrazoDeRepactuacao?: boolean;
   ordemPagamento: ItemOrdemPagamento[];
   evolucaoSaldo: PontoEvolucao[];
 }

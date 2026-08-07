@@ -685,6 +685,22 @@ mês** — este é o que a capacidade desconta.
 
 Mesmo corpo. Perfil inexistente devolve todos os campos ausentes, nunca zerados.
 
+#### Efeitos no módulo de dívida
+
+- **`POST /v1/dividas/simulacoes`** valida o aporte contra `aporteMaximo` quando há caixa
+  preenchido. Sem caixa, cai no critério antigo (piso legal), que é otimista mas mantém a
+  ferramenta disponível para quem ainda não preencheu. A `message` do `422` **não carrega
+  valor** — renda não vaza em corpo de erro (guardrail 5).
+- **`Simulacao`** ganha `acimaDoPrazoDeRepactuacao: boolean`. Verdadeiro quando o plano passa de
+  60 meses — o prazo máximo do plano apresentado em repactuação (CDC, art. 104-A). É informação,
+  **não** impedimento: a simulação continua devolvendo `200`.
+- **`script`** da revisão ganha uma frase com o valor que o usuário consegue comprometer por mês,
+  por template determinístico. Só aparece com caixa preenchido e capacidade positiva. O valor é
+  `capacidadeHoje` menos as parcelas das **outras** dívidas: o acordo substitui a prestação desta,
+  mas as demais continuam saindo.
+- **Card `plano_sugerido`** usa a capacidade como aporte padrão quando o assistente não pede um
+  valor, em vez de zero. O número vem do servidor, nunca do modelo (guardrail 7.1).
+
 #### `GET /v1/caixa/historico`
 
 Os `caixa_snapshot`, do mais recente ao mais antigo. **Append-only**: nenhuma rota atualiza uma
@@ -793,8 +809,10 @@ sobre quanto a pessoa consegue pagar.*
 - [~] Campos novos em `perfil`; `renda_mensal` copiada para `fonte_renda` na migration
 - [~] `GET /v1/caixa` e o CRUD de fontes, gastos e provisões
 - [~] `GET`/`PUT /v1/caixa/metas` e `GET /v1/caixa/historico`
-- [ ] `_validar_aporte` passa a usar a capacidade real no lugar do piso legal
-- [ ] Frase do caixa no `script` de negociação, por template determinístico
+- [~] `_validar_aporte` passa a usar a capacidade real no lugar do piso legal
+- [~] Frase do caixa no `script` de negociação, por template determinístico
+- [~] `acimaDoPrazoDeRepactuacao` na simulação — CDC art. 104-A, 5 anos
+- [~] Card `plano_sugerido` do chat usa a capacidade como aporte padrão, não zero
 
 ### Estado observado em device
 

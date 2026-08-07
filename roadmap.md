@@ -331,7 +331,14 @@ plano que ele propunha era um chute sobre a capacidade real de pagar. Spec em
 - [x] Cinco tabelas, migration com migração de `perfil.renda_mensal`, e os 17 endpoints do
       Bloco 7. A migração de dado foi exercitada contra Postgres de verdade — downgrade, perfil
       com renda semeado, upgrade, fonte criada. 330 testes, verdes em SQLite **e** em Postgres.
-- [ ] Integração com o módulo de dívida: `_validar_aporte`, aporte sugerido, frase do script.
+- [x] Integração com o módulo de dívida. O simulador passou a recusar o aporte que o piso legal
+      aceitava — há teste que prova os dois lados do mesmo cenário. O script de negociação faz
+      uma oferta ancorada no caixa, descontando as parcelas das **outras** dívidas. A simulação
+      sinaliza plano acima dos 5 anos do art. 104-A, como informação. O card `plano_sugerido`
+      usa a capacidade em vez de zero.
+- [x] `backend/leitura.py`: as leituras compartilhadas saíram dos routers. Elas nunca foram do
+      router — traduzem tabela em entrada de função pura, e três routers precisam da **mesma**
+      tradução. Sem isso, `simulacoes` e `caixa` passariam a se importar mutuamente.
 - [ ] Quarta aba **Caixa**, com captura progressiva em dois níveis.
 
 ### M7.1 — Fechamento do mês

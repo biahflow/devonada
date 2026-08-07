@@ -56,6 +56,16 @@ MINIMO_DE_AMOSTRAS = 3
 ORIGEM_INFORMADA = "informada"
 ORIGEM_HISTORICO = "pior_mes_registrado"
 
+# FONTE: CDC, art. 104-A (incluído pela Lei 14.181/2021) — na repactuação de
+# dívidas, o consumidor "apresentará proposta de plano de pagamento com prazo
+# máximo de 5 (cinco) anos, preservados o mínimo existencial".
+#
+# NÃO é um limite que o app impõe à simulação: é um número da lei que ajuda o
+# usuário a ler o próprio plano. Plano de 90 meses não é ilegal — mas é mais
+# longo que o teto do caminho judicial, e saber disso muda a conversa com o
+# credor. Quem consome exibe como informação, nunca como impedimento.
+PRAZO_MAXIMO_REPACTUACAO_MESES = 60
+
 
 @dataclass(frozen=True)
 class ProvisaoPendente:

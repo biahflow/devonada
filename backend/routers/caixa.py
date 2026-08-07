@@ -17,8 +17,7 @@ from domain.caixa import (
     meses_ate_vencimento,
     renda_tipica,
 )
-from domain.minimo_existencial import minimo_existencial
-from routers.simulacoes import carregar_dividas_simulaveis
+from leitura import montar_entrada_caixa
 
 router = APIRouter(prefix="/v1/caixa", tags=["Caixa"])
 
@@ -44,84 +43,6 @@ def _nao_encontrado(o_que: str) -> HTTPException:
 # --- Leitura da cascata ------------------------------------------------------
 
 
-def montar_entrada(db: Session, tenant: str, settings: Settings) -> EntradaCaixa:
-    """
-    Junta o que está persistido no formato que o motor puro espera.
-
-    Pública porque o simulador (M4) precisa da MESMA capacidade que a aba de
-    caixa exibe. Duas leituras diferentes dariam dois tetos diferentes para o
-    mesmo aporte, e o usuário veria o valor ser recusado por um número que não
-    aparece em tela nenhuma — foi exatamente o cuidado que `_validar_aporte` já
-    tomava com as parcelas mínimas.
-    """
-    hoje = date.today()
-
-    fontes = db.scalars(
-        select(orm.FonteRenda).where(
-            orm.FonteRenda.tenant_id == tenant, orm.FonteRenda.ativo.is_(True)
-        )
-    ).all()
-
-    # A renda típica é por FONTE, não do total: uma fonte fixa não deve ser
-    # puxada para baixo pelo pior mês de uma fonte variável.
-    bruta = 0
-    origem = "informada"
-    for f in fontes:
-        recebimentos = db.scalars(
-            select(orm.Recebimento.valor)
-            .where(
-                orm.Recebimento.tenant_id == tenant,
-                orm.Recebimento.fonte_id == f.id,
-            )
-            .order_by(orm.Recebimento.mes)
-        ).all()
-        valor, origem_da_fonte = renda_tipica(f.valor_tipico_informado, list(recebimentos))
-        bruta += valor
-        # Basta uma fonte vir do histórico para a origem deixar de ser "só o que
-        # o usuário digitou" — e é isso que a tela precisa dizer.
-        if origem_da_fonte == "pior_mes_registrado":
-            origem = "pior_mes_registrado"
-
-    gastos = db.scalars(
-        select(orm.Gasto).where(orm.Gasto.tenant_id == tenant, orm.Gasto.ativo.is_(True))
-    ).all()
-    essenciais = sum(g.valor_mensal for g in gastos if g.essencial)
-    nao_essenciais = sum(g.valor_mensal for g in gastos if not g.essencial)
-
-    provisoes = db.scalars(
-        select(orm.ProvisaoAnual).where(
-            orm.ProvisaoAnual.tenant_id == tenant, orm.ProvisaoAnual.ativa.is_(True)
-        )
-    ).all()
-
-    perfil = db.scalar(select(orm.Perfil).where(orm.Perfil.tenant_id == tenant))
-
-    # O comprometido sai das MESMAS dívidas que o simulador enxerga.
-    comprometido = sum(d.parcela_minima for d in carregar_dividas_simulaveis(db, tenant, None))
-
-    return EntradaCaixa(
-        renda_bruta_tipica=bruta,
-        origem_renda=origem,
-        imposto_bps=perfil.imposto_bps if perfil else None,
-        essenciais=essenciais,
-        nao_essenciais=nao_essenciais,
-        provisoes=tuple(
-            ProvisaoPendente(
-                descricao=p.descricao,
-                valor_anual=p.valor_anual,
-                saldo_acumulado=p.saldo_acumulado,
-                mes_vencimento=p.mes_vencimento,
-            )
-            for p in provisoes
-        ),
-        aporte_reserva=(perfil.reserva_aporte or 0) if perfil else 0,
-        aporte_aposentadoria=(perfil.aposentadoria_aporte or 0) if perfil else 0,
-        comprometido_dividas=comprometido,
-        minimo_existencial=minimo_existencial(settings.minimo_existencial_centavos),
-        mes_atual=hoje.month,
-    )
-
-
 @router.get("", response_model=schemas.RespostaCaixa)
 def obter(
     db: Session = Depends(get_db),
@@ -129,7 +50,7 @@ def obter(
     settings: Settings = Depends(get_settings),
 ):
     """A cascata atual. Leitura pura — o snapshot é gravado pelas mutações."""
-    caixa = calcular_caixa(montar_entrada(db, tenant, settings))
+    caixa = calcular_caixa(montar_entrada_caixa(db, tenant, settings))
     return schemas.RespostaCaixa(
         caixa=schemas.Caixa(
             rendaBrutaTipica=caixa.renda_bruta_tipica,
@@ -161,7 +82,7 @@ def registrar_snapshot(db: Session, tenant: str, settings: Settings) -> None:
     É o que responde, seis meses depois, "com base em qual renda eu propus
     aquele acordo?". Um UPDATE aqui apagaria justamente a resposta.
     """
-    c = calcular_caixa(montar_entrada(db, tenant, settings))
+    c = calcular_caixa(montar_entrada_caixa(db, tenant, settings))
     db.add(
         orm.CaixaSnapshot(
             tenant_id=tenant,
