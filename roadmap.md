@@ -304,6 +304,39 @@ device.
 
 ---
 
+## M7 — Módulo de caixa — em construção
+
+O produto sabia o que a pessoa **deve** e não sabia o que ela **ganha e gasta**. Por isso todo
+plano que ele propunha era um chute sobre a capacidade real de pagar. Spec em
+`docs/features/007-modulo-de-caixa.md`; a decisão que o organiza, em `docs/adr/0009`.
+
+- [x] **Conferência no texto primário antes do código, e ela achou um erro em produção.**
+      `domain/minimo_existencial.py` calculava 25% do salário mínimo citando o Decreto
+      11.150/2022 — mas essa é a redação **original**. O Decreto 11.567, de 19/06/2023, fixou o
+      mínimo existencial em **R$ 600,00** e revogou o § 2º que congelava o valor. O app usava
+      R$ 379,50 onde a lei manda R$ 600,00, e por isso `_validar_aporte` aceitava plano que
+      invade a proteção legal. Corrigido, com o valor em config datada e `None` quando não
+      configurado.
+- [x] A leitura também **estreitou o sinal de superendividamento**: o CDC art. 54-A, § 1º exige
+      **boa-fé** e **dívida de consumo**, e o art. 4º do decreto exclui da aferição consignado,
+      imobiliário, garantia real, crédito rural e mais. Nada disso é apurável por software, então
+      o produto passa a dizer que **os números não fecham** — fato aritmético — e a nomear a
+      repactuação como caminho a investigar. Nunca "você está superendividado".
+- [x] ADR 0009: **o usuário decide a ordem dos potes; o app mostra a aritmética.** Os
+      coeficientes `× 0,5 / 0,7 / 0,9` do desenho original ficaram de fora — são a mesma classe
+      do `* 1.1`. Sem rendimento informado, nenhuma comparação dívida × investimento aparece.
+- [x] FDD, contrato de API (Bloco 7), vocabulário e roadmap escritos antes do código.
+- [ ] `backend/domain/caixa.py` — motor puro: cascata da capacidade, renda típica pelo pior mês,
+      provisão pelos meses restantes, os sinais de piso e de "não fecha".
+- [ ] Cinco tabelas, migration com migração de `perfil.renda_mensal`, e os endpoints do Bloco 7.
+- [ ] Integração com o módulo de dívida: `_validar_aporte`, aporte sugerido, frase do script.
+- [ ] Quarta aba **Caixa**, com captura progressiva em dois níveis.
+
+**Sai com:** o simulador recusando o aporte que hoje ele aceita, porque agora ele conhece o
+custo de vida real — e o usuário sabendo, em janeiro, que o IPVA já está guardado.
+
+---
+
 ## Pós-MVP — direção, não compromisso
 
 - **Ingestão de dados de Open Finance** — extrato, saldo e cartão alimentando o contexto do
