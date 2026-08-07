@@ -49,6 +49,6 @@ export function PercentInput({ label, value, onChangeValue, error, hint, optiona
 }
 
 const styles = StyleSheet.create({
-  percent: { ...typography.numeric, fontVariant: ['tabular-nums'], color: colors.ink },
+  percent: { ...typography.numeric, color: colors.ink },
   error: { borderColor: colors.danger },
 });

@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   rotulo: { ...typography.caption, color: colors.inkSoft },
-  liberdade: { ...typography.display, color: colors.accent, marginBottom: spacing.sm },
+  liberdade: { ...typography.displaySm, color: colors.accent, marginBottom: spacing.sm },
   linha: { gap: 2, marginTop: spacing.xs },
   valor: { ...typography.body, color: colors.ink },
   ausente: { ...typography.caption, color: colors.inkSoft, fontStyle: 'italic' },

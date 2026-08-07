@@ -104,7 +104,7 @@ export default function RevisaoDeCobranca() {
               <Text style={styles.seta}>→</Text>
               <View style={styles.coluna}>
                 <Text style={styles.legenda}>Se acolherem os pontos</Text>
-                <MoneyText centavos={revisao.valorJusto} size="display" tone="accent" />
+                <MoneyText centavos={revisao.valorJusto} size="displaySm" tone="accent" />
               </View>
             </View>
             {economia && economia > 0 ? (
@@ -162,7 +162,7 @@ export default function RevisaoDeCobranca() {
 }
 
 const styles = StyleSheet.create({
-  conteudo: { paddingBottom: spacing.xxl, gap: spacing.md },
+  conteudo: { paddingBottom: spacing.xxxl, gap: spacing.lg },
   eyebrow: {
     ...typography.caption,
     color: colors.inkSoft,

@@ -1,6 +1,6 @@
 # ADR 0004 — Paleta híbrida: pine primário, dourado acento
 
-**Status:** aceito
+**Status:** superseded por ADR 0010
 **Data:** 2026-08-06
 
 ## Contexto

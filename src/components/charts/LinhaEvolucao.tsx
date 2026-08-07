@@ -20,7 +20,9 @@ const RAIO_MARCADOR = 5;
  * da seção já nomeia o que está desenhado.
  *
  * Regras que vieram da validação de paleta e do tom do produto:
- * - linha em `primary`, 2px, sem preenchimento sob a curva;
+ * - linha em `primaryBright`, 2px, sem preenchimento sob a curva. A cor de ação
+ *   não serve aqui: numa linha fina ela fica abaixo do piso de croma e lê como
+ *   cinza. `primaryBright` é a versão que passa croma e contraste;
  * - eixo recessivo, começando na base da área — nada de eixo truncado que
  *   transforme uma variação de 3% num despencar dramático;
  * - rótulo direto só no primeiro e no último ponto, nunca um número em cada.
@@ -58,7 +60,7 @@ export function LinhaEvolucao({ pontos, largura, altura = 140 }: Props) {
         {deslocados.length > 1 ? (
           <Path
             d={caminhoDeLinha(deslocados)}
-            stroke={colors.primary}
+            stroke={colors.primaryBright}
             strokeWidth={2}
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -71,7 +73,7 @@ export function LinhaEvolucao({ pontos, largura, altura = 140 }: Props) {
           cy={coordPrimeira.y}
           r={RAIO_MARCADOR}
           fill={colors.surface}
-          stroke={colors.primary}
+          stroke={colors.primaryBright}
           strokeWidth={2}
         />
         {deslocados.length > 1 ? (
@@ -79,7 +81,7 @@ export function LinhaEvolucao({ pontos, largura, altura = 140 }: Props) {
             cx={coordUltima.x}
             cy={coordUltima.y}
             r={RAIO_MARCADOR}
-            fill={colors.primary}
+            fill={colors.primaryBright}
             stroke={colors.surface}
             strokeWidth={2}
           />
@@ -107,6 +109,6 @@ const styles = StyleSheet.create({
   extremos: { flexDirection: 'row', justifyContent: 'space-between' },
   direita: { alignItems: 'flex-end' },
   mes: { ...typography.caption, color: colors.inkSoft, fontSize: 11 },
-  valor: { ...typography.caption, color: colors.ink, fontVariant: ['tabular-nums'] },
+  valor: { ...typography.caption, color: colors.ink },
   vazio: { ...typography.caption, color: colors.inkSoft },
 });

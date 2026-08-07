@@ -55,10 +55,10 @@ export function AchadoCard({ achado }: { achado: Achado }) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.accentSoft,
+    backgroundColor: colors.warningSurface,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.accent,
+    borderColor: colors.warningBorder,
     padding: spacing.lg,
     gap: spacing.xs,
   },

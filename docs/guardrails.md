@@ -126,8 +126,9 @@ alarme. Quem chega neste app já está com medo do próprio extrato.
 - **Proibido:** contagem regressiva de juros correndo em tempo real, badge de urgência
   artificial, notificação fora do horário combinado, gamificação que trata atraso como derrota
   moral, comparação com "outros usuários".
-- **Progresso é destacado com o acento dourado** (`colors.accent`): parcela quitada, economia
-  obtida, meses a menos. O app celebra o avanço, não pune o atraso.
+- **Progresso é destacado com o acento violeta** (`colors.accent`): parcela quitada, economia
+  obtida, meses a menos. O app celebra o avanço, não pune o atraso. Ver `design-system.md`,
+  seção 1, e ADR 0011.
 - Copy usa segunda pessoa e é específica. "Faltam 7 parcelas" em vez de "Atenção: dívida ativa".
 
 ---

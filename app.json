@@ -6,15 +6,19 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "scheme": "buddyfinanceiro",
+    "icon": "./assets/icon.png",
     "splash": {
-      "backgroundColor": "#F3F5F2"
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF"
     },
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#F3F5F2"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
       }
     },
     "plugins": [

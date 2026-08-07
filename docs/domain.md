@@ -187,7 +187,7 @@ deixa o usuário escolher — a estratégia que ele não abandona vale mais que 
 
 ### data de liberdade
 O mês em que, mantido o plano, a última dívida é quitada. Vem do backend. É o número emocional
-central do simulador — trate-o com destaque de acento dourado, não com alarme.
+central do simulador — trate-o com destaque de acento violeta, não com alarme.
 
 ---
 

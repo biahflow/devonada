@@ -146,7 +146,7 @@ export default function Renegociar() {
 }
 
 const styles = StyleSheet.create({
-  conteudo: { paddingBottom: spacing.xxl, gap: spacing.lg },
+  conteudo: { paddingBottom: spacing.xxxl, gap: spacing.lg },
   aviso: { ...typography.caption, color: colors.inkSoft },
   form: { gap: spacing.lg },
 });

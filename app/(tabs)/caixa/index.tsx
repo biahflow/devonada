@@ -20,8 +20,8 @@ export default function CaixaScreen() {
 
   const cabecalho = (
     <PageHeader
-      eyebrow="Seu mês"
-      title="Caixa"
+      titleLead="Seu"
+      title="caixa"
       description="Quanto entra, quanto sai e o que sobra de verdade para pagar dívida."
     />
   );
@@ -198,7 +198,7 @@ export default function CaixaScreen() {
 }
 
 const styles = StyleSheet.create({
-  conteudo: { paddingBottom: spacing.xxl, gap: spacing.lg },
+  conteudo: { paddingBottom: spacing.xxxl, gap: spacing.lg },
   tiles: { gap: spacing.lg },
   notaTitulo: { ...typography.bodyStrong, color: colors.ink, marginBottom: spacing.xs },
   nota: { ...typography.caption, color: colors.inkSoft },

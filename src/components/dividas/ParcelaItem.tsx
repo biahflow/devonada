@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.md,
   },
-  cardPaga: { backgroundColor: colors.background, borderColor: colors.accentSoft },
+  cardPaga: { backgroundColor: colors.background, borderColor: colors.accent, borderWidth: 2 },
   linha: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   info: { gap: 2, flex: 1 },
   numero: { ...typography.bodyStrong, color: colors.ink },

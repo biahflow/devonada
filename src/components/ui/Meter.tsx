@@ -24,18 +24,22 @@ interface Props {
 export function Meter({ rotulo, bps, limiteBps, contexto }: Props) {
   const acimaDoLimite = limiteBps !== undefined && bps > limiteBps;
   const preenchimento = Math.min(100, Math.max(0, bps / 100));
-  const tom = acimaDoLimite ? colors.warning : colors.primary;
+  // Duas cores para o mesmo estado: o texto precisa passar 4,5:1 e a barra
+  // precisa passar o piso de croma. `primary` cumpre a primeira e reprova a
+  // segunda — numa barra fina ele lê como cinza (docs/design-system.md, 4b).
+  const tomTexto = acimaDoLimite ? colors.warning : colors.primary;
+  const tomBarra = acimaDoLimite ? colors.warning : colors.primaryBright;
 
   return (
     <View style={styles.container}>
       <View style={styles.cabecalho}>
         <Text style={styles.rotulo}>{rotulo}</Text>
-        <Text style={[styles.valor, { color: tom }]}>{formatBasisPoints(bps)}</Text>
+        <Text style={[styles.valor, { color: tomTexto }]}>{formatBasisPoints(bps)}</Text>
       </View>
 
       <View style={styles.trilho}>
         <View
-          style={[styles.preenchimento, { width: `${preenchimento}%`, backgroundColor: tom }]}
+          style={[styles.preenchimento, { width: `${preenchimento}%`, backgroundColor: tomBarra }]}
         />
         {limiteBps !== undefined ? (
           <View style={[styles.limiar, { left: `${Math.min(100, limiteBps / 100)}%` }]} />
@@ -61,7 +65,7 @@ const styles = StyleSheet.create({
   container: { gap: spacing.sm },
   cabecalho: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   rotulo: { ...typography.caption, color: colors.inkSoft },
-  valor: { ...typography.numeric, fontVariant: ['tabular-nums'] },
+  valor: { ...typography.numeric },
   trilho: {
     height: 10,
     borderRadius: radius.pill,

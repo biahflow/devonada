@@ -6,10 +6,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as SplashScreen from 'expo-splash-screen';
 import {
   useFonts,
-  Inter_400Regular,
-  Inter_600SemiBold,
-  Inter_700Bold,
-} from '@expo-google-fonts/inter';
+  NunitoSans_400Regular,
+  NunitoSans_600SemiBold,
+  NunitoSans_700Bold,
+} from '@expo-google-fonts/nunito-sans';
 import { ApiError } from '../src/api/client';
 import { colors } from '../src/theme/theme';
 
@@ -43,9 +43,9 @@ const queryClient = new QueryClient({
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
-    Inter_400Regular,
-    Inter_600SemiBold,
-    Inter_700Bold,
+    NunitoSans_400Regular,
+    NunitoSans_600SemiBold,
+    NunitoSans_700Bold,
   });
 
   useEffect(() => {

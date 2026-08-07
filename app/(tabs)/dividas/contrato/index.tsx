@@ -96,7 +96,7 @@ export default function EnviarContrato() {
 }
 
 const styles = StyleSheet.create({
-  conteudo: { paddingBottom: spacing.xxl, gap: spacing.lg },
+  conteudo: { paddingBottom: spacing.xxxl, gap: spacing.lg },
   tituloCard: { ...typography.bodyStrong, color: colors.ink, marginBottom: spacing.sm },
   item: { ...typography.caption, color: colors.inkSoft, paddingVertical: 2 },
   arquivo: { gap: 2 },

@@ -216,7 +216,11 @@ Prioridade de cobertura, nesta ordem: `src/util/money.ts` (dinheiro), `src/api/c
 | [0001](adr/0001-expo-router-como-navegacao.md) | expo-router como camada de navegação |
 | [0002](adr/0002-tanstack-query-para-server-state.md) | TanStack Query para estado de servidor |
 | [0003](adr/0003-calculo-financeiro-fica-no-backend.md) | Todo cálculo financeiro fica no backend |
-| [0004](adr/0004-paleta-hibrida-pine-e-dourado.md) | Paleta híbrida: pine primário, dourado acento |
+| [0004](adr/0004-paleta-hibrida-pine-e-dourado.md) | Paleta híbrida: pine primário, dourado acento (superseded pela 0010) |
 | [0005](adr/0005-descarte-do-arquivo-de-contrato.md) | O arquivo do contrato é descartado após a extração |
 | [0006](adr/0006-postgres-token-fixo-e-extrator-plugavel.md) | Postgres, token fixo e extrator plugável |
 | [0007](adr/0007-camada-de-provedor-de-llm.md) | Camada de provedor de LLM, e OpenAI como padrão |
+| [0008](adr/0008-valor-justo-e-soma-de-achados.md) | `valorJusto` é soma de achados citáveis, não estimativa |
+| [0009](adr/0009-o-usuario-decide-a-ordem-dos-potes.md) | O usuário decide a ordem dos potes; o app mostra a aritmética |
+| [0010](adr/0010-paleta-derivada-de-pierre-e-budgi.md) | Paleta derivada de Pierre e Budgi (superseded pela 0011) |
+| [0011](adr/0011-forma-do-budgi-a-partir-das-telas.md) | A forma vem das telas do produto, não do CSS da landing |
