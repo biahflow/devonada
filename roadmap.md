@@ -1,6 +1,6 @@
 # Roadmap — front do Buddy Financeiro
 
-> Atualizado em 06/08/2026. Sequência de construção, **não cronograma**.
+> Atualizado em 07/08/2026. Sequência de construção, **não cronograma**.
 > Escopo: o cliente Expo / React Native. O **backend faz parte do repositório** e é desenvolvido
 > junto a partir do M3 — o que cada milestone exige dele está em `docs/api-contract.md`, que
 > continua sendo a fila canônica. (M0–M2 foram construídos com o backend ainda por fazer, e é
@@ -369,6 +369,61 @@ custa dois toques e mantém a garantia.
 
 **Sai com:** o simulador recusando o aporte que hoje ele aceita, porque agora ele conhece o
 custo de vida real — e o usuário sabendo, em janeiro, que o IPVA já está guardado.
+
+---
+
+## Pré-lançamento — o que bloqueia publicar e cobrar
+
+> **Escopo maior que o front.** O resto deste documento fala do cliente Expo; esta seção fala do
+> produto. Nada aqui é código de tela, e três itens não são código nenhum.
+>
+> Nada do que foi construído é desqualificante para as lojas. O app **não é instituição
+> financeira**: não empresta, não intermedeia crédito e não custodia dinheiro, e é por isso que
+> não há autorização de BACEN a obter. As escolhas que teriam custado reescrita na véspera —
+> multi-tenant desde o primeiro commit, nenhum segredo no bundle, todo cálculo no servidor,
+> exclusão lógica de dívida — já estão certas. O que falta é a camada de conta e a burocracia.
+
+**Conta de usuário — hoje não existe.**
+
+- [ ] Autenticação real. O acesso hoje é um token fixo entregue por QR (ADR 0006), que era
+      solução de beta e não passa em revisão de loja quando há dado pessoal.
+- [ ] **Exclusão de conta dentro do app** — Apple, diretriz 5.1.1(v), obrigatória sempre que há
+      criação de conta.
+- [ ] **Página web de solicitação de exclusão** — exigência do Google, e ela é *adicional* à do
+      app, não substitui.
+
+**Declarações — nenhuma escrita.**
+
+- [ ] Política de privacidade com URL pública.
+- [ ] *App Privacy* (Apple) e *Data safety* (Google) preenchidos. Renda, gastos, dívidas e o
+      contrato são o dado mais sensível do produto, e declarar errado é motivo comum de remoção.
+- [ ] Declaração de recursos financeiros no Play Console. O app não empresta, mas administra
+      dívida — essa seção do formulário precisa ser lida com atenção.
+- [ ] Divulgar que o contrato é enviado a um provedor de LLM. A ADR 0005 e o guardrail 8 já
+      sustentam o texto: o arquivo é **descartado** após a extração. O PDF pode conter CPF e
+      dados de terceiros, e isso precisa estar dito.
+
+**Cobrança.**
+
+- [ ] Assinatura por **in-app purchase** (StoreKit / Play Billing). Para conteúdo digital as duas
+      lojas obrigam o meio de pagamento delas — Pix ou Stripe direto não passa.
+
+**Risco que não é de loja, e é o maior.**
+
+- [ ] **Revisão da copy de negociação por advogado**, antes do público. Consultoria jurídica e
+      postulação são privativas de advogado (Lei 8.906/94, art. 1º); informar sobre a lei não é.
+      Os guardrails já fazem o certo — citar fonte, nunca afirmar ilegalidade, não redigir
+      petição, disclaimer no card, teste que quebra em "ilegal" e "é seu direito" — e é essa
+      postura que mantém o produto do lado certo da linha. É o único item da lista que pode
+      **encerrar** o produto em vez de atrasar um release.
+- [ ] Publicar sob **CNPJ**, não conta pessoal: app de serviço financeiro vem da entidade que
+      presta o serviço.
+
+**Validação em device.**
+
+- [ ] M0 a M7, milestone a milestone. Está detalhado em cada um acima e não se resolve em lote:
+      nenhum gate automático prova que a tela é legível, que o teclado não cobre o campo ou que a
+      notificação toca na hora certa.
 
 ---
 
