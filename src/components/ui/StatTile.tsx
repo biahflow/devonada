@@ -29,11 +29,7 @@ export function StatTile({ rotulo, centavos, texto, contexto, destaque }: Props)
       {ausente ? (
         <Text style={styles.ausente}>ainda não calculado</Text>
       ) : centavos !== undefined ? (
-        <MoneyText
-          centavos={centavos}
-          size={destaque ? 'display' : 'numeric'}
-          tone={destaque ? 'ink' : 'ink'}
-        />
+        <MoneyText centavos={centavos} size={destaque ? 'display' : 'numeric'} tone="ink" />
       ) : (
         <Text style={destaque ? styles.textoDestaque : styles.texto}>{texto}</Text>
       )}

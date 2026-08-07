@@ -228,7 +228,7 @@ function NovoGasto() {
 }
 
 const styles = StyleSheet.create({
-  conteudo: { paddingBottom: spacing.xxl, gap: spacing.lg },
+  conteudo: { paddingBottom: spacing.xxxl, gap: spacing.lg },
   secao: { gap: spacing.md },
   tituloSecao: { ...typography.bodyStrong, color: colors.ink },
   linha: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },

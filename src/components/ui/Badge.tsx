@@ -7,11 +7,16 @@ interface Props {
   tone?: 'neutro' | 'primario' | 'progresso' | 'atencao' | 'alto';
 }
 
+/**
+ * `progresso` é violeta e `atencao` é âmbar — dois pastéis distintos, a ΔE 51 um
+ * do outro. Antes os dois eram o mesmo par de cores, o que fazia conquista e
+ * alerta se parecerem. Ver ADR 0011.
+ */
 const tones = {
   neutro: { bg: colors.neutralSurface, fg: colors.inkSoft },
   primario: { bg: colors.primarySurface, fg: colors.primaryDeep },
-  progresso: { bg: colors.accentSoft, fg: colors.warning },
-  atencao: { bg: colors.accentSoft, fg: colors.warning },
+  progresso: { bg: colors.accentSurface, fg: colors.accent },
+  atencao: { bg: colors.warningSurface, fg: colors.warning },
   alto: { bg: colors.dangerSurface, fg: colors.danger },
 } as const;
 

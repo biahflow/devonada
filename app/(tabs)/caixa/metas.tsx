@@ -171,7 +171,7 @@ function Formulario({ inicial, onPronto }: { inicial: MetasCaixa; onPronto: () =
 }
 
 const styles = StyleSheet.create({
-  conteudo: { paddingBottom: spacing.xxl, gap: spacing.lg },
+  conteudo: { paddingBottom: spacing.xxxl, gap: spacing.lg },
   explicacao: { ...typography.caption, color: colors.inkSoft },
   secao: { gap: spacing.xs, marginTop: spacing.md },
   tituloSecao: { ...typography.bodyStrong, color: colors.ink },

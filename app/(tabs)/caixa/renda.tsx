@@ -226,7 +226,7 @@ function NovaFonte() {
 }
 
 const styles = StyleSheet.create({
-  conteudo: { paddingBottom: spacing.xxl, gap: spacing.lg },
+  conteudo: { paddingBottom: spacing.xxxl, gap: spacing.lg },
   cabecalhoItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   tituloItem: { flexShrink: 1, paddingRight: spacing.md },
   nome: { ...typography.bodyStrong, color: colors.ink },

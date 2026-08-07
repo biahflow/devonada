@@ -64,6 +64,6 @@ export function CurrencyInput({
 }
 
 const styles = StyleSheet.create({
-  money: { ...typography.numeric, fontVariant: ['tabular-nums'], color: colors.ink },
+  money: { ...typography.numeric, color: colors.ink },
   error: { borderColor: colors.danger },
 });

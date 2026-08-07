@@ -253,7 +253,7 @@ describe('tela do chat', () => {
     );
 
     fireEvent.changeText(screen.getByLabelText('Mensagem'), 'e o nubank?');
-    fireEvent.press(screen.getByText('Enviar'));
+    fireEvent.press(screen.getByLabelText('Enviar'));
 
     await waitFor(() => expect(screen.getByText('Vamos lá.')).toBeTruthy());
     expect(screen.getByText('e o nubank?')).toBeTruthy();
@@ -271,7 +271,7 @@ describe('tela do chat', () => {
     );
 
     fireEvent.changeText(screen.getByLabelText('Mensagem'), 'oi');
-    fireEvent.press(screen.getByText('Enviar'));
+    fireEvent.press(screen.getByLabelText('Enviar'));
 
     await waitFor(() => expect(screen.getByText('Não deu certo agora. Tente de novo.')).toBeTruthy());
   });

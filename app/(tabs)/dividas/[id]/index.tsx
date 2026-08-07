@@ -176,7 +176,7 @@ function Campo({ rotulo, centavos }: { rotulo: string; centavos?: number }) {
 }
 
 const styles = StyleSheet.create({
-  conteudo: { paddingBottom: spacing.xxl, gap: spacing.lg },
+  conteudo: { paddingBottom: spacing.xxxl, gap: spacing.lg },
   linha: {
     flexDirection: 'row',
     alignItems: 'center',

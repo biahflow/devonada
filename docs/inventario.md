@@ -92,7 +92,7 @@ Números lidos das fontes, não de memória. Fonte de cada bloco indicada no cab
 | `expo-notifications` | ~0.32.17 |
 | `expo-document-picker` · `expo-image-picker` | ~14.0.8 · ~17.0.11 |
 | `expo-clipboard` · `expo-linking` · `expo-constants` | ~8.0.8 · ~8.0.12 · ~18.0.13 |
-| `@expo-google-fonts/inter` · `@expo/vector-icons` | ^0.4.2 · ^15.0.3 |
+| `@expo-google-fonts/nunito-sans` · `@expo/vector-icons` | ^0.4.2 · ^15.0.3 |
 | `@react-native-community/slider` · `datetimepicker` | 5.0.1 · 8.4.4 |
 
 Dev: `jest` ^29 · `jest-expo` ^57 · `@testing-library/react-native` ^13 · `eslint` ^9 ·
@@ -261,10 +261,13 @@ instrui a não pagar (`docs/guardrails.md`, seção 3).
 
 ### Design system — `docs/design-system.md`
 
-Paleta híbrida pine + dourado (ADR 0004), tipografia Inter, tom **anti-ansiedade**: acima do
-limite é `warning` com ícone e texto, nunca `danger`, nunca cor sozinha.
+Forma derivada das telas do Budgi (ADR 0011) — card branco sem borda sobre base clara, teal de
+ação, violeta de conquista, anel colorido de categoria —, tipografia Nunito Sans, tom
+**anti-ansiedade**: acima do limite é `warning` com ícone e texto, nunca `danger`, nunca cor
+sozinha. Todo par texto/fundo é medido, não estimado.
 
-Componentes: `Screen`, `PageHeader`, `Card`, `Button`, `FormField`, `CurrencyInput`,
+Componentes: `Screen`, `PageHeader`, `Card`, `ListRow`, `GrupoDeLista`, `CategoriaIcon`,
+`Button`, `FormField`, `CurrencyInput`,
 `PercentInput`, `DateField`, `OptionGroup`, `SeletorDeArquivo`, `Feedback`, `LoadingState`,
 `EmptyState`, `ErrorState`, `Badge`/`CriticidadeBadge`, `MoneyText`, `StatTile`, `Meter`,
 `ConfigurarConexaoButton`. Gráficos em `react-native-svg`: `LinhaEvolucao`, `BarrasCriticidade`
@@ -299,12 +302,14 @@ Isso é o "falta device" que aparece em quase todos os milestones.
 | 0001 | expo-router como camada de navegação |
 | 0002 | TanStack Query para estado de servidor |
 | 0003 | Todo cálculo financeiro fica no backend |
-| 0004 | Paleta híbrida: pine primário, dourado acento |
+| 0004 | Paleta híbrida: pine primário, dourado acento (superseded pela 0010) |
 | 0005 | O arquivo do contrato é descartado após a extração |
 | 0006 | Postgres, token fixo e extrator plugável (extrator substituído pela 0007) |
 | 0007 | Camada de provedor de LLM, e OpenAI como padrão |
 | 0008 | `valorJusto` é soma de achados citáveis, não estimativa |
 | 0009 | O usuário decide a ordem dos potes; o app mostra a aritmética |
+| 0010 | Paleta derivada de Pierre e Budgi (superseded pela 0011) |
+| 0011 | A forma vem das telas do produto, não do CSS da landing |
 
 ADR aceita nunca é reescrita — decisão que muda vira ADR nova.
 

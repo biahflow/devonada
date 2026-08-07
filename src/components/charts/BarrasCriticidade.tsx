@@ -12,10 +12,12 @@ interface Props {
 /**
  * Distribuição do total devido por criticidade.
  *
- * As barras usam UM ÚNICO TOM, não uma cor por categoria. A decisão veio da
- * validação de paleta (docs/design-system.md, seção de dados): quatro matizes
- * tirados desta paleta falharam no piso de distinção — pine e o neutro ficam
- * indistinguíveis mesmo para quem enxerga todas as cores.
+ * As barras usam UM ÚNICO TOM, não uma cor por categoria — mas o motivo mudou, e
+ * vale registrar. Com a paleta de categoria atual (teal, azul, magenta, âmbar) a
+ * separação de cor finalmente PASSA no validador. O que continua valendo é o
+ * outro argumento da seção 4b: o `CriticidadeBadge` ao lado já nomeia a
+ * categoria, então quatro matizes aqui seriam redundantes com o rótulo, não
+ * informação nova.
  *
  * A identidade vem do `CriticidadeBadge` ao lado, onde a cor semântica já
  * funciona em escala de badge. Cor por categoria aqui seria redundante com o
@@ -60,7 +62,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutralSurface,
     overflow: 'hidden',
   },
-  barra: { height: '100%', borderRadius: radius.pill, backgroundColor: colors.primary },
+  barra: { height: '100%', borderRadius: radius.pill, backgroundColor: colors.primaryBright },
   quantidade: { ...typography.caption, color: colors.inkSoft, fontSize: 11 },
   vazio: { ...typography.caption, color: colors.inkSoft },
 });

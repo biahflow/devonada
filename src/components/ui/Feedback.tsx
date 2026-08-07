@@ -8,10 +8,15 @@ interface Props {
   tone?: Tone;
 }
 
+/**
+ * `success` usa o violeta em vez de um verde próprio: qualquer verde de
+ * confirmação ficava a ΔE 1,6 do teal de ação — a mesma cor, na prática.
+ * Ver ADR 0011.
+ */
 const tones: Record<Tone, { bg: string; border: string; fg: string }> = {
   info: { bg: colors.primarySurface, border: colors.primarySoft, fg: colors.primaryDeep },
-  success: { bg: colors.primarySurface, border: colors.primarySoft, fg: colors.success },
-  warning: { bg: colors.accentSoft, border: colors.accent, fg: colors.warning },
+  success: { bg: colors.accentSurface, border: colors.accent, fg: colors.accent },
+  warning: { bg: colors.warningSurface, border: colors.warningBorder, fg: colors.warning },
   error: { bg: colors.dangerSurface, border: colors.dangerBorder, fg: colors.danger },
 };
 

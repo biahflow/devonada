@@ -201,13 +201,13 @@ export default function Simulador() {
 }
 
 const styles = StyleSheet.create({
-  conteudo: { paddingBottom: spacing.xxl, gap: spacing.md },
-  duplo: { flexDirection: 'row', gap: spacing.md, alignItems: 'stretch' },
-  recusa: { marginTop: spacing.md },
+  conteudo: { paddingBottom: spacing.xxxl, gap: spacing.lg },
   rotuloLiberdade: { ...typography.caption, color: colors.inkSoft },
-  // Acento dourado, nunca alarme: é o número emocional da tela.
+  // Violeta, nunca alarme: é o número emocional da tela.
   liberdade: { ...typography.display, color: colors.accent, marginTop: spacing.xs },
   contexto: { ...typography.caption, color: colors.inkSoft, marginTop: spacing.xs },
+  duplo: { flexDirection: 'row', gap: spacing.md, alignItems: 'stretch' },
+  recusa: { marginTop: spacing.md },
   tituloSecao: { ...typography.bodyStrong, color: colors.ink, marginBottom: spacing.md },
   linhaDiferenca: {
     flexDirection: 'row',

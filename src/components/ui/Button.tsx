@@ -2,11 +2,14 @@ import { Pressable, Text, StyleSheet, ActivityIndicator, type ViewStyle } from '
 import { colors, radius, spacing, typography } from '../../theme/theme';
 
 type Variant = 'primary' | 'secondary' | 'danger' | 'ghost';
+type Size = 'md' | 'lg';
 
 interface Props {
   label: string;
   onPress: () => void;
   variant?: Variant;
+  /** `lg` é o CTA principal de uma tela. `md` (48pt) segue sendo o piso. */
+  size?: Size;
   loading?: boolean;
   disabled?: boolean;
   style?: ViewStyle;
@@ -31,6 +34,7 @@ export function Button({
   label,
   onPress,
   variant = 'primary',
+  size = 'md',
   loading,
   disabled,
   style,
@@ -47,6 +51,7 @@ export function Button({
       accessibilityHint={accessibilityHint}
       style={({ pressed }) => [
         styles.base,
+        size === 'lg' && styles.lg,
         container[variant],
         inactive && styles.inactive,
         pressed && styles.pressed,
@@ -56,7 +61,9 @@ export function Button({
       {loading ? (
         <ActivityIndicator color={labelColor[variant]} />
       ) : (
-        <Text style={[styles.label, { color: labelColor[variant] }]}>{label}</Text>
+        <Text style={[styles.label, size === 'lg' && styles.labelLg, { color: labelColor[variant] }]}>
+          {label}
+        </Text>
       )}
     </Pressable>
   );
@@ -70,7 +77,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
   },
+  lg: { minHeight: 56, paddingHorizontal: spacing.xl },
   inactive: { opacity: 0.5 },
   pressed: { opacity: 0.85 },
   label: { ...typography.bodyStrong },
+  labelLg: { fontSize: 17 },
 });

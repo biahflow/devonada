@@ -11,6 +11,7 @@ import { LoadingState } from '../../../src/components/ui/LoadingState';
 import { ErrorState } from '../../../src/components/ui/ErrorState';
 import { EmptyState } from '../../../src/components/ui/EmptyState';
 import { MoneyText } from '../../../src/components/ui/MoneyText';
+import { ListRow } from '../../../src/components/ui/ListRow';
 import { LinhaEvolucao } from '../../../src/components/charts/LinhaEvolucao';
 import { BarrasCriticidade } from '../../../src/components/charts/BarrasCriticidade';
 import { SeletorDeMes } from '../../../src/components/painel/SeletorDeMes';
@@ -35,8 +36,8 @@ export default function Painel() {
   const cabecalho = (
     <>
       <PageHeader
-        eyebrow="Diagnóstico"
-        title="Painel"
+        titleLead="Seu"
+        title="painel"
         description="Quanto pesa, para onde vai e o que muda se você agir."
       />
       <SeletorDeMes mes={mes} maximo={hoje} onChange={setMes} />
@@ -185,18 +186,16 @@ export default function Painel() {
             <Text style={styles.vazio}>Nenhum vencimento à vista.</Text>
           ) : (
             resumo.proximosVencimentos.map((v) => (
-              <View key={`${v.dividaId}-${v.vencimento}`} style={styles.vencimento}>
-                <View style={styles.vencimentoInfo}>
-                  <Text style={styles.credor} numberOfLines={1}>
-                    {v.credor}
-                  </Text>
-                  <Text style={v.situacao === 'atrasada' ? styles.atrasada : styles.data}>
-                    {v.situacao === 'atrasada' ? 'atrasada · ' : ''}
-                    {isoParaBR(v.vencimento)}
-                  </Text>
-                </View>
-                <MoneyText centavos={v.valor} size="body" />
-              </View>
+              <ListRow
+                key={`${v.dividaId}-${v.vencimento}`}
+                titulo={v.credor}
+                subtitulo={isoParaBR(v.vencimento)}
+                icon="calendar"
+                cor={v.situacao === 'atrasada' ? 'ambar' : 'teal'}
+                estado={v.situacao === 'atrasada' ? 'atencao' : 'neutro'}
+                valor={<MoneyText centavos={v.valor} size="body" />}
+                legenda={v.situacao === 'atrasada' ? 'atrasada' : undefined}
+              />
             ))
           )}
         </Card>
@@ -206,7 +205,7 @@ export default function Painel() {
 }
 
 const styles = StyleSheet.create({
-  conteudo: { paddingBottom: spacing.xxl, gap: spacing.md },
+  conteudo: { paddingBottom: spacing.xxxl, gap: spacing.lg },
   duplo: { flexDirection: 'row', gap: spacing.md },
   metade: { flex: 1 },
   tituloSecao: { ...typography.bodyStrong, color: colors.ink, marginBottom: spacing.md },
@@ -221,16 +220,5 @@ const styles = StyleSheet.create({
   conviteTitulo: { ...typography.bodyStrong, color: colors.ink },
   conviteTexto: { ...typography.caption, color: colors.inkSoft },
   acaoSimulador: { marginTop: spacing.md },
-  vencimento: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  vencimentoInfo: { flex: 1, gap: 2 },
-  credor: { ...typography.body, color: colors.ink },
-  data: { ...typography.caption, color: colors.inkSoft },
-  atrasada: { ...typography.caption, color: colors.warning },
   vazio: { ...typography.caption, color: colors.inkSoft },
 });

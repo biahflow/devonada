@@ -50,9 +50,11 @@ quanto o das certas — ele impede que o mesmo caminho seja tentado duas vezes.
 | [0001](0001-expo-router-como-navegacao.md) | expo-router como camada de navegação | aceito |
 | [0002](0002-tanstack-query-para-server-state.md) | TanStack Query para estado de servidor | aceito |
 | [0003](0003-calculo-financeiro-fica-no-backend.md) | Todo cálculo financeiro fica no backend | aceito |
-| [0004](0004-paleta-hibrida-pine-e-dourado.md) | Paleta híbrida: pine primário, dourado acento | aceito |
+| [0004](0004-paleta-hibrida-pine-e-dourado.md) | Paleta híbrida: pine primário, dourado acento | superseded por ADR 0010 |
 | [0005](0005-descarte-do-arquivo-de-contrato.md) | O arquivo do contrato é descartado após a extração | aceito |
 | [0006](0006-postgres-token-fixo-e-extrator-plugavel.md) | Postgres, token fixo e extrator plugável | aceito (extrator plugável substituído pela 0007) |
 | [0007](0007-camada-de-provedor-de-llm.md) | Camada de provedor de LLM, e OpenAI como padrão | aceito |
 | [0008](0008-valor-justo-e-soma-de-achados.md) | `valorJusto` é soma de achados citáveis, não estimativa | aceito |
 | [0009](0009-o-usuario-decide-a-ordem-dos-potes.md) | O usuário decide a ordem dos potes; o app mostra a aritmética | aceito |
+| [0010](0010-paleta-derivada-de-pierre-e-budgi.md) | Paleta derivada de Pierre e Budgi; lime é preenchimento, nunca texto | superseded por ADR 0011 |
+| [0011](0011-forma-do-budgi-a-partir-das-telas.md) | A forma vem das telas do produto, não do CSS da landing | aceito |

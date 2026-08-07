@@ -21,8 +21,8 @@ export default function ListaDividas() {
 
   const cabecalho = (
     <PageHeader
-      eyebrow="Raio-x"
-      title="Suas dívidas"
+      titleLead="Suas"
+      title="dívidas"
       description="Um retrato honesto do que existe hoje, sem susto."
       action={
         <Button
@@ -118,7 +118,7 @@ export default function ListaDividas() {
 }
 
 const styles = StyleSheet.create({
-  lista: { paddingBottom: spacing.xxl },
+  lista: { paddingBottom: spacing.xxxl },
   chips: { flexDirection: 'row', gap: spacing.sm, paddingBottom: spacing.lg },
   chip: {
     minHeight: 48,

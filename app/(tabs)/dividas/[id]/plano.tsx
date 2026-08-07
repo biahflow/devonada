@@ -115,7 +115,7 @@ export default function PlanoDePagamento() {
 }
 
 const styles = StyleSheet.create({
-  lista: { paddingBottom: spacing.xxl },
+  lista: { paddingBottom: spacing.xxxl },
   progresso: { ...typography.caption, color: colors.inkSoft, paddingBottom: spacing.md },
   separador: { height: spacing.md },
   rodape: { marginTop: spacing.lg },

@@ -158,6 +158,8 @@ describe('aba de chat', () => {
     renderizarTela(<ChatTab />);
 
     await waitFor(() => expect(screen.getByText(/Me conta de uma dívida/)).toBeTruthy());
-    expect(screen.getByText('Enviar')).toBeTruthy();
+    // O botão de enviar é um ícone circular, como no design system: sem texto
+    // visível, ele é encontrado pelo accessibilityLabel obrigatório.
+    expect(screen.getByLabelText('Enviar')).toBeTruthy();
   });
 });

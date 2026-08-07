@@ -116,7 +116,7 @@ export default function ConfigurarToken() {
 }
 
 const styles = StyleSheet.create({
-  conteudo: { paddingBottom: spacing.xxl, gap: spacing.lg },
+  conteudo: { paddingBottom: spacing.xxxl, gap: spacing.lg },
   explicacao: { ...typography.caption, color: colors.inkSoft },
   form: { gap: spacing.md },
 });
