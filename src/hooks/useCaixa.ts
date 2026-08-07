@@ -1,6 +1,8 @@
+import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   atualizarFonte,
+  confirmarFechamento,
   atualizarGasto,
   atualizarProvisao,
   criarFonte,
@@ -10,6 +12,7 @@ import {
   excluirGasto,
   excluirProvisao,
   getCaixa,
+  getFechamento,
   getHistoricoCaixa,
   getMetas,
   listarFontes,
@@ -21,8 +24,10 @@ import {
   type NovaProvisao,
   type NovoGasto,
 } from '../api/caixa';
-import type { MetasCaixa, Uuid } from '../api/types';
+import type { ItemConfirmado, MetasCaixa, Uuid } from '../api/types';
 import { dividasKeys } from './useDividas';
+import { usePerfil } from './usePainel';
+import { agendarFechamento } from '../notificacoes';
 
 /**
  * Chaves hierárquicas: invalidar `['caixa']` alcança a cascata, as listas e as
@@ -36,11 +41,24 @@ export const caixaKeys = {
   provisoes: ['caixa', 'provisoes'] as const,
   metas: ['caixa', 'metas'] as const,
   historico: ['caixa', 'historico'] as const,
+  fechamento: (mes?: string) => ['caixa', 'fechamento', mes ?? 'atual'] as const,
 };
 
 export function useCaixa() {
   const query = useQuery({ queryKey: caixaKeys.cascata, queryFn: getCaixa });
   return { ...query, caixa: query.data?.caixa };
+}
+
+/**
+ * A proposta de fechamento do mês. Cai dentro do prefixo `['caixa']`, então a
+ * confirmação revalida cascata, listas e proposta de uma vez.
+ */
+export function useFechamento(mes?: string) {
+  const query = useQuery({
+    queryKey: caixaKeys.fechamento(mes),
+    queryFn: () => getFechamento(mes),
+  });
+  return { ...query, proposta: query.data?.proposta };
 }
 
 export function useHistoricoCaixa() {
@@ -159,4 +177,40 @@ export function useExcluirProvisao() {
 export function useAtualizarMetas() {
   const invalidar = useInvalidarCaixa();
   return useMutation({ mutationFn: (metas: MetasCaixa) => updateMetas(metas), onSuccess: invalidar });
+}
+
+/**
+ * Confirma o mês. Só o que vai em `itens` é gravado — a tela nunca envia uma
+ * linha que o usuário não tocou nem confirmou (guardrail 8.1).
+ */
+export function useConfirmarFechamento() {
+  const invalidar = useInvalidarCaixa();
+  return useMutation({
+    mutationFn: ({ mes, itens }: { mes: string; itens: readonly ItemConfirmado[] }) =>
+      confirmarFechamento(mes, itens),
+    onSuccess: invalidar,
+  });
+}
+
+/**
+ * Mantém o lembrete mensal de fechamento em dia com a preferência do perfil.
+ *
+ * Reagenda a cada montagem em vez de usar gatilho mensal repetido: repetição
+ * mensal não tem suporte igual nas duas plataformas, e o app abre com muito
+ * mais frequência que uma vez por mês. Mesma estratégia de `useLembretes`.
+ *
+ * Dia ausente é o lembrete desligado — `agendarFechamento` cancela e não agenda.
+ */
+export function useLembreteFechamento() {
+  const { perfil } = usePerfil();
+  const dia = perfil?.fechamentoDiaDoMes;
+  const hora = perfil?.horaLembrete;
+
+  useEffect(() => {
+    if (!hora) return;
+    agendarFechamento(dia ?? undefined, hora).catch(() => {
+      // Falha de agendamento não derruba a tela: o caixa continua utilizável
+      // sem lembrete, e um alerta aqui não teria o que oferecer ao usuário.
+    });
+  }, [dia, hora]);
 }

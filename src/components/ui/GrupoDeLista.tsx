@@ -4,8 +4,11 @@ import { Card } from './Card';
 import { colors, spacing, typography } from '../../theme/theme';
 
 interface Props {
-  /** Cabeçalho do período: "Sexta, dia 15", "Novembro de 2026". */
-  periodo: string;
+  /**
+   * Cabeçalho do período: "Sexta, dia 15", "Novembro de 2026". Opcional: uma
+   * lista de dívidas não tem período, mas quer o mesmo card com divisores.
+   */
+  periodo?: string;
   /** Rótulo do rodapé. Sem ele, o grupo não fecha com total. */
   totalRotulo?: string;
   /** Passe um `MoneyText` — esta camada não formata dinheiro. */
@@ -22,10 +25,15 @@ interface Props {
  */
 export function GrupoDeLista({ periodo, totalRotulo, total, children }: Props) {
   return (
-    <Card>
-      <Text style={styles.periodo} accessibilityRole="header">
-        {periodo}
-      </Text>
+    // Padding horizontal menor que o do Card padrão: numa lista, cada pixel
+    // lateral sai do título, e credor truncado em "Financiamento d…" foi o que
+    // apareceu em device com dado real.
+    <Card style={styles.card}>
+      {periodo ? (
+        <Text style={styles.periodo} accessibilityRole="header">
+          {periodo}
+        </Text>
+      ) : null}
 
       <View style={styles.linhas}>{children}</View>
 
@@ -40,6 +48,7 @@ export function GrupoDeLista({ periodo, totalRotulo, total, children }: Props) {
 }
 
 const styles = StyleSheet.create({
+  card: { paddingHorizontal: spacing.md },
   periodo: { ...typography.bodyStrong, color: colors.ink, marginBottom: spacing.xs },
   linhas: { gap: 0 },
   rodape: {

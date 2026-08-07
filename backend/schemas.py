@@ -159,6 +159,10 @@ class PerfilFinanceiro(Camel):
     dependentes: int | None = Field(default=None, ge=0)
     horaLembrete: str = Field(default="09:00", pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
     diasAntecedenciaLembrete: int = Field(default=3, ge=0, le=30)
+    # Dia do mês do lembrete de fechamento. `None` é desligado. Limitado a 28
+    # porque 29, 30 e 31 não existem em todo mês, e um lembrete que some em
+    # fevereiro é pior que um lembrete um dia antes.
+    fechamentoDiaDoMes: int | None = Field(default=None, ge=1, le=28)
 
 
 class RespostaPerfil(Camel):
@@ -530,6 +534,12 @@ class Caixa(Camel):
     # nenhum dos dois é apurável por software.
     naoFecha: bool
     preenchimento: NivelPreenchimento
+    # Quando o usuário confirmou os números pela última vez. `None` nos dois
+    # significa que ele nunca fechou um mês — que NÃO é o mesmo que estar
+    # atrasado, e por isso `caixaDefasado` também é `None` nesse caso.
+    ultimoFechamentoMes: str | None = None
+    mesesDesdeFechamento: int | None = None
+    caixaDefasado: bool | None = None
 
 
 class RespostaCaixa(Camel):
@@ -676,3 +686,63 @@ class SnapshotCaixa(Camel):
 
 class HistoricoCaixa(Camel):
     snapshots: list[SnapshotCaixa]
+
+
+# --- Fechamento do mês -------------------------------------------------------
+
+OrigemDoValor = Literal["mes_anterior", "valor_atual", "sem_referencia"]
+TipoItemFechamento = Literal["recebimento", "gasto"]
+
+
+class ItemFechamento(Camel):
+    """
+    Uma linha da proposta de fechamento.
+
+    `valorSugerido` é `None` quando não há de onde tirar referência — campo
+    vazio, NUNCA zero. Zero afirmaria que a pessoa não recebeu nada, que é
+    diferente de "não sabemos quanto ela recebeu".
+
+    `origem` viaja para a tela poder dizer de onde veio o número, no mesmo
+    espírito de `origemRenda`. Um número pré-preenchido sem procedência visível
+    é indistinguível de um número inventado.
+    """
+
+    tipo: TipoItemFechamento
+    id: str
+    descricao: str
+    valorSugerido: int | None = None
+    origem: OrigemDoValor
+    # Só para `origem == "mes_anterior"`: qual mês, para a tela escrever.
+    mesDeReferencia: str | None = None
+
+
+class PropostaFechamento(Camel):
+    mes: str
+    itens: list[ItemFechamento]
+
+
+class ItemConfirmado(Camel):
+    tipo: TipoItemFechamento
+    id: str
+    valor: int = Field(ge=0)
+
+
+class ConfirmacaoFechamento(Camel):
+    """
+    O que o usuário confirmou — e só isso é gravado.
+
+    Item omitido não vira zero e não é gravado: quem não confirmou uma linha não
+    afirmou que ela é zero. Mesma disciplina do `extracaoParaProposta`, que
+    descarta campo sem evidência mesmo trazendo valor.
+    """
+
+    mes: str = Field(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")
+    itens: list[ItemConfirmado]
+
+
+class RespostaFechamento(Camel):
+    proposta: PropostaFechamento
+
+
+class RespostaConfirmacao(Camel):
+    caixa: Caixa

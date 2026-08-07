@@ -304,7 +304,7 @@ device.
 
 ---
 
-## M7 — Módulo de caixa — em construção
+## M7 — Módulo de caixa — entregue, aguardando validação em device
 
 O produto sabia o que a pessoa **deve** e não sabia o que ela **ganha e gasta**. Por isso todo
 plano que ele propunha era um chute sobre a capacidade real de pagar. Spec em
@@ -356,11 +356,25 @@ alterado ou desativado (`ativo: false`, que é a chave de liga/desliga). Isso sa
 O que sobra é o que muda de valor: o `recebimento` do PJ, que é mensal por natureza, e o gasto
 variável.
 
-- [ ] Tela de fechamento que abre **pré-preenchida com o mês anterior**, para o usuário confirmar
-      ou ajustar em vez de digitar do zero.
-- [ ] Lembrete opcional de fechamento, reusando o `expo-notifications` do M3.
-- [ ] Sinal quando o caixa está velho: capacidade calculada sobre número de três meses atrás é
-      um número que envelheceu, e a tela precisa dizer isso.
+- [x] Tela de fechamento que abre **pré-preenchida com o mês anterior**, para o usuário confirmar
+      ou ajustar em vez de digitar do zero. Entram só as duas coisas que mudam de valor — o
+      recebimento de fonte variável e o gasto `fixo: false`.
+- [x] **Cada linha diz de onde veio o número.** Valor pré-preenchido sem procedência visível é
+      indistinguível de valor inventado. Sem referência anterior, o campo vai vazio — nunca zero,
+      que afirmaria que a pessoa não recebeu nada.
+- [x] **Item omitido não é gravado.** Não confirmar não é declarar zero, e há teste nos dois
+      lados provando — o gêmeo do teste do M5 que prova que a conversa não cria dívida.
+- [x] Um fechamento grava **um** snapshot, não um por item: o histórico existe para responder
+      "com base em qual renda eu propus aquele acordo?", e oito fotos idênticas o sujariam.
+- [x] Lembrete opcional de fechamento, reusando o `expo-notifications` do M3. Ele **agenda uma
+      ocorrência por vez** em vez de gatilho mensal repetido, que não tem suporte igual nas duas
+      plataformas. De quebra, `reagendar` deixou de cancelar tudo: ele apagaria este lembrete sem
+      nenhum sinal.
+- [x] Sinal quando o caixa está velho: `caixaDefasado` vem do backend, com o limiar de dois meses
+      declarado como escolha de método. Quem **nunca** fechou não aparece como atrasado — os três
+      campos vêm ausentes, porque "ainda não fechou" e "está em dia" são afirmações diferentes.
+- [ ] **Validação em device pendente.** O teclado sobre a lista de campos de valor, o conforto da
+      lista longa em tela pequena e o disparo da notificação mensal exigem aparelho.
 
 **Replicação automática e silenciosa está descartada.** Número que o usuário nunca confirmou
 entrando na capacidade — e daí no plano que ele leva a um credor — é o mesmo erro de gravar

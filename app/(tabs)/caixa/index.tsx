@@ -10,13 +10,15 @@ import { LoadingState } from '../../../src/components/ui/LoadingState';
 import { ErrorState } from '../../../src/components/ui/ErrorState';
 import { EmptyState } from '../../../src/components/ui/EmptyState';
 import { Cascata, type Degrau } from '../../../src/components/caixa/Cascata';
-import { useCaixa } from '../../../src/hooks/useCaixa';
+import { useCaixa, useLembreteFechamento } from '../../../src/hooks/useCaixa';
 import { isoParaBR } from '../../../src/util/date';
+import { formatMesCurto } from '../../../src/util/mes';
 import { colors, spacing, typography } from '../../../src/theme/theme';
 
 export default function CaixaScreen() {
   const router = useRouter();
   const { caixa, isPending, error, refetch, isRefetching } = useCaixa();
+  useLembreteFechamento();
 
   const cabecalho = (
     <PageHeader
@@ -112,6 +114,19 @@ export default function CaixaScreen() {
           />
         ) : null}
 
+        {/* Defasagem: FATO, não repreensão. O backend decide o que é velho
+            (domain/caixa.caixa_defasado); a tela só escreve o número de meses.
+            `caixaDefasado` ausente significa que nunca houve fechamento — e
+            isso não é atraso, é convite. */}
+        {caixa.caixaDefasado ? (
+          <Feedback
+            tone="warning"
+            message={`Seus números são de ${
+              caixa.ultimoFechamentoMes ? formatMesCurto(caixa.ultimoFechamentoMes) : 'antes'
+            }. A capacidade abaixo está calculada sobre eles.`}
+          />
+        ) : null}
+
         {caixa.naoFecha ? (
           <Feedback
             tone="warning"
@@ -165,6 +180,11 @@ export default function CaixaScreen() {
         ) : null}
 
         <View style={styles.acoes}>
+          <Button
+            label={caixa.caixaDefasado ? 'Atualizar o mês' : 'Fechar o mês'}
+            onPress={() => router.push('/caixa/fechamento')}
+            size="lg"
+          />
           <Button
             label="Renda"
             onPress={() => router.push('/caixa/renda')}

@@ -331,3 +331,211 @@ class TestIsolamentoPorTenant:
         caixa = client.get("/v1/caixa", headers=auth).json()["caixa"]
         assert caixa["essenciais"] == 0
         assert client.get("/v1/caixa/gastos", headers=auth).json()["gastos"] == []
+
+
+class TestPropostaDeFechamento:
+    """
+    O `GET /v1/caixa/fechamento` PROPÕE e não grava. É o que separa
+    pré-preencher de replicar em silêncio (guardrail 8.1).
+    """
+
+    def test_entram_so_o_recebimento_variavel_e_o_gasto_variavel(self, client, auth):
+        # Fixo não entra: registro permanente já vale sem redigitar, e é a forma
+        # do modelo que resolve a recorrência.
+        _fonte(client, auth, nome="Contrato PJ", variavel=True)
+        _fonte(client, auth, nome="Aposentadoria", tipo="beneficio", variavel=False)
+        _gasto(client, auth, descricao="Aluguel", fixo=True)
+        _gasto(client, auth, descricao="Mercado", fixo=False, essencial=True)
+
+        itens = client.get("/v1/caixa/fechamento", headers=auth).json()["proposta"]["itens"]
+        descricoes = {i["descricao"] for i in itens}
+        assert descricoes == {"Contrato PJ", "Mercado"}
+
+    def test_sem_mes_anterior_o_campo_vem_VAZIO_e_nao_zero(self, client, auth):
+        # Zero afirmaria que a pessoa não recebeu nada, que é diferente de não
+        # sabermos quanto ela recebeu.
+        _fonte(client, auth, variavel=True)
+
+        item = client.get("/v1/caixa/fechamento?mes=2026-08", headers=auth).json()[
+            "proposta"
+        ]["itens"][0]
+        assert item["valorSugerido"] is None
+        assert item["origem"] == "sem_referencia"
+
+    def test_com_mes_anterior_sugere_e_diz_de_onde_veio(self, client, auth):
+        fonte = _fonte(client, auth, variavel=True).json()["fonte"]
+        client.post(
+            f"/v1/caixa/fontes/{fonte['id']}/recebimentos",
+            json={"mes": "2026-07", "valor": 880000},
+            headers=auth,
+        )
+
+        item = client.get("/v1/caixa/fechamento?mes=2026-08", headers=auth).json()[
+            "proposta"
+        ]["itens"][0]
+        assert item["valorSugerido"] == 880000
+        assert item["origem"] == "mes_anterior"
+        assert item["mesDeReferencia"] == "2026-07"
+
+    def test_refazendo_o_fechamento_mostra_o_que_ja_foi_gravado(self, client, auth):
+        fonte = _fonte(client, auth, variavel=True).json()["fonte"]
+        client.post(
+            f"/v1/caixa/fontes/{fonte['id']}/recebimentos",
+            json={"mes": "2026-07", "valor": 880000},
+            headers=auth,
+        )
+        client.post(
+            f"/v1/caixa/fontes/{fonte['id']}/recebimentos",
+            json={"mes": "2026-08", "valor": 910000},
+            headers=auth,
+        )
+
+        item = client.get("/v1/caixa/fechamento?mes=2026-08", headers=auth).json()[
+            "proposta"
+        ]["itens"][0]
+        assert item["valorSugerido"] == 910000
+        assert item["origem"] == "valor_atual"
+
+    def test_propor_nao_grava_nada(self, client, auth):
+        _fonte(client, auth, variavel=True)
+        antes = len(client.get("/v1/caixa/historico", headers=auth).json()["snapshots"])
+
+        client.get("/v1/caixa/fechamento", headers=auth)
+
+        depois = len(client.get("/v1/caixa/historico", headers=auth).json()["snapshots"])
+        assert depois == antes
+
+
+class TestConfirmacaoDeFechamento:
+    def test_grava_o_confirmado_e_devolve_a_cascata_nova(self, client, auth):
+        fonte = _fonte(client, auth, variavel=True).json()["fonte"]
+        gasto = _gasto(client, auth, descricao="Mercado", fixo=False).json()["gasto"]
+
+        resposta = client.post(
+            "/v1/caixa/fechamento",
+            json={
+                "mes": "2026-08",
+                "itens": [
+                    {"tipo": "recebimento", "id": fonte["id"], "valor": 900000},
+                    {"tipo": "gasto", "id": gasto["id"], "valor": 120000},
+                ],
+            },
+            headers=auth,
+        )
+        assert resposta.status_code == 200
+
+        caixa = resposta.json()["caixa"]
+        assert caixa["ultimoFechamentoMes"] == "2026-08"
+        assert client.get("/v1/caixa/gastos", headers=auth).json()["gastos"][0][
+            "valorMensal"
+        ] == 120000
+
+    def test_item_OMITIDO_nao_e_gravado_e_nao_vira_zero(self, client, auth):
+        # A garantia central da tela: quem não confirmou uma linha não afirmou
+        # que ela é zero. Sem este teste, a regra é só uma intenção no comentário.
+        _fonte(client, auth, variavel=True)
+        gasto = _gasto(client, auth, descricao="Mercado", fixo=False, valorMensal=150000).json()[
+            "gasto"
+        ]
+
+        client.post(
+            "/v1/caixa/fechamento", json={"mes": "2026-08", "itens": []}, headers=auth
+        )
+
+        assert client.get("/v1/caixa/gastos", headers=auth).json()["gastos"][0][
+            "valorMensal"
+        ] == 150000
+        assert gasto["valorMensal"] == 150000
+
+    def test_um_snapshot_por_fechamento_e_nao_um_por_item(self, client, auth):
+        # Oito itens gravando oito fotos idênticas sujariam o histórico que
+        # existe para responder "com base em qual renda eu propus aquele acordo?".
+        fonte = _fonte(client, auth, variavel=True).json()["fonte"]
+        g1 = _gasto(client, auth, descricao="Mercado", fixo=False).json()["gasto"]
+        g2 = _gasto(client, auth, descricao="Lazer", fixo=False, essencial=False).json()["gasto"]
+
+        antes = len(client.get("/v1/caixa/historico", headers=auth).json()["snapshots"])
+        client.post(
+            "/v1/caixa/fechamento",
+            json={
+                "mes": "2026-08",
+                "itens": [
+                    {"tipo": "recebimento", "id": fonte["id"], "valor": 900000},
+                    {"tipo": "gasto", "id": g1["id"], "valor": 120000},
+                    {"tipo": "gasto", "id": g2["id"], "valor": 30000},
+                ],
+            },
+            headers=auth,
+        )
+        depois = len(client.get("/v1/caixa/historico", headers=auth).json()["snapshots"])
+        assert depois - antes == 1
+
+    def test_refechar_o_mesmo_mes_nao_duplica(self, client, auth):
+        fonte = _fonte(client, auth, variavel=True).json()["fonte"]
+        corpo = {
+            "mes": "2026-08",
+            "itens": [{"tipo": "recebimento", "id": fonte["id"], "valor": 900000}],
+        }
+        client.post("/v1/caixa/fechamento", json=corpo, headers=auth)
+        corpo["itens"][0]["valor"] = 950000
+        resposta = client.post("/v1/caixa/fechamento", json=corpo, headers=auth)
+
+        assert resposta.status_code == 200
+        assert resposta.json()["caixa"]["ultimoFechamentoMes"] == "2026-08"
+
+    def test_mes_fora_do_formato_e_recusado(self, client, auth):
+        assert (
+            client.post(
+                "/v1/caixa/fechamento", json={"mes": "agosto", "itens": []}, headers=auth
+            ).status_code
+            == 422
+        )
+
+    def test_fonte_de_outro_tenant_devolve_404(self, client, auth):
+        assert (
+            client.post(
+                "/v1/caixa/fechamento",
+                json={
+                    "mes": "2026-08",
+                    "itens": [{"tipo": "recebimento", "id": "nao-existe", "valor": 1}],
+                },
+                headers=auth,
+            ).status_code
+            == 404
+        )
+
+
+class TestDefasagem:
+    def test_quem_nunca_fechou_nao_esta_atrasado(self, client, auth):
+        # None, não False: "ainda não fechou" e "está em dia" são afirmações
+        # diferentes, e a tela precisa poder distinguir as duas.
+        _fonte(client, auth)
+        caixa = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        assert caixa["ultimoFechamentoMes"] is None
+        assert caixa["mesesDesdeFechamento"] is None
+        assert caixa["caixaDefasado"] is None
+
+    def test_fechado_no_mes_corrente_fica_em_dia(self, client, auth):
+        from datetime import date
+
+        hoje = date.today()
+        _fonte(client, auth)
+        client.post(
+            "/v1/caixa/fechamento",
+            json={"mes": f"{hoje.year}-{hoje.month:02d}", "itens": []},
+            headers=auth,
+        )
+
+        caixa = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        assert caixa["mesesDesdeFechamento"] == 0
+        assert caixa["caixaDefasado"] is False
+
+    def test_fechamento_antigo_marca_defasagem(self, client, auth):
+        _fonte(client, auth)
+        client.post(
+            "/v1/caixa/fechamento", json={"mes": "2020-01", "itens": []}, headers=auth
+        )
+
+        caixa = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        assert caixa["caixaDefasado"] is True
+        assert caixa["mesesDesdeFechamento"] >= 24

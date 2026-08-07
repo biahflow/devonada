@@ -102,7 +102,7 @@ export const typography = {
   bodyStrong: { fontSize: 16, lineHeight: 24, fontFamily: fontFamily.medium },
   title: { fontSize: 20, lineHeight: 26, fontFamily: fontFamily.bold, letterSpacing: -0.2 },
   caption: { fontSize: 13, lineHeight: 18, fontFamily: fontFamily.regular },
-  numeric: { fontSize: 20, lineHeight: 26, fontFamily: fontFamily.bold },
+  numeric: { fontSize: 18, lineHeight: 24, fontFamily: fontFamily.bold },
   /** Número protagonista de uma tela. */
   display: { fontSize: 32, lineHeight: 38, fontFamily: fontFamily.bold, letterSpacing: -0.5 },
   /** Número de destaque dentro de card menor, e título de tela. */
@@ -117,11 +117,14 @@ export const typography = {
  */
 export const shadow = {
   card: {
+    // Medido em aparelho: com 0,05 de opacidade o card SUMIA no fundo depois que
+    // a borda saiu. Sem borda, a sombra é a única coisa que separa a superfície,
+    // e precisa ser sutil sem ser invisível.
     shadowColor: '#0F172A',
-    shadowOpacity: 0.05,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 2,
+    shadowOpacity: 0.09,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
   },
   soft: {
     shadowColor: '#0F172A',

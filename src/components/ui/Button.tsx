@@ -61,7 +61,15 @@ export function Button({
       {loading ? (
         <ActivityIndicator color={labelColor[variant]} />
       ) : (
-        <Text style={[styles.label, size === 'lg' && styles.labelLg, { color: labelColor[variant] }]}>
+        <Text
+          // `numberOfLines={1}`: sem ele o Android quebra o rótulo em duas linhas
+          // e a segunda é cortada pela altura do botão — a palavra some SEM
+          // NENHUM SINAL. Visto em device: "Voltar ao painel" virava "Voltar ao".
+          // Com reticências o problema fica visível, que é o mínimo aceitável.
+          numberOfLines={1}
+          ellipsizeMode="tail"
+          style={[styles.label, size === 'lg' && styles.labelLg, { color: labelColor[variant] }]}
+        >
           {label}
         </Text>
       )}

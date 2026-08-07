@@ -21,6 +21,7 @@ def _para_schema(p: orm.Perfil | None) -> schemas.PerfilFinanceiro:
         diasAntecedenciaLembrete=p.dias_antecedencia_lembrete
         if p.dias_antecedencia_lembrete is not None
         else 3,
+        fechamentoDiaDoMes=p.fechamento_dia_do_mes,
     )
 
 
@@ -49,6 +50,7 @@ def gravar(
     p.dependentes = entrada.dependentes
     p.hora_lembrete = entrada.horaLembrete
     p.dias_antecedencia_lembrete = entrada.diasAntecedenciaLembrete
+    p.fechamento_dia_do_mes = entrada.fechamentoDiaDoMes
     db.commit()
     db.refresh(p)
     return schemas.RespostaPerfil(perfil=_para_schema(p))

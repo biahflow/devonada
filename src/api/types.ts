@@ -227,6 +227,8 @@ export interface PerfilFinanceiro {
   /** `HH:MM` local. O aparelho compõe o instante; o servidor só guarda a preferência. */
   horaLembrete?: string;
   diasAntecedenciaLembrete?: number;
+  /** Dia do mês do lembrete de fechamento. Ausente é desligado. */
+  fechamentoDiaDoMes?: number | null;
 }
 
 /* ---------- Plano de pagamento (M3) ---------- */
@@ -459,6 +461,14 @@ export interface Caixa {
    */
   naoFecha: boolean;
   preenchimento: NivelPreenchimento;
+  /**
+   * Quando o usuário confirmou os números pela última vez. Os três são
+   * `undefined` quando ele nunca fechou um mês — que NÃO é o mesmo que estar
+   * atrasado, e é por isso que `caixaDefasado` também some nesse caso.
+   */
+  ultimoFechamentoMes?: string;
+  mesesDesdeFechamento?: number;
+  caixaDefasado?: boolean;
 }
 
 export interface FonteRenda {
@@ -524,4 +534,31 @@ export interface SnapshotCaixa {
   capacidadeMaxima: number;
   aporteMaximo: number;
   naoFecha: boolean;
+}
+
+
+/** De onde veio o número que a tela de fechamento mostra pré-preenchido. */
+export type OrigemDoValor = 'mes_anterior' | 'valor_atual' | 'sem_referencia';
+
+export type TipoItemFechamento = 'recebimento' | 'gasto';
+
+export interface ItemFechamento {
+  tipo: TipoItemFechamento;
+  id: Uuid;
+  descricao: string;
+  /** Em CENTAVOS. Ausente quando não há referência — campo vazio, nunca zero. */
+  valorSugerido?: number;
+  origem: OrigemDoValor;
+  mesDeReferencia?: string;
+}
+
+export interface PropostaFechamento {
+  mes: string;
+  itens: ItemFechamento[];
+}
+
+export interface ItemConfirmado {
+  tipo: TipoItemFechamento;
+  id: Uuid;
+  valor: number;
 }

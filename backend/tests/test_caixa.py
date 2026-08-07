@@ -4,8 +4,10 @@ from domain.caixa import (
     EntradaCaixa,
     ProvisaoPendente,
     aporte_de_provisao,
+    caixa_defasado,
     calcular_caixa,
     meses_ate_vencimento,
+    meses_entre,
     provisao_mensal,
     renda_tipica,
 )
@@ -300,3 +302,33 @@ class TestCasoRealPJ:
         # Sobram R$ 4.012 depois dos essenciais, muito acima dos R$ 600 do
         # decreto. "Não fecha" e "abaixo do piso" são sinais diferentes.
         assert caixa.abaixo_do_piso is False
+
+
+class TestMesesEntre:
+    def test_conta_a_distancia_atravessando_o_ano(self):
+        assert meses_entre("2025-11", "2026-02") == 3
+
+    def test_mesmo_mes_e_zero(self):
+        assert meses_entre("2026-03", "2026-03") == 0
+
+    def test_mes_futuro_nao_devolve_negativo(self):
+        # Dado inconsistente não vira número negativo viajando para a tela.
+        assert meses_entre("2026-05", "2026-03") == 0
+
+
+class TestCaixaDefasado:
+    def test_nunca_fechado_nao_e_defasado_e_nem_em_dia(self):
+        # None, não False: "ainda não fechou" e "está em dia" são coisas
+        # diferentes, e a tela precisa poder dizer a primeira.
+        assert caixa_defasado(None) is None
+
+    def test_um_mes_atras_e_o_estado_normal_entre_fechamentos(self):
+        # Quem fecha março o faz durante abril. Avisar aqui treinaria o usuário
+        # a ignorar o aviso.
+        assert caixa_defasado(1) is False
+
+    def test_dois_meses_significa_um_fechamento_pulado(self):
+        assert caixa_defasado(2) is True
+
+    def test_fechado_no_proprio_mes_esta_em_dia(self):
+        assert caixa_defasado(0) is False

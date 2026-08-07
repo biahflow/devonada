@@ -183,6 +183,50 @@ def provisao_mensal(
     return sum(aporte_de_provisao(p, mes_atual) for p in provisoes)
 
 
+def meses_entre(mes_inicial: str, mes_final: str) -> int:
+    """
+    Distância em meses entre dois `AAAA-MM`.
+
+    String em vez de `date` pelo mesmo motivo de `simulacao._proximo_mes`: o mês
+    é a unidade que o usuário informa e a que está persistida. Nunca negativo —
+    mês futuro devolve 0, porque "o fechamento é do mês que vem" não é uma
+    defasagem, é dado inconsistente, e um número negativo viajaria para a tela.
+    """
+    ano_i, m_i = int(mes_inicial[:4]), int(mes_inicial[5:7])
+    ano_f, m_f = int(mes_final[:4]), int(mes_final[5:7])
+    distancia = (ano_f - ano_i) * 12 + (m_f - m_i)
+    return max(0, distancia)
+
+
+# ESCOLHA DE MÉTODO, não regra de lei: a partir de quantos meses os números do
+# caixa deixam de descrever o mês que a pessoa está vivendo.
+#
+# Dois, e não um, porque UM mês de atraso é o estado normal entre fechamentos:
+# quem fecha março o faz durante abril, e sinalizar isso como problema treinaria
+# o usuário a ignorar o aviso. Dois meses significam que um fechamento inteiro
+# foi pulado.
+MESES_ATE_DEFASAR = 2
+
+
+def caixa_defasado(meses_desde_fechamento: int | None) -> bool | None:
+    """
+    Se a capacidade está sendo calculada sobre número velho.
+
+    Devolve `None` quando NUNCA houve fechamento — que não é a mesma coisa que
+    estar defasado, e a tela precisa poder dizer "ainda não fechado" em vez de
+    acusar um atraso que não existe. Mesmo espírito do "ainda não calculado".
+
+    Por que isso importa: a capacidade alimenta o aporte do simulador, e o
+    simulador alimenta o que o usuário leva a uma negociação real. Um número de
+    três meses atrás apresentado como se fosse de hoje é o tipo de erro que o
+    produto inteiro existe para evitar — e o app não tem como saber sozinho que
+    a renda mudou.
+    """
+    if meses_desde_fechamento is None:
+        return None
+    return meses_desde_fechamento >= MESES_ATE_DEFASAR
+
+
 def _preenchimento(entrada: EntradaCaixa) -> str:
     """
     Em que nível de captura o usuário está — é o que a tela usa para escolher

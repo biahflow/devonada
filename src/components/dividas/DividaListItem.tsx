@@ -35,18 +35,21 @@ export function DividaListItem({ divida, onPress }: Props) {
   const quitada = divida.situacao === 'quitada';
   const { icon, cor, rotulo } = porCriticidade[divida.tipo];
 
-  // A criticidade continua ESCRITA na linha de subtítulo. O anel colorido só
-  // reforça: ícone e cor nunca carregam significado sozinhos (guardrail 4).
-  const contexto = divida.proximoVencimento
-    ? `Vence em ${isoParaBR(divida.proximoVencimento)}`
-    : quitada
-      ? 'Quitada'
-      : undefined;
+  // A criticidade continua ESCRITA no subtítulo. O anel colorido só reforça:
+  // ícone e cor nunca carregam significado sozinhos (guardrail 4).
+  //
+  // O vencimento vai para a LEGENDA, à direita sob o valor, e não para o
+  // subtítulo. Em device com credor longo, "Consumo · Vence em 15/09/2026" não
+  // cabia e a data era cortada — e data pela metade é pior que data ausente.
+  // É também a anatomia do reference, que põe o estado sob o valor.
+  const vencimento = divida.proximoVencimento
+    ? `vence ${isoParaBR(divida.proximoVencimento).slice(0, 5)}`
+    : undefined;
 
   return (
     <ListRow
       titulo={divida.credor}
-      subtitulo={contexto ? `${rotulo} · ${contexto}` : rotulo}
+      subtitulo={rotulo}
       icon={icon}
       cor={cor}
       estado={quitada ? 'concluido' : 'neutro'}
@@ -57,7 +60,7 @@ export function DividaListItem({ divida, onPress }: Props) {
           tone={quitada ? 'inkSoft' : 'ink'}
         />
       }
-      legenda={quitada ? 'quitada' : undefined}
+      legenda={quitada ? 'quitada' : vencimento}
       onPress={onPress}
       accessibilityHint={`${divida.credor}, ver detalhes`}
     />

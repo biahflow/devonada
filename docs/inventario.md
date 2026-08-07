@@ -62,9 +62,8 @@ distinção é do `roadmap.md` e este documento não a apaga.
 2. **Itens parciais do M1** — cadastro, detalhe, edição, quitação e exclusão nunca foram
    exercitados no app contra o backend real.
 3. **Anexar contrato a dívida já cadastrada** — não existe. Detalhado na Parte III.
-4. **Fechamento do mês (M7.1)** — gasto fixo já não se redigita, mas o recebimento do PJ e o
-   gasto variável ainda são digitados um a um. A tela pré-preenchida com o mês anterior está
-   no roadmap.
+4. **Fechamento do mês (M7.1)** — entregue. A tela abre pré-preenchida com o mês anterior,
+   diz de onde veio cada número e grava só o que o usuário confirmou. Falta device.
 
 ---
 
