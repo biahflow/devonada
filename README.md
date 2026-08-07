@@ -17,6 +17,7 @@ cards de ação e conversa **só** com o seu backend FastAPI. Toda a inteligênc
 | `docs/engineering-conventions.md` | Como se escreve o código. |
 | `roadmap.md` | Sequência de construção (M0–M5). |
 | `docs/adr/` | Decisões técnicas duradouras. |
+| `docs/inventario.md` | Retrato datado do que existe: stack, versões, endpoints, telas, limitações. **Derivado** — não é fonte de regra. |
 
 ## Princípios que o esqueleto já impõe
 
