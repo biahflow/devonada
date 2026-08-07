@@ -5,15 +5,14 @@ import { Screen } from '../../../src/components/ui/Screen';
 import { PageHeader } from '../../../src/components/ui/PageHeader';
 import { Card } from '../../../src/components/ui/Card';
 import { Button } from '../../../src/components/ui/Button';
-import { Feedback } from '../../../src/components/ui/Feedback';
 import { FormField } from '../../../src/components/ui/FormField';
 import { CurrencyInput } from '../../../src/components/ui/CurrencyInput';
 import { PercentInput } from '../../../src/components/ui/PercentInput';
 import { LoadingState } from '../../../src/components/ui/LoadingState';
 import { ErrorState } from '../../../src/components/ui/ErrorState';
+import { ErroDeMutacao } from '../../../src/components/ui/ErroDeMutacao';
 import { useAtualizarMetas, useMetas } from '../../../src/hooks/useCaixa';
 import type { MetasCaixa } from '../../../src/api/types';
-import { ApiError } from '../../../src/api/client';
 import { colors, spacing, typography } from '../../../src/theme/theme';
 
 export default function MetasCaixaScreen() {
@@ -86,16 +85,7 @@ function Formulario({ inicial, onPronto }: { inicial: MetasCaixa; onPronto: () =
           </Text>
         </Card>
 
-        {atualizar.error ? (
-          <Feedback
-            tone="error"
-            message={
-              atualizar.error instanceof ApiError
-                ? atualizar.error.message
-                : 'Não deu para salvar. Tente de novo.'
-            }
-          />
-        ) : null}
+        <ErroDeMutacao error={atualizar.error} fallback={'Não deu para salvar. Tente de novo.'} />
 
         <View style={styles.form}>
           <View style={styles.secao}>

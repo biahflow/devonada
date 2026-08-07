@@ -590,3 +590,32 @@ export interface Sessao {
 export interface RespostaSessao {
   sessao: Sessao;
 }
+
+// --- M9 · assinatura (ADR 0013) ---------------------------------------------
+
+export type StatusAssinatura = 'em_teste' | 'ativa' | 'expirada';
+
+export type PlataformaCompra = 'ios' | 'android';
+
+/**
+ * Até quando esta conta pode escrever, e por qual motivo.
+ *
+ * `podeEscrever` é REDUNDANTE em relação a `status`, e é assim de propósito: o
+ * app não reimplementa a regra "expirada é o único que bloqueia". No dia em que
+ * o backend ganhar um quarto status — período de graça, cobrança em nova
+ * tentativa —, esta versão instalada continua acertando, porque a decisão já vem
+ * pronta. Mesma disciplina de `situacao` em `Divida`.
+ *
+ * NÃO HÁ PREÇO AQUI. Ele vem da loja pelo SDK, já localizado em moeda e
+ * formato — ver `src/compras/`. Preço servido pelo backend mentiria para quem
+ * está em outro país, e as duas lojas exigem que ele venha delas.
+ */
+export interface SituacaoAssinatura {
+  status: StatusAssinatura;
+  podeEscrever: boolean;
+  /** ISO 8601. */
+  expiraEm: string;
+  diasRestantes: number;
+  produtoId?: string | null;
+  renovacaoAutomatica?: boolean | null;
+}

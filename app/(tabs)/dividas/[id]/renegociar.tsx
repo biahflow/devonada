@@ -5,13 +5,12 @@ import { Screen } from '../../../../src/components/ui/Screen';
 import { PageHeader } from '../../../../src/components/ui/PageHeader';
 import { Card } from '../../../../src/components/ui/Card';
 import { Button } from '../../../../src/components/ui/Button';
-import { Feedback } from '../../../../src/components/ui/Feedback';
 import { FormField } from '../../../../src/components/ui/FormField';
 import { CurrencyInput } from '../../../../src/components/ui/CurrencyInput';
 import { PercentInput } from '../../../../src/components/ui/PercentInput';
 import { DateField } from '../../../../src/components/ui/DateField';
+import { ErroDeMutacao } from '../../../../src/components/ui/ErroDeMutacao';
 import { useRenegociar } from '../../../../src/hooks/useParcelas';
-import { ApiError } from '../../../../src/api/client';
 import type { IsoDate } from '../../../../src/api/types';
 import { colors, spacing, typography } from '../../../../src/theme/theme';
 
@@ -82,16 +81,7 @@ export default function Renegociar() {
           </Text>
         </Card>
 
-        {renegociar.error ? (
-          <Feedback
-            tone="error"
-            message={
-              renegociar.error instanceof ApiError
-                ? renegociar.error.message
-                : 'Não deu para registrar. Tente de novo.'
-            }
-          />
-        ) : null}
+        <ErroDeMutacao error={renegociar.error} fallback={'Não deu para registrar. Tente de novo.'} />
 
         <View style={styles.form}>
           <CurrencyInput

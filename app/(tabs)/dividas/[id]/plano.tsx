@@ -3,13 +3,12 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Screen } from '../../../../src/components/ui/Screen';
 import { PageHeader } from '../../../../src/components/ui/PageHeader';
 import { Button } from '../../../../src/components/ui/Button';
-import { Feedback } from '../../../../src/components/ui/Feedback';
 import { LoadingState } from '../../../../src/components/ui/LoadingState';
 import { ErrorState } from '../../../../src/components/ui/ErrorState';
 import { EmptyState } from '../../../../src/components/ui/EmptyState';
+import { ErroDeMutacao } from '../../../../src/components/ui/ErroDeMutacao';
 import { ParcelaItem } from '../../../../src/components/dividas/ParcelaItem';
 import { useParcelas, usePagarParcela } from '../../../../src/hooks/useParcelas';
-import { ApiError } from '../../../../src/api/client';
 import { dateParaIso } from '../../../../src/util/date';
 import { colors, spacing, typography } from '../../../../src/theme/theme';
 
@@ -75,16 +74,7 @@ export default function PlanoDePagamento() {
             <Text style={styles.progresso}>
               {pagas} de {parcelas.length} pagas
             </Text>
-            {pagar.error ? (
-              <Feedback
-                tone="error"
-                message={
-                  pagar.error instanceof ApiError
-                    ? pagar.error.message
-                    : 'Não deu para registrar o pagamento. Tente de novo.'
-                }
-              />
-            ) : null}
+            <ErroDeMutacao error={pagar.error} fallback={'Não deu para registrar o pagamento. Tente de novo.'} />
           </View>
         }
         renderItem={({ item }) => (

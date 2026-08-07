@@ -7,8 +7,8 @@ import { Card } from '../../../../src/components/ui/Card';
 import { Button } from '../../../../src/components/ui/Button';
 import { Feedback } from '../../../../src/components/ui/Feedback';
 import { escolherArquivo } from '../../../../src/components/ui/SeletorDeArquivo';
+import { ErroDeMutacao } from '../../../../src/components/ui/ErroDeMutacao';
 import { useEnviarContrato } from '../../../../src/hooks/useContrato';
-import { ApiError } from '../../../../src/api/client';
 import type { ArquivoContrato } from '../../../../src/api/contratos';
 import { colors, spacing, typography } from '../../../../src/theme/theme';
 
@@ -60,16 +60,7 @@ export default function EnviarContrato() {
           </View>
         ) : null}
 
-        {enviar.error ? (
-          <Feedback
-            tone="error"
-            message={
-              enviar.error instanceof ApiError
-                ? enviar.error.message
-                : 'Não deu para enviar o contrato. Tente de novo.'
-            }
-          />
-        ) : null}
+        <ErroDeMutacao error={enviar.error} fallback={'Não deu para enviar o contrato. Tente de novo.'} />
 
         <View style={styles.acoes}>
           <Button

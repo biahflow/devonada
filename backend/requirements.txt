@@ -6,6 +6,11 @@ anyio==4.14.2
 bcrypt==5.0.0
 certifi==2026.7.22
 click==8.4.2
+# PyJWT sozinho só faz HMAC. A App Store exige ES256 e o Google Play, RS256 —
+# os dois vêm daqui. Sem esta linha, `BUDDY_LOJA=real` levanta
+# `NotImplementedError` no primeiro `jwt.encode`, e só em produção: a suíte roda
+# com o adaptador de memória e nunca assina nada.
+cryptography==46.0.4
 distro==1.9.0
 docstring_parser==0.18.0
 fastapi==0.141.1

@@ -1,13 +1,15 @@
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from assinatura import exigir_assinatura
 from config import get_settings
 from routers import (
+    assinatura,
     auth,
     caixa,
     chat,
@@ -24,7 +26,19 @@ from routers import (
 
 settings = get_settings()
 
-app = FastAPI(title="Buddy Financeiro API")
+# A TRAVA DE ESCRITA É REGISTRADA UMA VEZ, AQUI, e não rota a rota.
+#
+# Leitura é livre; escrita exige teste em curso ou assinatura ativa. O critério
+# é o método HTTP, com três grupos de rota fora do alcance — ver o docstring de
+# `backend/assinatura.py`, que é onde a decisão está escrita por inteiro.
+#
+# Uma linha aqui significa que ROTA DE ESCRITA NOVA NASCE TRAVADA. Uma lista por
+# rota envelheceria na primeira que alguém criasse sem lembrar dela, e o buraco
+# apareceria como receita que não entra — não como teste vermelho. Mesmo
+# raciocínio de `routers/conta.tabelas_do_tenant()`, e há um teste em
+# `test_assinatura_api.py` que varre `app.routes` e falha se uma rota de escrita
+# ficar fora das duas listas.
+app = FastAPI(title="Buddy Financeiro API", dependencies=[Depends(exigir_assinatura)])
 
 # Restrito de propósito. `allow_origins=["*"]` fazia a API responder a qualquer
 # página web aberta no navegador do usuário.
@@ -83,6 +97,7 @@ app.include_router(chat.router)
 app.include_router(caixa.router)
 app.include_router(auth.router)
 app.include_router(conta.router)
+app.include_router(assinatura.router)
 
 
 @app.get("/")

@@ -59,3 +59,4 @@ quanto o das certas — ele impede que o mesmo caminho seja tentado duas vezes.
 | [0010](0010-paleta-derivada-de-pierre-e-budgi.md) | Paleta derivada de Pierre e Budgi; lime é preenchimento, nunca texto | superseded por ADR 0011 |
 | [0011](0011-forma-do-budgi-a-partir-das-telas.md) | A forma vem das telas do produto, não do CSS da landing | aceito |
 | [0012](0012-conta-de-usuario.md) | Conta de usuário: JWT curto, refresh rotacionado e a sessão como único estado global | aceito |
+| [0013](0013-assinatura-e-paywall.md) | Assinatura in-app: teste de 7 dias, somente leitura depois, e validação no servidor | aceito |

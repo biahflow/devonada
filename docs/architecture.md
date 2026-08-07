@@ -104,7 +104,8 @@ app/
     painel/
       _layout.tsx                pilha da aba
       index.tsx                  painel de endividamento
-      preferencias.tsx           dependentes, lembretes, sair e excluir conta
+      preferencias.tsx           dependentes, lembretes, assinatura, sair e excluir conta
+      assinatura.tsx             situação, assinar, restaurar e gerenciar (M9)
       excluir-conta.tsx          confirmação da exclusão (M8)
 ```
 
@@ -188,7 +189,14 @@ não bloqueia a conversa. Nenhuma tela repete o texto do backend para o `401`.
 Esse fallback só serve para simulador; em aparelho físico com Expo Go, é preciso apontar para o
 IP da máquina na rede local. `.env.example` documenta o formato.
 
+Ele lê também os dois `EXPO_PUBLIC_PRODUTO_ASSINATURA_*` (M9) — ids de produto da loja, públicos
+por natureza. `eas.json` os define por perfil de build.
+
 Nada com prefixo `EXPO_PUBLIC_` pode ser secreto — ver `guardrails.md` seção 2.
+
+**A partir do M9 o Expo Go não basta.** In-app purchase exige módulo nativo, e o binário do Expo
+Go não o tem: o app precisa de *development build* (`eas build --profile development`). O resto do
+produto continua rodando em Expo Go; só o fluxo de assinatura não.
 
 ---
 
@@ -199,6 +207,7 @@ Nada com prefixo `EXPO_PUBLIC_` pode ser secreto — ver `guardrails.md` seção
 | `util/`, `api/` | comportamento puro: formatação de moeda, montagem de request, mapeamento de erro | Jest |
 | `hooks/` | estados de query, invalidação, otimismo e rollback | Jest + React Native Testing Library |
 | `screens/` | os quatro estados de tela renderizam o que devem | RNTL |
+| `compras/` | a ORDEM do ciclo de compra: o backend confirma antes de `finishTransaction` | Jest, com `expo-iap` mockado |
 
 Prioridade de cobertura, nesta ordem: `src/util/money.ts` (dinheiro), `src/api/client.ts`
 (auth e erro), hooks de mutação (invalidação). O resto é bônus.
@@ -234,3 +243,5 @@ Prioridade de cobertura, nesta ordem: `src/util/money.ts` (dinheiro), `src/api/c
 | [0009](adr/0009-o-usuario-decide-a-ordem-dos-potes.md) | O usuário decide a ordem dos potes; o app mostra a aritmética |
 | [0010](adr/0010-paleta-derivada-de-pierre-e-budgi.md) | Paleta derivada de Pierre e Budgi (superseded pela 0011) |
 | [0011](adr/0011-forma-do-budgi-a-partir-das-telas.md) | A forma vem das telas do produto, não do CSS da landing |
+| [0012](adr/0012-conta-de-usuario.md) | Conta de usuário: JWT curto, refresh rotacionado e a sessão como único estado global |
+| [0013](adr/0013-assinatura-e-paywall.md) | Assinatura in-app: teste de 7 dias, somente leitura depois, e validação no servidor |

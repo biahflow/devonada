@@ -1,6 +1,8 @@
+import json
 import os
 import sys
 from collections.abc import Iterator
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 # O backend não é um pacote instalável; os módulos são importados pela raiz.
@@ -27,6 +29,17 @@ os.environ["BUDDY_LLM_PROVIDER"] = "openai"
 os.environ["BUDDY_EXTRATOR"] = "llm"
 os.environ["BUDDY_ASSISTENTE"] = "determinista"
 
+# A LOJA TAMBÉM NÃO TOCA A REDE. O adaptador de memória confere um recibo que
+# descreve a si mesmo, então dá para exercitar teste vencido, compra, renovação
+# e cancelamento sem conta de desenvolvedor em loja nenhuma — e sem mock, que
+# provaria menos e quebraria mais.
+#
+# NENHUMA FIXTURE PRECISA DAR ASSINATURA. Toda conta da suíte nasce pela rota de
+# registro, e uma conta recém-criada está dentro do teste de 7 dias. Foi por
+# isso que a trava de escrita entrou sem mexer em um único dos 420 testes que já
+# existiam. Quem quer o outro lado usa a fixture `assinatura_vencida`.
+os.environ["BUDDY_LOJA"] = "memoria"
+
 # NENHUM TESTE TOCA A REDE. Variável de ambiente vence o `.env` no
 # pydantic-settings, então zerar as chaves aqui garante que uma chave real na
 # máquina do desenvolvedor não transforme a suíte em chamada paga — e não faça
@@ -37,7 +50,7 @@ os.environ["ANTHROPIC_API_KEY"] = ""
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
-from sqlalchemy import create_engine  # noqa: E402
+from sqlalchemy import create_engine, select  # noqa: E402
 from sqlalchemy.orm import Session, sessionmaker  # noqa: E402
 from sqlalchemy.pool import StaticPool  # noqa: E402
 
@@ -178,3 +191,57 @@ def renda_legada(sessao):
         sessao.commit()
 
     return semear
+
+
+@pytest.fixture
+def assinatura_vencida(sessao):
+    """
+    Envelhece a conta para além do teste, deixando-a em somente leitura.
+
+    ENVELHECER A CONTA, e não semear uma assinatura expirada, porque são estados
+    diferentes: assinatura vencida com teste em curso ainda escreve — o teste é
+    o piso, não a assinatura. Semear a linha expirada testaria um cenário que
+    não bloqueia nada, e o teste passaria acreditando ter provado a trava.
+
+    `criado_em` é `server_default`, então a rota de registro sempre grava
+    "agora"; mexer nele por fora é o único jeito de alcançar o outro lado dos 7
+    dias sem congelar o relógio da suíte inteira.
+    """
+    import orm as orm_module
+
+    def envelhecer(dias: int = 30) -> None:
+        from config import get_settings
+
+        usuario = sessao.scalars(
+            select(orm_module.Usuario).where(
+                orm_module.Usuario.tenant_id == get_settings().tenant_id
+            )
+        ).first()
+        assert usuario is not None, "chame a fixture `auth` antes desta"
+        usuario.criado_em = datetime.now(timezone.utc) - timedelta(days=dias)
+        sessao.commit()
+
+    return envelhecer
+
+
+def recibo_de_memoria(
+    transacao: str = "txn-1",
+    dias: int = 30,
+    produto: str = "buddy.assinatura.mensal",
+    renovacao: bool = True,
+) -> str:
+    """
+    O recibo que `loja/memoria.py` sabe conferir: um JSON que descreve a compra.
+
+    Helper e não fixture porque quase todo teste de compra precisa de dois
+    recibos diferentes na mesma função — o da compra e o da renovação.
+    """
+    return json.dumps(
+        {
+            "transacaoOriginalId": transacao,
+            "produtoId": produto,
+            "expiraEm": (datetime.now(timezone.utc) + timedelta(days=dias)).isoformat(),
+            "ambiente": "sandbox",
+            "renovacaoAutomatica": renovacao,
+        }
+    )

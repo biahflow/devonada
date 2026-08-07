@@ -12,6 +12,10 @@
 - **Base URL** em `EXPO_PUBLIC_API_BASE_URL`. Todas as rotas são versionadas sob `/v1/`.
 - **Auth:** `Authorization: Bearer <token>`. O token guarda o `tenant_id`; **o cliente nunca
   envia tenant** em query, body ou header. Ver `guardrails.md`, seção 6.
+- **Assinatura (M9):** toda rota de escrita — `POST`, `PUT`, `PATCH`, `DELETE` — exige teste em
+  curso ou assinatura ativa, e devolve `402` quando não há. **Todo `GET` é livre, sempre.** Ficam
+  fora da trava `/v1/auth`, `/v1/assinatura` e `/v1/conta`. A regra é derivada do método e vive
+  numa dependência global; rota de escrita nova nasce coberta. Ver ADR 0013.
 - **Todo valor monetário é inteiro em centavos.** `150000` significa R$ 1.500,00. Nunca float,
   nunca string. Vale para request e response.
 - **Datas em ISO 8601.** Data pura: `"2024-03-15"`. Instante: `"2024-03-15T13:45:00Z"`.
@@ -41,6 +45,7 @@ procura um campo `message` na resposta e o exibe **direto ao usuário**. Portant
 |---|---|---|
 | `400` / `422` | payload inválido | erro por campo no formulário |
 | `401` | token ausente, inválido ou expirado | limpa o token e vai para o login |
+| `402` | teste vencido e sem assinatura, em rota de escrita | aviso `warning` + caminho para a assinatura |
 | `403` | autenticado, sem permissão | banner de erro |
 | `404` | recurso inexistente ou de outro tenant | estado vazio da tela |
 | `409` | conflito de estado (ex.: quitar dívida já quitada) | banner + revalidação |
@@ -886,6 +891,67 @@ HTML, **fora de `/v1/`** e sem autenticação. Exigência do Google, adicional �
 app — não a substitui. Diz o que é apagado, em quanto tempo, como fazer pelo app, e um contato
 para quem perdeu o acesso.
 
+### 3.11 M9 · assinatura (ADR 0013)
+
+As duas rotas ficam **fora da trava de escrita**, e não por concessão: exigir assinatura para
+assinar é deadlock. Ver a regra completa na seção 1 e o raciocínio na ADR 0013.
+
+#### `GET /v1/assinatura`
+
+```json
+{
+  "status": "em_teste",
+  "podeEscrever": true,
+  "expiraEm": "2026-08-14T00:00:00Z",
+  "diasRestantes": 5,
+  "produtoId": null,
+  "renovacaoAutomatica": null
+}
+```
+
+`status` é `em_teste` · `ativa` · `expirada`.
+
+**`podeEscrever` é redundante com `status`, de propósito.** O app não reimplementa a regra
+"expirada é o único que bloqueia": no dia em que aparecer um quarto status — período de graça,
+cobrança em nova tentativa —, a versão já instalada continua acertando porque a decisão vem
+pronta. Mesma disciplina de `situacao` em `Divida`.
+
+`produtoId` e `renovacaoAutomatica` só vêm quando há compra: quem está no teste não comprou nada.
+
+**Não há preço nesta resposta e não deve haver.** Ele vem da loja pelo SDK, já localizado em moeda
+e formato; servi-lo daqui mentiria para quem está em outro país e envelheceria na primeira
+promoção. As duas lojas exigem que seja assim.
+
+`diasRestantes` é **arredondado para cima**: faltando 30 horas, a resposta é `2`. Truncar
+subestimaria o prazo de quem está em aperto, justamente na véspera de decidir.
+
+Quando o registro local já passou de `expira_em`, a rota **reconfere na loja** antes de responder —
+é o que substitui webhook. Se a loja não responde, ela devolve o que está gravado: tirar acesso de
+quem pagou por instabilidade da Apple é o erro caro.
+
+#### `POST /v1/assinatura/compra`
+
+```json
+{ "plataforma": "ios", "recibo": "eyJhbGciOi..." }
+```
+
+Devolve o mesmo corpo do `GET`. `plataforma` é `ios` ou `android`; `recibo` é o JWS do StoreKit ou
+o `purchaseToken` do Play Billing — o `expo-iap` unifica os dois no mesmo campo.
+
+**É também a restauração.** O botão "Restaurar compras" que a Apple exige (diretriz 3.1.1) manda o
+mesmo recibo para cá, e a unicidade de `transacao_original_id` faz o reenvio encontrar a linha que
+já existe. Uma rota, não duas.
+
+**O corpo não tem `expiraEm` nem `produtoId`, e não pode ter.** O recibo é chave de busca: o
+servidor extrai o identificador, pergunta à loja por TLS autenticado com a chave dele, e grava o
+que a loja responde. Aceitar validade declarada pelo aparelho seria deixar um app modificado
+assinar a si mesmo.
+
+| Status | Quando |
+|---|---|
+| `422` | a loja não reconheceu o recibo, ou as credenciais não estão configuradas |
+| `409` | esse recibo já pertence a outra conta — mesma conta de loja em dois cadastros |
+
 ---
 
 ## 4. Fila do backend
@@ -1052,6 +1118,35 @@ e dois deles são código.*
 - [x] O token fixo do beta **saiu** de `config.py`, de `auth.py` e do app
 - [x] A fixture `auth` do `conftest.py` passou a criar conta de verdade — os 370 testes anteriores
       não conheciam o mecanismo, e por isso nenhum deles mudou
+
+### Bloco 11 — M9 · assinatura in-app
+*Destrava: cobrar. Era o único item do pré-lançamento que é código de produto.*
+
+- [~] `assinatura` — migration `d94a6b18c7f2`. Uma linha por tenant, não um extrato: a pergunta do
+      produto é uma só, "até quando esta pessoa pode escrever?"
+- [~] `GET /v1/assinatura` — situação atual. **Reconfere na loja** quando o registro local já
+      passou de `expira_em`; é isto que substitui webhook enquanto não há URL pública
+- [~] `POST /v1/assinatura/compra` — confere o recibo com a loja e grava. **É também a
+      restauração**: idempotente por `transacao_original_id`, então o botão que a Apple exige
+      (3.1.1) usa esta mesma rota. `409` quando o mesmo recibo já pertence a outro tenant
+- [x] **A trava é derivada do método**, numa dependência global de `main.py` — não uma lista por
+      rota, que envelheceria na primeira rota criada sem lembrar dela. `402` na recusa
+- [x] **Leitura nunca é bloqueada**, e a exclusão de conta também não (Apple 5.1.1(v); LGPD, 18)
+- [x] Teste que varre `app.openapi()` e falha se `LIVRES` crescer sem decisão explícita — gêmeo do
+      que varre as tabelas na exclusão de conta
+- [x] `backend/loja/` plugável (`BUDDY_LOJA`), no padrão da ADR 0007: Apple, Google e memória. A
+      suíte usa o de memória, e **cobrança entra na regra de que nenhum teste toca a rede**
+- [x] **O recibo do aparelho é chave de busca, nunca fonte da verdade** — quem afirma a validade é
+      a loja, consultada pelo servidor com credencial que só ele tem
+- [x] `chave_consulta` como coluna separada de `transacao_original_id`: a Apple consulta pelo id da
+      transação, o Google pelo `purchaseToken`. Guardar só um faria a renovação ser detectada no
+      iPhone e não no Android
+- [x] `assinatura` entrou na exclusão de conta **sem uma linha a mais**, pela varredura do metadata
+- [x] **Nenhum preço trafega.** Ele vem da loja pelo SDK, já localizado — exigência das duas
+
+> **A fixture `auth` não mudou.** Toda conta da suíte nasce pela rota de registro, e conta
+> recém-criada está dentro do teste de 7 dias — os 420 testes anteriores passaram intactos. O
+> plano previa cirurgia no `conftest.py` e ela não foi necessária.
 
 ### Estado observado em device
 

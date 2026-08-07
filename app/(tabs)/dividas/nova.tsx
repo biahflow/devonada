@@ -2,10 +2,9 @@ import { ScrollView, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Screen } from '../../../src/components/ui/Screen';
 import { PageHeader } from '../../../src/components/ui/PageHeader';
-import { Feedback } from '../../../src/components/ui/Feedback';
+import { ErroDeMutacao } from '../../../src/components/ui/ErroDeMutacao';
 import { DividaForm } from '../../../src/components/dividas/DividaForm';
 import { useCriarDivida } from '../../../src/hooks/useDividas';
-import { ApiError } from '../../../src/api/client';
 import { paramsParaProposta, temProposta } from '../../../src/util/proposta';
 import { spacing } from '../../../src/theme/theme';
 
@@ -36,16 +35,7 @@ export default function NovaDivida() {
           }
         />
 
-        {criar.error ? (
-          <Feedback
-            tone="error"
-            message={
-              criar.error instanceof ApiError
-                ? criar.error.message
-                : 'Não deu para salvar. Tente de novo.'
-            }
-          />
-        ) : null}
+        <ErroDeMutacao error={criar.error} fallback={'Não deu para salvar. Tente de novo.'} />
 
         <DividaForm
           inicial={proposta}

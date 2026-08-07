@@ -21,7 +21,25 @@ export class ApiError extends Error {
  * token do beta. Agora um 401 é tratado aqui — renovação silenciosa — e, quando
  * ela falha, a sessão cai e o `_layout` leva ao login. Nenhuma tela decide o que
  * fazer com 401, e é por isso que o predicado não faz mais falta.
+ *
+ * `ehPaywall` (M9) NÃO É A VOLTA DAQUELE PADRÃO, e a diferença é o motivo pelo
+ * qual o outro saiu. O 401 tem uma resposta só, sempre a mesma, e por isso ela
+ * pertence a este arquivo. O 402 não tem: a resposta certa depende de qual
+ * escrita a pessoa tentou — cadastrar uma dívida, fechar o mês, mandar uma
+ * mensagem —, e só a tela sabe disso. Um tratamento central aqui teria de
+ * adivinhar, e adivinharia navegando para longe do que o usuário estava
+ * fazendo.
  */
+
+/**
+ * `402 Payment Required`: o período de teste acabou e a escrita está travada.
+ *
+ * Nunca acontece em leitura — o servidor não bloqueia GET —, então quem chama
+ * isto está tratando o erro de uma mutação.
+ */
+export function ehPaywall(erro: unknown): boolean {
+  return erro instanceof ApiError && erro.status === 402;
+}
 
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';

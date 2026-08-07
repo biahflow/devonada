@@ -5,15 +5,14 @@ import { Screen } from '../../../src/components/ui/Screen';
 import { PageHeader } from '../../../src/components/ui/PageHeader';
 import { Card } from '../../../src/components/ui/Card';
 import { Button } from '../../../src/components/ui/Button';
-import { Feedback } from '../../../src/components/ui/Feedback';
 import { CurrencyInput } from '../../../src/components/ui/CurrencyInput';
 import { LoadingState } from '../../../src/components/ui/LoadingState';
 import { ErrorState } from '../../../src/components/ui/ErrorState';
 import { EmptyState } from '../../../src/components/ui/EmptyState';
 import { CategoriaIcon } from '../../../src/components/ui/CategoriaIcon';
+import { ErroDeMutacao } from '../../../src/components/ui/ErroDeMutacao';
 import { useConfirmarFechamento, useFechamento } from '../../../src/hooks/useCaixa';
 import type { ItemConfirmado, ItemFechamento } from '../../../src/api/types';
-import { ApiError } from '../../../src/api/client';
 import { formatMesCurto } from '../../../src/util/mes';
 import { colors, spacing, typography } from '../../../src/theme/theme';
 
@@ -156,16 +155,7 @@ function Formulario({
           </Card>
         ) : null}
 
-        {confirmar.error ? (
-          <Feedback
-            tone="error"
-            message={
-              confirmar.error instanceof ApiError
-                ? confirmar.error.message
-                : 'Não deu certo agora. Tente de novo.'
-            }
-          />
-        ) : null}
+        <ErroDeMutacao error={confirmar.error} fallback={'Não deu certo agora. Tente de novo.'} />
 
         <Text style={styles.rodape}>
           Só o que estiver preenchido é gravado. Campo que você deixar em branco continua como
