@@ -7,6 +7,7 @@ import { Feedback } from '../../../../src/components/ui/Feedback';
 import { LoadingState } from '../../../../src/components/ui/LoadingState';
 import { ErrorState } from '../../../../src/components/ui/ErrorState';
 import { Button } from '../../../../src/components/ui/Button';
+import { ErroDeMutacao } from '../../../../src/components/ui/ErroDeMutacao';
 import { CampoRevisao } from '../../../../src/components/dividas/CampoRevisao';
 import { AlertaCard } from '../../../../src/components/dividas/AlertaCard';
 import { DividaForm } from '../../../../src/components/dividas/DividaForm';
@@ -16,7 +17,6 @@ import { extracaoParaProposta } from '../../../../src/util/extracao';
 import { formatBRL } from '../../../../src/util/money';
 import { formatBasisPoints } from '../../../../src/util/percent';
 import { isoParaBR } from '../../../../src/util/date';
-import { ApiError } from '../../../../src/api/client';
 import { colors, spacing, typography } from '../../../../src/theme/theme';
 
 export default function RevisarExtracao() {
@@ -167,16 +167,7 @@ export default function RevisarExtracao() {
           </Text>
         </View>
 
-        {criar.error ? (
-          <Feedback
-            tone="error"
-            message={
-              criar.error instanceof ApiError
-                ? criar.error.message
-                : 'Não deu para salvar. Tente de novo.'
-            }
-          />
-        ) : null}
+        <ErroDeMutacao error={criar.error} fallback={'Não deu para salvar. Tente de novo.'} />
 
         <DividaForm
           inicial={proposta}

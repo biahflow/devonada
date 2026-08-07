@@ -4,16 +4,15 @@ import { useRouter } from 'expo-router';
 import { Screen } from '../../../src/components/ui/Screen';
 import { PageHeader } from '../../../src/components/ui/PageHeader';
 import { Button } from '../../../src/components/ui/Button';
-import { Feedback } from '../../../src/components/ui/Feedback';
 import { FormField } from '../../../src/components/ui/FormField';
 import { OptionGroup, type Option } from '../../../src/components/ui/OptionGroup';
 import { LoadingState } from '../../../src/components/ui/LoadingState';
 import { ErrorState } from '../../../src/components/ui/ErrorState';
+import { ErroDeMutacao } from '../../../src/components/ui/ErroDeMutacao';
 import { useAtualizarPerfil, usePerfil } from '../../../src/hooks/usePainel';
 import { useSair } from '../../../src/hooks/useConta';
 import { HORA_MAXIMA, HORA_MINIMA, horaValida, pedirPermissao } from '../../../src/notificacoes';
 import type { PerfilFinanceiro } from '../../../src/api/types';
-import { ApiError } from '../../../src/api/client';
 import { colors, spacing, typography } from '../../../src/theme/theme';
 
 /**
@@ -111,16 +110,7 @@ function Formulario({ inicial, onPronto }: { inicial: PerfilFinanceiro; onPronto
           description="Quem depende de você e quando os avisos aparecem. Sua renda fica na aba Caixa."
         />
 
-        {atualizar.error ? (
-          <Feedback
-            tone="error"
-            message={
-              atualizar.error instanceof ApiError
-                ? atualizar.error.message
-                : 'Não deu para salvar. Tente de novo.'
-            }
-          />
-        ) : null}
+        <ErroDeMutacao error={atualizar.error} fallback={'Não deu para salvar. Tente de novo.'} />
 
         <View style={styles.form}>
           <FormField
@@ -179,6 +169,14 @@ function Formulario({ inicial, onPronto }: { inicial: PerfilFinanceiro; onPronto
             <Text style={styles.tituloSecao}>Sua conta</Text>
           </View>
 
+          {/* Antes de "Sair" e de "Excluir": é a ação que a pessoa vem procurar
+              aqui com mais frequência, e enterrá-la abaixo das duas destrutivas
+              faria a loja considerar a assinatura escondida. */}
+          <Button
+            label="Assinatura"
+            onPress={() => router.push('/painel/assinatura')}
+            variant="secondary"
+          />
           <Button
             label="Sair"
             onPress={() => encerrar.mutate(undefined, { onSuccess: () => router.replace('/login') })}

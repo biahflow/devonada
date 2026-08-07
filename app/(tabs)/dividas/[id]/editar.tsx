@@ -2,12 +2,11 @@ import { ScrollView, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Screen } from '../../../../src/components/ui/Screen';
 import { PageHeader } from '../../../../src/components/ui/PageHeader';
-import { Feedback } from '../../../../src/components/ui/Feedback';
 import { LoadingState } from '../../../../src/components/ui/LoadingState';
 import { ErrorState } from '../../../../src/components/ui/ErrorState';
+import { ErroDeMutacao } from '../../../../src/components/ui/ErroDeMutacao';
 import { DividaForm } from '../../../../src/components/dividas/DividaForm';
 import { useAtualizarDivida, useDivida } from '../../../../src/hooks/useDividas';
-import { ApiError } from '../../../../src/api/client';
 import { paramsParaProposta, temProposta } from '../../../../src/util/proposta';
 import { spacing } from '../../../../src/theme/theme';
 
@@ -57,16 +56,7 @@ export default function EditarDivida() {
           }
         />
 
-        {atualizar.error ? (
-          <Feedback
-            tone="error"
-            message={
-              atualizar.error instanceof ApiError
-                ? atualizar.error.message
-                : 'Não deu para salvar. Tente de novo.'
-            }
-          />
-        ) : null}
+        <ErroDeMutacao error={atualizar.error} fallback={'Não deu para salvar. Tente de novo.'} />
 
         <DividaForm
           // O campo proposto entra POR CIMA do que está salvo; o resto continua

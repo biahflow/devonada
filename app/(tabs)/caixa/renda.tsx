@@ -5,7 +5,6 @@ import { Screen } from '../../../src/components/ui/Screen';
 import { PageHeader } from '../../../src/components/ui/PageHeader';
 import { Card } from '../../../src/components/ui/Card';
 import { Button } from '../../../src/components/ui/Button';
-import { Feedback } from '../../../src/components/ui/Feedback';
 import { FormField } from '../../../src/components/ui/FormField';
 import { CurrencyInput } from '../../../src/components/ui/CurrencyInput';
 import { OptionGroup } from '../../../src/components/ui/OptionGroup';
@@ -13,6 +12,7 @@ import { MoneyText } from '../../../src/components/ui/MoneyText';
 import { LoadingState } from '../../../src/components/ui/LoadingState';
 import { ErrorState } from '../../../src/components/ui/ErrorState';
 import { EmptyState } from '../../../src/components/ui/EmptyState';
+import { ErroDeMutacao } from '../../../src/components/ui/ErroDeMutacao';
 import {
   useCriarFonte,
   useExcluirFonte,
@@ -21,7 +21,6 @@ import {
 } from '../../../src/hooks/useCaixa';
 import { mesAtual } from '../../../src/util/mes';
 import type { FonteRenda, TipoFonteRenda } from '../../../src/api/types';
-import { ApiError } from '../../../src/api/client';
 import { colors, spacing, typography } from '../../../src/theme/theme';
 
 const TIPOS: readonly { value: TipoFonteRenda; label: string; description?: string }[] = [
@@ -188,16 +187,7 @@ function NovaFonte() {
     <Card>
       <Text style={styles.tituloSecao}>Adicionar fonte</Text>
 
-      {criar.error ? (
-        <Feedback
-          tone="error"
-          message={
-            criar.error instanceof ApiError
-              ? criar.error.message
-              : 'Não deu para salvar. Tente de novo.'
-          }
-        />
-      ) : null}
+      <ErroDeMutacao error={criar.error} fallback={'Não deu para salvar. Tente de novo.'} />
 
       <View style={styles.form}>
         <FormField

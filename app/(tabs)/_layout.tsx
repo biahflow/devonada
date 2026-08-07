@@ -1,6 +1,8 @@
+import { View } from 'react-native';
 import { Tabs } from 'expo-router';
 import Feather from '@expo/vector-icons/Feather';
 import { TabBar } from '../../src/components/ui/TabBar';
+import { AvisoSomenteLeitura } from '../../src/components/ui/AvisoSomenteLeitura';
 
 export default function TabsLayout() {
   return (
@@ -8,7 +10,18 @@ export default function TabsLayout() {
       // A barra padrão só troca a cor do ícone — em aparelho ela lê como rodapé
       // estático. A nossa desliza uma pílula entre as abas, respeitando
       // `isReduceMotionEnabled`. Ver src/components/ui/TabBar.tsx.
-      tabBar={(props) => <TabBar {...props} />}
+      //
+      // O AVISO DE SOMENTE LEITURA (M9) VAI AQUI, e não no topo de cada tela,
+      // por dois motivos. Um: aqui ele aparece nas quatro abas de uma vez, em
+      // vez de ser esquecido na quinta tela que alguém escrever. Dois: no topo
+      // ele brigaria com a safe area que cada `Screen` já aplica, e no rodapé o
+      // `TabBar` resolve o inset de baixo sozinho.
+      tabBar={(props) => (
+        <View>
+          <AvisoSomenteLeitura />
+          <TabBar {...props} />
+        </View>
+      )}
       screenOptions={{ headerShown: false }}
     >
       <Tabs.Screen
