@@ -139,6 +139,76 @@ registrados, não a média. Dimensionar pela média quebra o plano em todo mês 
 por hora tem mês fraco. Sem histórico, é o valor que o usuário informou, e a tela diz qual das
 duas origens está em uso.
 
+### tipo de renda
+De que natureza é a fonte. Existe porque praticamente todo app financeiro brasileiro assume
+salário fixo no dia 5, e metade deste público não tem isso.
+
+| Valor | O que o app faz de diferente |
+|---|---|
+| `clt` | Líquido mensal fixo, mais os eventos previsíveis — 13º, férias, FGTS. O 13º é a munição de negociação à vista mais comum do calendário brasileiro |
+| `pj_hora` | Taxa × horas, menos o imposto que o usuário informou. Sem `impostoBps` informado, **nada é reservado e a tela diz que não está reservando** (ADR 0009) |
+| `autonomo` | Trabalha com a [renda típica](#renda-típica). O compromisso mensal é **percentual do que entra**, nunca valor fixo |
+
+**Renda variável não promete valor fixo.** Prometer "R$ 500 todo mês" a quem é autônomo é receita
+de plano quebrado no primeiro mês fraco. O compromisso vira percentual do recebimento, e em mês
+fraco a meta **se ajusta sem drama** — o plano se adapta, não quebra.
+
+### respiro
+A fatia da capacidade reservada para lazer e autocuidado, desde o primeiro plano. **É linha da
+cascata, no mesmo nível do aluguel — não é sobra.**
+
+Existe por uma razão de aderência, não de generosidade: austeridade total é a principal causa de
+desistência, e é o que faz uma quitação de dezoito meses virar "perda total" aos olhos de quem a
+vive. Quando o app diz "está no plano", duas coisas acontecem — a culpa morre, e o buddy passa a
+ser o terceiro que autoriza, o que desarma o policiamento mútuo dentro de casa.
+
+O respiro **escala com o marco**: sorvete → jantar a dois → bate-volta de fim de semana. Ver
+`guardrails.md`, seção 4.1, para as regras de copy que o protegem.
+
+### marco
+Um ponto da rota que dispara celebração e libera respiro: primeira negociação fechada, primeira
+dívida quitada, 25%, 50% e 75% da rota. É a intervenção anti-desistência do produto — o mês 4 é
+onde as pessoas param, e o marco existe para dar ganho visível antes disso.
+
+Marco é **conquista, nunca recompensa condicionada**. A copy é de permissão ("aproveita, está no
+plano"), jamais de mérito ("você mereceu").
+
+### meta
+O objeto da fase pós-quitação — a **Rota de Chegada**. Mesmo motor determinístico da rota de
+fuga, com o sinal invertido: valor alvo mais prazo produzem o aporte mensal necessário, e a barra
+enche de verde rumo ao objetivo em vez de esvaziar a dívida.
+
+Uma `Meta` tem `nome`, `emoji` opcional, `valorAlvo` (centavos), `saldo`, `dataAlvo` (`AAAA-MM`) e
+`aporteMensal` — o que a pessoa **declara** separar. Nome livre: reserva de emergência, viagem,
+carro, estudo, aposentadoria são sugestões de copy, não um enum. **A reserva de emergência é sempre
+a primeira meta sugerida** — é ela que impede a recaída de virar dívida nova.
+
+**NÃO CONFUNDIR com os campos de `PUT /v1/caixa/metas`** (imposto, reserva, aposentadoria), que são
+parâmetros da **cascata** do caixa e decidem quanto sai do mês. Uma meta é um objetivo com prazo;
+aqueles são potes mensais, e metas nomeadas não entram em cálculo de capacidade nenhum. Os dois
+sentidos convivem por decisão explícita (ADR 0017): unificar obrigaria a recalcular a cascata. Na
+tela, um é "Seus potes" e o outro é "Suas metas".
+
+### aporte sugerido
+O que separar por mês para a meta fechar no prazo: **o que falta dividido pelos meses que faltam**,
+arredondado para cima — o mesmo método de [provisão](#provisão). `domain/metas.py`.
+
+**Não tem fonte legal, e o módulo declara isso.** Não existe norma que diga quanto alguém deveria
+guardar para trocar de carro. O que o produto faz é aritmética sobre números que o usuário informou:
+seria invenção afirmar quanto ele *deveria* guardar, ou projetar rendimento que ninguém informou.
+
+**Sem `dataAlvo` o valor é ausente**, não estimado: sem prazo não existe divisor, e inventar um
+horizonte produziria um número que a pessoa levaria a sério.
+
+### situação da meta
+`em_dia` quando o aporte declarado cobre o sugerido, `aporte_baixo` quando não, `atingida` quando o
+saldo chega no alvo — e **ausente** quando falta prazo *ou* falta aporte declarado. Nos dois casos
+de ausência o app não tem base para dizer que alguém está atrasado, então não diz, e a tela não
+exibe selo em vez de exibir palpite.
+
+`aporte_baixo` é **âmbar, nunca vermelho**: vermelho é status de dívida (ADR 0015), e gastá-lo em
+"você está guardando pouco" transformaria a tela de conquista em repreensão.
+
 ### não fecha
 As parcelas mínimas das dívidas excedem a capacidade máxima. É **fato aritmético sobre os
 números que o usuário informou**, não diagnóstico. O produto nunca diz "você está
@@ -210,6 +280,28 @@ usuário confirmar, nunca uma gravação.
 ### script
 Mensagem pronta de negociação, gerada no backend. Apresentada como sugestão copiável e
 editável, nunca como algo que o app envia sozinho.
+
+### canal
+Por onde a negociação acontece. Três valores, e o **mesmo motor de valor justo** produz os três —
+muda o formato, nunca o número:
+
+| Valor | Formato | Por que é diferente |
+|---|---|---|
+| `telefone` | Fala corrida, mais objeções comuns com resposta pronta | Pressão em tempo real; quem trava, perde |
+| `chat` | Mensagens curtas, uma ideia por bloco, copiáveis uma a uma | O atendente não lê parágrafo. E o que se escreve fica registrado contra quem escreveu |
+| `email` | Texto estruturado, formal | Serve para registrar contraproposta e vira insumo do dossiê de Procon |
+
+Duas regras valem para os canais escritos, e elas são de segurança, não de estilo:
+
+- **Abre sempre com a validação do canal.** Confira o número no site oficial do credor; nunca
+  negocie com número que entrou em contato primeiro. Golpe de falsa negociação por WhatsApp é
+  epidêmico, e o alvo preferencial é exatamente quem está endividado.
+- **Fecha sempre com a regra de pagamento.** Boleto ou Pix **em nome do credor** (CNPJ), jamais
+  CPF de pessoa física.
+
+O script escrito **nunca revela na primeira mensagem quanto o usuário pode pagar** e sempre pede
+a proposta por escrito com número de protocolo. No canal escrito isso é de graça, e é o que
+sustenta uma reclamação depois.
 
 ### fundamentos
 Lista de embasamentos curados (por exemplo, artigos do CDC) que sustentam o valor justo. São as

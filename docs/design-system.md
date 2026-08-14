@@ -1,16 +1,29 @@
-# Design System — Buddy Financeiro (React Native)
+# Design System — devo.nada (React Native)
 
 > Documento vivo. Fonte da verdade dos tokens: `src/theme/theme.ts`. Este documento explica o
 > **porquê** e cataloga os componentes; o arquivo de tema carrega os valores.
 > Alvo: **Expo / React Native, mobile nativo**. Não há versão web.
 
-Tema **claro sempre**. Cards brancos flutuando sobre um slate muito claro, **sem borda** — quem
-separa as superfícies é uma sombra difusa. Teal como ação, violeta como conquista, anel colorido
-de categoria nos ícones. Tipografia Nunito Sans, números moderados com o `R$` menor que os
-dígitos.
+Tema **escuro sempre**. Cards de grafite elevado sobre grafite, separados por cor de superfície
+mais uma borda de 1px. Verde como ação **e** como conquista, vermelho como status de dívida,
+âmbar como negociação em andamento. Tipografia Inter para tudo, Archivo Black só para o número
+protagonista e o wordmark.
 
-A linguagem vem do **`budgi.it`**, derivada das telas do produto, não do CSS da landing page.
-Ver ADR 0011 — ela registra por que essa distinção custou uma passada inteira.
+## Os quatro princípios
+
+1. **O ponto.** `devo.nada` lê-se como duas frases — "Devo. Nada." O ponto é o único elemento da
+   marca que carrega cor de status: vermelho enquanto há dívida, âmbar enquanto se negocia a
+   última, verde quando acabou.
+2. **Vermelho é status, nunca cenário.** O usuário chega ansioso; a interface é calma. O vermelho
+   marca dívida e some conforme ela é quitada — **a ausência progressiva do vermelho é a
+   recompensa visual**. Ver ADR 0015.
+3. **Ação, não retrovisor.** Cada tela responde "o que eu faço agora?". Dashboard existe para
+   sustentar a próxima ação, nunca como fim.
+4. **Respiro: lazer é linha do plano, não desvio.** O sistema nunca trata um gasto de respiro como
+   erro. Ver `guardrails.md`, seção 4.1.
+
+E uma regra de voz que atravessa tudo: **vitória se escreve na primeira pessoa do usuário.**
+"devo nada", "quitei", "fechei por 5.900" — nunca "parabéns, você atingiu sua meta".
 
 ---
 
@@ -18,77 +31,96 @@ Ver ADR 0011 — ela registra por que essa distinção custou uma passada inteir
 
 | Token | Hex | Uso |
 |---|---|---|
-| `ink` | `#0F172A` | texto principal |
-| `inkSoft` | `#5C6B80` | texto secundário, legendas, unidades |
-| `background` | `#F8FAFC` | fundo de tela |
-| `surface` | `#FFFFFF` | cards, campos, bolha do assistente |
-| `neutralSurface` | `#F1F5F9` | badge neutro, área recuada |
-| `border` | `#E2E8F0` | bordas de card e campo |
-| `primary` | `#017A70` | **ação**: botão, link, aba ativa |
-| `primaryHover` | `#016258` | estado pressionado |
-| `primaryBright` | `#029488` | **marca de gráfico** — nunca fundo de texto |
-| `primarySoft` | `#99F6E4` | anel de foco |
-| `primarySurface` | `#F0FDFA` | badge, banner informativo, bolha do usuário |
-| `primaryDeep` | `#134E4A` | texto sobre `primarySurface` |
-| `onPrimary` | `#FFFFFF` | texto e ícone sobre superfície primária |
-| `accent` | `#7C3AED` | **conquista, economia, insight** |
-| `accentSurface` | `#F5F3FF` | fundo de badge e banner de conquista |
-| `inkFill` | `#18181B` | botão circular de enviar — o único elemento escuro do app |
-| `warning` | `#B45309` | atraso, atenção factual, sem alarme |
-| `warningSurface` · `warningBorder` | `#FEF3C7` · `#FDE68A` | fundo e borda de atenção |
-| `danger` | `#B91C1C` | erro e ação destrutiva — **e nada além disso** |
-| `dangerSurface` · `dangerBorder` | `#FEF2F2` · `#FECACA` | fundo e borda de erro |
+| `ink` | `#F2F2ED` | texto principal (paper) |
+| `inkSoft` | `#8A8F98` | texto secundário, legendas, unidades |
+| `background` | `#101216` | fundo de tela (grafite) |
+| `surface` | `#181B21` | cards, campos, bolha do buddy |
+| `neutralSurface` | `#1F232B` | input, trilha de barra, área recuada, avatar |
+| `border` | `#262A31` | borda de card e campo, divisor |
+| `primary` | `#1FC16B` | **ação**: botão, link, aba ativa |
+| `primaryHover` | `#17A559` | estado pressionado |
+| `primaryBright` | `#3FDC8A` | **marca de gráfico** — nunca fundo de texto |
+| `primarySoft` | `#2A6E4C` | anel de foco |
+| `primarySurface` | `#12251B` | badge, banner informativo, bolha do usuário |
+| `primaryDeep` | `#7CE8AF` | texto sobre `primarySurface` |
+| `onPrimary` | `#08120C` | texto e ícone sobre superfície primária |
+| `accent` | `#3FDC8A` | **conquista, economia, marco** |
+| `accentSurface` | `#132A1F` | fundo de badge e banner de conquista |
+| `inkFill` | `#1FC16B` | botão circular de enviar do chat |
+| `warning` | `#F0A31C` | **acordo em andamento**, atraso factual, sem alarme |
+| `warningSurface` · `warningBorder` | `#2A2010` · `#4A3612` | fundo e borda de atenção |
+| `danger` | `#E5352B` | erro e ação destrutiva |
+| `dangerSurface` · `dangerBorder` | `#2A1412` · `#4A1B17` | fundo e borda de erro |
+| `debt` | `#E5352B` | **status de dívida**: saldo devedor, criticidade, ponto do logo |
+| `debtSurface` · `debtBorder` | `#2A1412` · `#5C201B` | fundo de pill e borda de dívida crítica |
 
-**Regra do vermelho.** `danger` não é a cor de "você está devendo". Saldo devedor é `ink`.
-Parcela atrasada é `warning`. Ver `guardrails.md`, seção 4.
+**Regra do vermelho.** Máximo ~10% de qualquer tela. **Nunca** como fundo de tela, de seção ou de
+botão. `debt` marca dívida, `danger` marca erro — mesmo valor, nomes diferentes, e a tela diz qual
+dos dois quis dizer. Ver ADR 0015 e `guardrails.md`, seção 4.
 
-**Regra do card.** Card **não tem borda**. A separação vem de `shadow.card`, difusa e larga.
-Borda de 1px em card é o que mais denuncia um desenho que não é este.
+**Não existe botão vermelho.** Nem para ação destrutiva: ali se usa ghost mais confirmação. O CTA
+primário é sempre verde, porque toda ação neste app é um passo para fora da dívida.
 
-**Não existe superfície escura de conteúdo.** O `inkFill` serve ao botão de enviar do chat e a
-nada mais. Não há dark mode e não há `useColorScheme`.
+**Regra do card.** Card **tem borda** de 1px em `border`. No escuro a sombra é invisível — preto
+sobre grafite não separa nada —, então a hierarquia é cor de superfície (`background` → `surface`
+→ `neutralSurface`) mais a linha. Isso inverte a regra da ADR 0011, de propósito.
+
+**Verde é ação e conquista.** `accent` fica um passo mais claro que `primary`: se fossem o mesmo
+verde, o marco sumiria dentro da barra de ação.
+
+**Não há light mode.** O grafite é identidade, não preferência. Sem `useColorScheme`.
+
+### Estados do ponto
+
+O ponto do wordmark é o único elemento da marca que muda de cor, e ele conta a história do
+usuário:
+
+| Estado | Cor | Quando |
+|---|---|---|
+| dívida | `debt` | há saldo devedor |
+| negociando | `warning` | a última dívida está em acordo |
+| devo nada | `primary` | acabou |
+
+O ícone do app pode refletir isso via ícone alternativo — nice-to-have pós-MVP, não requisito.
 
 ### Cor de categoria
 
-Quatro matizes para o anel do `CategoriaIcon`: `teal #0D9488`, `azul #2563EB`,
-`magenta #BE185D`, `ambar #D97706`.
+Quatro matizes para o anel do `CategoriaIcon`: `teal #2DD4BF`, `azul #60A5FA`,
+`magenta #F472B6`, `ambar #FBBF24`. São as mesmas famílias da paleta clara, subidas em
+luminosidade para se manterem legíveis sobre o grafite.
 
 São **cor de objeto gráfico**, medidas contra o piso de 3:1, não contra o de texto — e nunca
 informam sozinhas: há glifo e rótulo escrito ao lado.
 
-São quatro e não seis por medição: coral fica a **ΔE 11,9** do âmbar e violeta a **ΔE 12,4** do
-azul (OKLab, validador de dataviz). Dois anéis que se confundem não acrescentam nada. O conjunto
-final passa separação de daltonismo com folga — pior par **ΔE 17,9** em deuteranopia. O violeta
-também ficou de fora por ser o `accent` do sistema: cor semântica reservada não vira "categoria
-5".
+São quatro e não seis por medição herdada: coral fica a **ΔE 11,9** do âmbar e violeta a
+**ΔE 12,4** do azul (OKLab, validador de dataviz). Dois anéis que se confundem não acrescentam
+nada. O verde ficou de fora por ser cor semântica reservada — ação e conquista —, e cor reservada
+não vira "categoria 5".
 
-### A paleta foi medida, não estimada
+### A paleta AINDA NÃO foi medida
 
-Todo par texto/fundo passa o piso de 4,5:1 da WCAG 2.1, e toda dupla de semânticas que pode
-aparecer lado a lado passa ΔE 15 em CIEDE2000:
+Este é o débito conhecido da ADR 0015, e ele está declarado aqui porque escondê-lo inverteria o
+princípio do projeto.
 
-| Par | Medida |
-|---|---|
-| `ink` sobre `surface` | 17,85:1 |
-| `inkSoft` sobre `surface` · `background` · `neutralSurface` | 5,43 · 5,19 · 4,95:1 |
-| `onPrimary` sobre `primary` | 5,23:1 |
-| `primaryDeep` sobre `primarySurface` | 9,09:1 |
-| `accent` sobre `surface` · `accentSurface` | 5,70 · 5,20:1 |
-| `warning` sobre `surface` · `warningSurface` | 5,02 · 4,51:1 |
-| `danger` sobre `surface` · `dangerSurface` | 6,47 · 5,91:1 |
-| anéis de categoria sobre `surface` | 3,19 a 6,04:1 |
-| ΔE `accent` × `primary` · `warning` · `danger` | 40 · 51 · 42 |
-| ΔE `warning` × `danger` | 16,2 |
-| ΔE `warningSurface` × `dangerSurface` | 17,6 |
+A paleta anterior tinha **todo** par texto/fundo medido em WCAG 2.1 (piso 4,5:1), **todo** anel de
+categoria medido como objeto gráfico (piso 3:1) e **toda** dupla de semânticas adjacentes medida
+em CIEDE2000 (piso ΔE 15). A tabela inteira vivia aqui, e a medição chegou a derrubar seis
+escolhas que pareciam óbvias — o registro está nas ADR 0010 e 0011.
 
-**A medição derrubou seis escolhas** que pareciam óbvias — o registro está nas ADR 0010 e 0011.
-Em resumo: o teal do Budgi como veio reprova com texto branco; o âmbar reprova como texto e, uma
-vez escurecido, fica a ΔE 6,9 do laranja escurecido; dois pastéis não conseguem ser
-distinguíveis e carregar texto ao mesmo tempo; qualquer verde de confirmação fica a ΔE 1,6 do
-teal de ação; `#8B5CF6`, o violeta do gradiente do reference, dá 4,23:1 e não serve de texto; e
-coral e violeta saíram do conjunto de categoria por se confundirem com âmbar e azul.
+**Virar o tema de claro para escuro invalidou as três tabelas.** Nenhum dos valores atuais foi
+medido; eles foram escolhidos por leitura de tela, que é exatamente o método que este documento
+proíbe.
 
-Mudou a paleta? **Meça de novo antes de escrever o código.**
+Portanto:
+
+- **Remedir é item de pré-lançamento**, não polimento. Contraste é acessibilidade, e este público
+  lê no ônibus, com a tela no sol, muitas vezes em aparelho de entrada com a brilho baixo para
+  poupar bateria.
+- Os pares que mais preocupam, por serem os que a paleta clara passava com pouca folga:
+  `inkSoft` sobre as três superfícies, `warning` e `debt` sobre `surface`, e a separação ΔE entre
+  `warning` e `debt` — âmbar e vermelho adjacentes num mesmo card de dívida.
+- **Combinação nova exige medir, não estimar.** A regra sobreviveu à troca de paleta; só a tabela
+  morreu.
 
 ---
 
@@ -96,71 +128,97 @@ Mudou a paleta? **Meça de novo antes de escrever o código.**
 
 ```ts
 spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32, xxxl: 48 }
-radius  = { sm: 8, md: 14, lg: 20, xl: 24, pill: 999 }
+radius  = { sm: 8, md: 14, lg: 16, xl: 24, pill: 999 }
 ```
 
-Aplicação: **card `radius.lg`**, **controle e botão `radius.md`**, **badge e botão circular
-`radius.pill`**, **banner de feedback `radius.md`**, **bolha de chat `radius.lg`**.
+Aplicação: **card `radius.lg`**, **controle e botão `radius.md`**, **badge, pill e botão circular
+`radius.pill`**, **banner de feedback `radius.md`**, **bolha de chat `radius.lg`** (com 4px no
+canto de origem).
 
-`spacing.xxxl` é o ritmo entre seções de uma tela rolável e o respiro no fim da lista.
+`spacing.xxxl` é o ritmo entre seções de uma tela rolável e a folga no fim da lista.
 
-### Sombras
+### Sombras — não existem
 
 ```ts
-shadow = { card, soft, float }   // ver src/theme/theme.ts
+shadow = { card: { elevation: 0 }, soft: { elevation: 0 }, float: { elevation: 0 } }
 ```
 
-`elevation` cobre o Android; as propriedades `shadow*` cobrem o iOS. Sempre defina os dois.
+No escuro, sombra não separa nada: preto sobre grafite é invisível, e no Android a `elevation`
+desenha uma mancha suja em volta do card. Quem separa a superfície aqui é a **cor** mais a
+**borda**.
 
-A sombra é **difusa e larga**, e é ela quem separa o card do fundo — por isso card não leva
-borda. `float` é mais presente e serve ao composer e a botões flutuantes, que precisam se
-destacar da lista atrás. Nunca use sombra dura.
+As três chaves continuam existindo porque dezenas de arquivos as espalham em `...shadow.card`, e
+um objeto com `elevation: 0` mantém esse spread válido sem custo. Não remova as chaves para
+"limpar" — o custo é um diff de 75 arquivos e o ganho é zero.
+
+**A exceção declarada:** o glow verde da tela de vitória e dos marcos
+(`0 0 60px rgba(31,193,107,.35)`). Ele é celebração pontual, não hierarquia de superfície, e por
+isso vive na própria tela, não no token.
 
 ---
 
 ## 3. Tipografia
 
-**Nunito Sans**, carregada via `@expo-google-fonts/nunito-sans` em `app/_layout.tsx`. Se a fonte
-falhar, o app sobe mesmo assim com a fonte de sistema — segurar a splash para sempre seria pior.
+**Duas famílias, com papéis separados.** Inter carrega todo o texto; Archivo Black carrega o
+wordmark e o número protagonista, e nada mais. Ambas via `@expo-google-fonts/*` em
+`app/_layout.tsx`. Se a fonte falhar, o app sobe mesmo assim com a de sistema — segurar a splash
+para sempre seria pior.
 
 Com fontes customizadas o React Native **não deriva peso a partir de `fontWeight`** de forma
 confiável entre plataformas. Por isso cada peso é uma família própria:
 
 ```ts
 fontFamily = {
-  regular: 'NunitoSans_400Regular',
-  medium:  'NunitoSans_600SemiBold',
-  bold:    'NunitoSans_700Bold',
+  regular: 'Inter_400Regular',
+  medium:  'Inter_600SemiBold',
+  bold:    'Inter_700Bold',
+  display: 'ArchivoBlack_400Regular',   // wordmark e número protagonista
 }
 ```
 
-### A fonte foi escolhida por dígito, não por desenho
+**Archivo Black nunca em texto corrido.** É display: máximo duas linhas, e em tela pequena mais do
+que isso fica ilegível.
 
-Nunito Sans tem **largura de dígito fixa por padrão** — variação de 0,00px entre 0 e 9, medida no
-arquivo da fonte. Isso significa que **não é preciso `fontVariant: ['tabular-nums']`** em lugar
-nenhum, e ele foi removido de todos os componentes: pedir um recurso OpenType que a família não
-declara é caminho conhecido para o texto cair em fonte de sistema no Android.
+### O dígito tabular era medido, e a medição caiu junto com a fonte
 
-Figtree, que seria a escolha estética mais próxima do reference, foi descartada por isso: ela não
-tem `tnum` **nem** dígitos tabulares — o "1" mede 16,5px onde o "0" mede 25,6px, e uma coluna de
-reais dançaria a cada linha.
+Este é o segundo débito da ADR 0015, e ele é sutil o bastante para merecer parágrafo próprio.
 
-> **Trocar a fonte é mexer nas colunas de valor.** Meça a largura dos dígitos antes.
+Nunito Sans não foi escolhida por desenho — foi escolhida por **medição no arquivo da fonte**:
+largura de dígito fixa, variação de 0,00px entre 0 e 9. Por isso `fontVariant: ['tabular-nums']`
+foi removido de todos os componentes: pedir recurso OpenType que a família não declara é caminho
+conhecido para o texto cair em fonte de sistema no Android. Figtree, a escolha estética mais
+próxima na época, foi descartada exatamente aqui — o "1" mede 16,5px onde o "0" mede 25,6px, e
+uma coluna de reais dançaria a cada linha.
+
+**Inter não foi medida.** Enquanto não for, a regra é:
+
+- `numeric` — o número que aparece em **coluna** (parcelas, gastos, extrato) — fica em **Inter**,
+  onde o risco é conhecido e reversível.
+- `display` e `displaySm` — o número **único e grande** de cada tela, que não se alinha com nada —
+  usam **Archivo Black**. É onde a marca pede "dinheiro é o protagonista visual", e onde o
+  desalinhamento de dígito não tem com o que desalinhar.
+
+> **Item de validação em aparelho:** medir a largura de "0" e "1" em `Inter_700Bold`. Se
+> divergirem, `numeric` precisa de `tabular-nums` ou de uma família tabular dedicada. Até a
+> medição existir, **não promova `numeric` a Archivo Black** por estética — é assim que a coluna
+> de valores começa a dançar.
 
 ### Escala
 
 Números protagonistas moderados, não display gigante, e tracking quase neutro: a fonte é
 humanista, e apertar o espacejamento dela desfaz o ar que é a característica do reference.
 
-| Estilo | Tamanho / entrelinha | Tracking | Onde |
-|---|---|---|---|
-| `display` | 32 / 38 | −0,5 | número protagonista de uma tela |
-| `displaySm` | 26 / 32 | −0,4 | título de tela e número de destaque em card |
-| `title` | 20 / 26 | −0,2 | título de seção e de estado vazio |
-| `numeric` | 20 / 26 | — | valor monetário em linha |
-| `body` / `bodyStrong` | 16 / 24 | — | corpo |
-| `caption` | 13 / 18 | — | legenda, unidade, contexto |
-| `eyebrow` | 11 / 14 | +1,6 | rótulo acima do título, em maiúsculas |
+| Estilo | Família | Tamanho / entrelinha | Tracking | Onde |
+|---|---|---|---|---|
+| `display` | Archivo Black | 36 / 42 | −1,0 | número protagonista de uma tela |
+| `displaySm` | Archivo Black | 26 / 32 | −0,6 | número de destaque em card |
+| `title` | Inter 700 | 20 / 26 | −0,2 | título de tela, seção e estado vazio |
+| `numeric` | Inter 700 | 18 / 24 | — | valor monetário **em coluna** |
+| `body` / `bodyStrong` | Inter 400 / 600 | 16 / 24 | — | corpo |
+| `caption` | Inter 400 | 13 / 18 | — | legenda, unidade, contexto |
+| `eyebrow` | Inter 700 | 11 / 14 | +1,6 | rótulo acima do título, em maiúsculas |
+
+O wordmark é caixa baixa, tracking −3%, sem espaço: `devo.nada`.
 
 Nos tamanhos grandes o **`R$` sai a 62% do corpo dos dígitos** — o símbolo se repete em toda
 linha e não precisa competir com o número. Isso vive no `MoneyText`, não nas telas.
@@ -200,12 +258,17 @@ O rodapé é opcional: um cronograma de parcelas fecha com total, uma lista de d
 
 | Variante | Fundo | Texto | Uso |
 |---|---|---|---|
-| `primary` | `primary` | branco | ação principal da tela, uma por tela |
+| `primary` | `primary` (verde) | `onPrimary` | ação principal da tela, uma por tela |
 | `secondary` | `surface` com borda `primarySoft` | `primary` | ação alternativa |
-| `danger` | `danger` | branco | excluir, apagar — sempre com confirmação |
+| `danger` | **transparente** com borda `dangerBorder` | `danger` | excluir, apagar — sempre com confirmação |
 | `ghost` | transparente | `inkSoft` | ação terciária, cancelar |
 
 `size="lg"` (56pt) é o CTA principal de uma tela. `md` (48pt) segue sendo o **piso** de toque.
+
+**O CTA primário é verde porque toda ação neste app é um passo para fora da dívida.** E `danger`
+não tem fundo vermelho: não existe botão vermelho aqui, nem para destruição. O peso da ação
+irreversível é carregado pela confirmação, não pela cor — gastar o vermelho num botão de excluir
+tiraria dele o significado de que a marca depende.
 
 ### Demais componentes
 
@@ -217,6 +280,11 @@ até a borda). Toda rota começa por ele.
 A prop **`titleLead`** dá o peso misto na mesma linha — "Suas **dívidas**", "Seu **caixa**" —, que
 é a assinatura tipográfica do reference e diz mais que um eyebrow. Use `titleLead` nas quatro
 abas; `eyebrow` fica para as telas internas, cujo título já é uma frase.
+
+A prop **`onBack`** é a seta de voltar do app (ADR 0016): `Pressable` de 48×48 com `chevron-left`,
+`accessibilityLabel="Voltar"`, **acima** do bloco de textos — o slot `action` continua à direita e
+intacto. Como o app esconde o header nativo nos seis layouts, ela é a única saída de tela empilhada.
+Ver a regra de navegação na seção 5.
 
 **`Card`** — superfície `surface`, `radius.lg`, `shadow.card`, padding `spacing.lg`, **sem
 borda**. Base de todo agrupamento de conteúdo.
@@ -301,15 +369,103 @@ Variante de criticidade mapeia `CriticidadeTipo`:
 | `juros_abusivos` | `alto` | Juros altos |
 | `consumo` | `neutro` | Consumo |
 
-`juros_abusivos` é a **única** situação em que a família do vermelho aparece fora de erro — e
-ainda assim num tom suave de fundo, porque é uma classificação factual de custo, não uma
-repreensão.
+`juros_abusivos` usa a família do vermelho porque é o status que a marca existe para marcar — mas
+num tom suave de fundo, e como classificação factual de custo, nunca como repreensão. A copy
+jamais sugere que o usuário errou ao contrair a dívida.
 
 **`MoneyText`** — exibe centavos via `formatBRL`. Props `size`
 (`body | numeric | displaySm | display`) e `tone`
-(`ink | inkSoft | accent | onPrimary | warning`). Nos dois tamanhos grandes o `R$` sai a 62% do
-corpo dos dígitos. **Não aplica `fontVariant`** — a garantia de dígito tabular vem da fonte
-(seção 3).
+(`ink | inkSoft | accent | onPrimary | warning | debt`). Nos dois tamanhos grandes o `R$` sai a
+62% do corpo dos dígitos. **Não aplica `fontVariant`** — ver o débito de dígito tabular na
+seção 3.
+
+---
+
+## 4c. Componentes da marca
+
+### Já são código
+
+**`Brand`** (`src/components/ui/Brand.tsx`) — o wordmark `devo.nada` em Archivo Black, caixa baixa,
+tracking −3%. Props `size` (`sm` topbar · `md` cabeçalho · `lg` login · `hero` splash) e `estado`.
+**O ponto é o único elemento colorido**, e a cor vem do estado da rota do usuário:
+
+| Estado | Cor | Quando |
+|---|---|---|
+| `divida` | `debt` | há saldo devedor |
+| `negociando` | `warning` | **a prop existe, nada a produz ainda** — chega no M12 |
+| `quitado` | `primary` | teve dívida e zerou |
+| `neutro` | `inkSoft` | ainda não cadastrou nada |
+
+`neutro` existe separado de `quitado` de propósito: conta nova não é vitória, e um ponto verde ali
+daria os parabéns por uma corrida que a pessoa não começou. O estado sai de
+`src/util/estadoDaRota.ts` — função pura, com teste.
+
+**`SplashDevoNada`** (`src/components/SplashDevoNada.tsx`) — a abertura. O ponto respira, e essa é
+a única animação de repetição do app: exceção declarada no `guardrails.md`, seção 4.
+
+**`TabBar`** — quatro abas: **Rota · Dívidas · Buddy · Extrato**. Os nomes de arquivo continuam
+`painel`, `dividas`, `index` e `caixa` (linguagem ubíqua do `domain.md`); muda o rótulo e a ordem,
+não a rota. **Ícone e pílula ativos seguem o estado da rota** — `debt` enquanto há dívida,
+`primary` depois de quitar. É a única exceção decorativa do vermelho, e é o que faz o app inteiro
+mudar de fase junto com o usuário.
+
+**`NotaDePrivacidade`** (`src/components/ui/NotaDePrivacidade.tsx`) — a regra de ouro nº 1 dita no
+login e no registro: "Seus dados nunca viram oferta de crédito." Se o produto um dia oferecer
+crédito, **este componente sai antes**.
+
+**`CardSaldo`, `CardBuddy`, `TopbarMarca`** (`src/components/rota/`) — o topo da Rota. A barra do
+saldo enche com o que já foi percorrido, nunca com o que falta, e **só aparece quando há histórico
+real** (`evolucaoSaldo` acumula a partir do cadastro): "0% percorrido" no primeiro dia seria
+desanimador e falso.
+
+**`Passos`** (`src/components/onboarding/Passos.tsx`) — os três traços do onboarding. A prop
+**`onVoltar`** põe o mesmo `chevron-left` do `PageHeader` à esquerda das barrinhas: as telas do
+onboarding não usam `PageHeader` (o título delas é chamada em `display` de 28pt), e o `Passos` é o
+elemento mais alto das três.
+
+**`BotaoSocial`** (`src/components/auth/BotaoSocial.tsx`) — Apple e Google na tela de entrada
+(tela 11). Dois tons, como na concepção: Apple em `ink` com texto `background`, Google em `surface`
+com borda. **Único lugar do app que usa `FontAwesome` em vez de `Feather`** — as marcas das duas
+lojas são logotipos, não pictogramas, e nenhum conjunto geométrico as traz; trocar por um ícone
+genérico tiraria o reconhecimento, que é a função inteira do botão. Hoje nasce `disabled` com
+`accessibilityState`, porque não existe login social no backend, e quem explica é a legenda abaixo
+do par. **`Divisor`** é o "ou" entre o social e o e-mail.
+
+**`MetaCard`** (`src/components/metas/MetaCard.tsx`) — o card da aba Metas (tela 09). Emoji e nome,
+linha de prazo e alvo, selo de situação, "Guardado"/"Aporte" (ou "Sugerido", quando a pessoa não
+declarou aporte) e barra que **enche** rumo ao objetivo. `aporte_baixo` é **âmbar, nunca vermelho**:
+o vermelho é status de dívida (ADR 0015). Sem prazo ou sem aporte declarado, **não há selo** — ver
+ADR 0017.
+
+### Ainda só especificação
+
+> Estes vieram da concepção (`docs/concepcao/`) e **não existem em `src/`**. Dependem de domínio
+> que o M11/M12 ainda vai trazer. Quando virarem código, sobem para a seção acima.
+
+**`ScriptCard`** — a fala de negociação com a base legal à vista. Fala entre aspas; abaixo, o
+bloco "Por que você pode falar isso", com borda esquerda verde de 2px e a citação em `caption`.
+**Todo script exibe sua fonte** — é o diferencial de confiança do produto, e é também o que o
+mantém do lado certo da fronteira jurídica.
+
+Seletor de **canal** no topo (`telefone · chat · e-mail`, ver `domain.md`). Na variante escrita,
+cada mensagem é um bloco com botão *copiar* próprio, o alerta de validação do número abre o card
+e a regra de pagamento (boleto ou Pix no CNPJ do credor) o fecha. CTA final: "colar print da
+resposta".
+
+**`RespiroCard`** — "Respiro deste mês: R$ 150 · usados R$ 80". A barra enche em **verde**: usar
+respiro é positivo, e pintá-la de vermelho seria a contradição exata do que o Respiro existe para
+resolver. Copy sempre de permissão — "sobram R$ 70 pra usar sem culpa", nunca "você já gastou
+R$ 80". Ver `guardrails.md`, seção 4.1.
+
+**`MarcoScreen`** — tela cheia disparada em marco. Conquista em Archivo Black, respiro
+desbloqueado com valor concreto, e um CTA de permissão ("Aproveita. Tá no plano."). Sugestão
+contextual por tamanho do marco: sorvete/café → unha/cabelo/jantar → viagem rápida. Botão
+alternativo "guardar pro próximo marco". Glow verde, na intensidade menor da tela de vitória.
+Compartilhável em formato story.
+
+**Pill de status** — fundo translúcido da cor, texto na cor, dot de 7px. Três variantes:
+`debt` (crítica), `warning` (negociando), `primary` (sob controle / quitada). O `Badge` atual cobre
+os tons; o dot ainda não existe.
 
 ---
 
@@ -389,35 +545,60 @@ enviou — mesma natureza de `formatBRL`.
 
 ## 5. Regras
 
-- **Tema claro sempre.** Não há dark mode e não há `useColorScheme`. `app.json` já fixa
-  `userInterfaceStyle: "light"`. O único elemento escuro do app é o botão de enviar do chat.
+- **Tema escuro sempre.** Não há light mode e não há `useColorScheme`. `app.json` fixa
+  `userInterfaceStyle: "dark"`; a status bar é `light`.
 - **Alvo de toque mínimo 48pt** em qualquer elemento tocável. Vale para ícone, chip e link.
 - **`accessibilityLabel` obrigatório** em todo controle sem texto visível.
   `accessibilityRole` correto em botão, link e cabeçalho.
-- **Contraste mínimo 4.5:1** para texto de corpo. Todos os pares do design system já foram
-  medidos (seção 1) — combinação nova exige medir, não estimar.
-- **Nada de animação de urgência.** Sem pulsar, sem contagem regressiva, sem shake. Transições
-  são suaves e curtas; respeite `AccessibilityInfo.isReduceMotionEnabled`.
+- **Contraste mínimo 4.5:1** para texto de corpo. **A tabela de medições caiu com a ADR 0015 e
+  ainda não foi refeita** (seção 1) — até lá, toda combinação exige medir, não estimar.
+- **Nada de animação de urgência.** Sem pulsar, sem contagem regressiva, sem shake. Transições são
+  suaves e curtas (150–250ms); respeite `AccessibilityInfo.isReduceMotionEnabled`.
+  - **A exceção é a transição de status vermelho → verde: 1,2s.** É a animação-assinatura do
+    produto. Quitar uma dívida precisa ser *visto*, e essa é a única lentidão intencional do app.
 - **Copy em pt-BR**, segunda pessoa, específica e sem julgamento. "Faltam 7 parcelas", não
   "Atenção: dívida em aberto".
 - **Ícones:** `@expo/vector-icons` (Feather), traço fino, tamanho 20 ou 24. Ícone nunca carrega
-  significado sozinho — sempre acompanha texto ou `accessibilityLabel`.
+  significado sozinho — sempre acompanha texto ou `accessibilityLabel`. **Única exceção de família:**
+  os logotipos de Apple e Google em `BotaoSocial`, que vêm do `FontAwesome` porque o Feather não os
+  tem e um pictograma genérico destruiria o reconhecimento do botão.
+- **Toda tela empilhada tem seta de voltar** no canto superior esquerdo, via `PageHeader.onBack` (ou
+  `Passos.onVoltar`, no onboarding) — **inclusive nos ramos de carregando e de erro**, que é onde a
+  pessoa mais quer sair. Raiz de aba não tem: não há para onde voltar. E **uma afordância de saída
+  por tela**: com a seta no topo, ghost de rodapé que só volta é redundância. Ghost com significado
+  próprio fica ("Cancelar" de formulário, "Já tenho conta"). Ver ADR 0016.
+
+### Checklist de revisão de tela
+
+Antes de aprovar qualquer tela nova:
+
+1. O vermelho ocupa menos de ~10% e só marca dívida?
+2. Existe UMA próxima ação clara (no máximo um botão primário)?
+3. O número protagonista está em Archivo Black e a coluna de valores em Inter?
+4. O texto fala como buddy — ativo, concreto, sem culpa?
+5. Se algo foi quitado ou melhorou, o verde aparece? A vitória está visível?
 
 ---
 
 ## 6. Identidade
 
-A marca é o saldo caindo até o ponto de liberdade: uma linha em `#017A70` descendo até um ponto
-em `accent`, **sobre branco**. Fonte em `assets/icon.svg`.
+A marca é o **wordmark** `devo.nada` em Archivo Black, caixa baixa, tracking −3%, com o ponto na
+cor de status. O ícone do app é **só o ponto**.
 
-O ícone é claro porque o app é claro. Uma marca sobre near-black era o último resíduo do desenho
-anterior — e, além de destoar, o violeta perde muito contraste sobre fundo escuro em 40px.
+Isso é o que faz a marca funcionar como marca e não como logotipo: o mesmo elemento que identifica
+o produto reporta o estado do usuário. Ver ADR 0015 e a tabela de estados na seção 1.
+
+Variações: principal (sobre grafite), invertida (sobre paper, para material impresso e social),
+empilhada, e o ícone.
 
 | Arquivo | Tamanho | Observação |
 |---|---|---|
-| `assets/icon.png` | 1024² | sangra até a borda; o iOS aplica o próprio arredondamento |
-| `assets/adaptive-icon.png` | 1024² | marca a 72%, dentro da zona segura da máscara do Android |
-| `assets/splash.png` | 1024² | a marca sozinha sobre o branco com que o app abre |
+| `assets/icon.png` | 1024² | o ponto sangrando até a borda; o iOS aplica o próprio arredondamento |
+| `assets/adaptive-icon.png` | 1024² | ponto a 72%, dentro da zona segura da máscara do Android |
+| `assets/splash.png` | 1024² | o ponto sozinho sobre `#101216` |
 
 Os PNG são rasterizados do SVG com Chrome headless — a máquina não tem `rsvg-convert`,
 ImageMagick nem `sharp`. O script vive fora do repositório; a fonte versionada é o SVG.
+
+> **PENDENTE:** os três PNG e o `assets/icon.svg` ainda são os da marca anterior. Trocá-los é
+> item de pré-lançamento — o app hoje roda com a paleta certa e o ícone errado.

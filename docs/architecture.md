@@ -75,13 +75,18 @@ app/
   _layout.tsx                    QueryClientProvider, SafeArea, fontes, tema, gate de sessão
   (auth)/
     _layout.tsx                  pilha das telas de conta (M8)
-    login.tsx                    entrar
+    login.tsx                    entrar / criar conta — social inerte, divisor, e-mail (tela 11)
     registro.tsx                 criar conta
     esqueci-senha.tsx            pede o código
     redefinir-senha.tsx          código + senha nova
+  (onboarding)/                  entrada pelo alívio (M13). SEM barra de abas, de propósito
+    _layout.tsx                  pilha; a triagem trava o gesto de voltar (ADR 0016)
+    divida.tsx                   passo 1 — "qual dívida tira seu sono?", escolha MÚLTIPLA
+    entrada.tsx                  passo 2 — documento (1 dívida) ou fila de dois campos (várias)
+    triagem.tsx                  passo 3 — cobrado × justo, ou "ainda não calculado"
   (tabs)/
-    _layout.tsx                  quatro abas: Chat · Dívidas · Caixa · Painel
-    index.tsx                    Chat
+    _layout.tsx                  Rota · Dívidas|Metas · Buddy · Extrato — a 2ª troca na fase verde
+    index.tsx                    Chat (rótulo "Buddy")
     dividas/
       _layout.tsx                pilha da aba
       index.tsx                  lista
@@ -100,7 +105,12 @@ app/
       renda.tsx                  fontes e registro de recebimento (M7)
       gastos.tsx                 gastos, essenciais e cortáveis (M7)
       provisoes.tsx              despesas anuais — IPVA, seguro (M7)
-      metas.tsx                  imposto, reserva e aposentadoria (M7)
+      metas.tsx                  "Seus potes": imposto, reserva e aposentadoria (M7)
+    metas/                       "Suas metas": metas nomeadas (M12). COISA DIFERENTE de caixa/metas
+      _layout.tsx                pilha da aba
+      index.tsx                  a Rota de Chegada (tela 09)
+      nova.tsx                   formulário de criação
+      [id]/editar.tsx            edição e exclusão
     painel/
       _layout.tsx                pilha da aba
       index.tsx                  painel de endividamento
@@ -116,9 +126,21 @@ propõe, e enterrá-la dentro de outra aba a trataria como detalhe do diagnósti
 Todo o **produto** vive dentro de `(tabs)/`: uma rota fora do grupo perde a barra de abas, e sair
 do simulador ou do plano levaria o usuário para fora da navegação em vez de voltar para a lista.
 
-A exceção é `(auth)/`, e ela é fora **pelo mesmo raciocínio invertido**: login com a barra de abas
-embaixo é convite a tocar numa aba que vai `401`ar, e exibir quatro abas de dado financeiro a quem
-ainda não entrou anuncia um app que a pessoa ainda não tem.
+As exceções são `(auth)/` e `(onboarding)/`, e as duas são fora **pelo mesmo raciocínio
+invertido**: login com a barra de abas embaixo é convite a tocar numa aba que vai `401`ar, e exibir
+quatro abas de dado financeiro a quem ainda não entrou — ou a quem ainda não cadastrou dívida
+nenhuma — anuncia um app que a pessoa ainda não tem. O onboarding sai de lá com uma dívida
+cadastrada e uma leitura sobre ela; aí as abas passam a ter conteúdo.
+
+**A segunda aba troca de rótulo na fase verde:** `Dívidas` vira `Metas` quando
+`estadoDaRota === 'quitado'` (tela 09 da concepção). A troca usa `href: null`, que tira da barra
+**sem tirar da rota** — `/dividas` continua alcançável por `push` e por deep link, e a tela de Metas
+oferece o caminho. Esconder a rota faria quem quitou tudo e contraiu uma dívida nova não ter como
+cadastrá-la. Ver ADR 0017.
+
+**Toda tela empilhada tem seta de voltar** (`PageHeader.onBack`), porque os seis layouts usam
+`headerShown: false` e o header nativo não existe em lugar nenhum do app. Ver ADR 0016 e
+`docs/design-system.md`, seção 5.
 
 Rota é a unidade de deep link: um card do chat consegue apontar para `dividas/[id]` sem
 conhecer a pilha de navegação. Isso é o que viabiliza M5 — e, no M6, o `valor_justo` aponta para
@@ -166,7 +188,7 @@ Quitar uma dívida invalida `['dividas']` inteiro, porque o resumo do painel tam
 | `status` | Significado | Comportamento da UI |
 |---|---|---|
 | `0` | sem conexão | banner "sem conexão" + botão de tentar de novo; não faz retry automático agressivo |
-| `401` | token ausente ou diferente do servidor | oferece "Configurar conexão", que leva a `/painel/token` |
+| `401` | sessão ausente, expirada ou revogada | tenta renovar pelo refresh; falhando, limpa a sessão e cai no login (`/login`). A tela de token e o `/painel/token` saíram no M8 (ADR 0012) |
 | `404` | recurso não existe | estado vazio específico da tela, não erro genérico |
 | `422` | payload inválido | erro por campo no formulário, quando o backend indicar o campo |
 | `5xx` | falha do servidor | banner de erro + retry manual |

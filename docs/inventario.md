@@ -47,6 +47,10 @@ distinção é do `roadmap.md` e este documento não a apaga.
 | M7.2 | Uma renda só: `fonte_renda` vira a fonte de verdade e o painel volta a exibir comprometimento | Entregue; **falta device** |
 | M8 | Conta de usuário: cadastro, login, sessão revogável, recuperação de senha e exclusão de conta | Entregue; **falta device** |
 | M9 | Assinatura in-app: 7 dias de teste, somente leitura depois, validação direta com as duas lojas | Entregue; **falta device e conta de loja** |
+| M10 | Fork e marca devo.nada: paleta escura, wordmark, splash, ícone (ADR 0014 e 0015) | Entregue; **falta device** |
+| M12 | Metas nomeadas e a aba da fase verde: `/v1/metas`, cards da tela 09, troca de aba (ADR 0017) | Entregue; **falta device** |
+| M13 | Entrada pelo alívio: onboarding em 3 passos, escolha **múltipla** de dívida e fila de cadastro (ADR 0016) | Entregue; **falta device** |
+| — | Navegação: seta de voltar em toda tela empilhada (ADR 0016) | Entregue; **falta device** |
 
 ## Stack, em uma tabela
 
@@ -131,7 +135,7 @@ O `.npmrc` tem `legacy-peer-deps=true`, que já escondeu três problemas reais �
 | Node | v24.12.0 |
 | npm | 11.6.2 |
 | Docker | 29.1.3 |
-| PostgreSQL | 16-alpine, container `buddy-postgres` |
+| PostgreSQL | 16-alpine, container `devonada-postgres` |
 
 **Portas escolhidas por colisão, não por gosto:** API na **8001** e Postgres na **5433**,
 porque 8000 e 5432 já são do stack do `biahflow-portal-cliente`.
@@ -257,13 +261,19 @@ instrui a não pagar (`docs/guardrails.md`, seção 3).
 
 ### Rotas — `app/`, 4 abas
 
+Os rótulos que o usuário lê são **Rota · Dívidas · Buddy · Extrato**; os nomes de pasta são os do
+domínio (`painel`, `dividas`, `index`, `caixa`) e não mudam, para não quebrar deep link nem teste.
+Na **fase verde** a segunda aba vira **Metas** (ADR 0017).
+
 | Aba | Rotas |
 |---|---|
-| **Chat** | `(tabs)/index` |
+| **Buddy** (chat) | `(tabs)/index` |
 | **Dívidas** | `dividas/index` (lista) · `nova` · `simulador` · `contrato/index` (envio) · `contrato/[id]` (revisão da extração) · `[id]/index` (detalhe) · `[id]/editar` · `[id]/plano` · `[id]/renegociar` · `[id]/revisao` |
-| **Caixa** | `caixa/index` (a cascata) · `renda` · `gastos` · `provisoes` · `metas` |
-| **Painel** | `painel/index` · `painel/preferencias` · `painel/excluir-conta` |
+| **Metas** (fase verde) | `metas/index` (Rota de Chegada) · `metas/nova` · `metas/[id]/editar` |
+| **Extrato** (caixa) | `caixa/index` (a cascata) · `renda` · `gastos` · `provisoes` · `metas` ("Seus potes" — **não** é a aba Metas) |
+| **Rota** (painel) | `painel/index` · `painel/preferencias` · `painel/assinatura` · `painel/excluir-conta` |
 | **(fora das abas)** | `(auth)/login` · `registro` · `esqueci-senha` · `redefinir-senha` — login com barra de abas embaixo é convite a tocar numa aba que vai 401ar |
+| **(fora das abas)** | `(onboarding)/divida` · `entrada` · `triagem` — quem chega sem dívida cadastrada não tem o que ver nas outras abas |
 
 ### Design system — `docs/design-system.md`
 
@@ -351,6 +361,24 @@ Estão aqui porque escondê-las inverteria o princípio do projeto. Íntegras em
 14. **`margemDisponivel` muda de definição conforme o caixa** (M7.2): `aporteMaximo` quando o
     caixa conhece a saída, `renda − mínimo existencial − comprometido` quando não. A tela ainda
     não nomeia qual das duas está exibindo.
+15. **Na fila multi-dívida do onboarding, o documento não é pedido durante o cadastro** (M13,
+    ADR 0016). Quem marca duas ou mais dívidas cadastra as duas por valor e recebe uma triagem sem
+    achado — `/dividas/contrato` vive fora do grupo `(onboarding)` e sair para lá abandonaria o
+    resto da fila. A triagem oferece "Mandar a fatura" logo em seguida, mas o "aha" completo fica
+    adiado para quem escolheu esse caminho.
+16. **Não existe login social** (Apple ou Google). A tela de entrada mostra os dois botões do
+    desenho da concepção, **desligados**, com legenda dizendo quando chegam. O backend não tem nada
+    de Sign in with Apple nem Google Sign-In — o que existe em `backend/` sobre as duas empresas é
+    compra in-app e exclusão de conta.
+17. **A linha "Termos e Política de Privacidade" da tela de entrada é texto, não link.** Não há URL
+    dessas páginas em `src/config/env.ts`, `app.json` nem `.env.example`; a única página pública do
+    backend é `/exclusao`. Vira link quando as páginas existirem — é item de pré-lançamento.
+18. **Duas coisas chamadas "metas"** (ADR 0017): `/v1/caixa/metas` são os potes da cascata do
+    fechamento; `/v1/metas` são as metas nomeadas da aba. Custo assumido de não migrar, porque
+    mover os potes mudaria a capacidade de todo mundo em silêncio.
+19. **A troca de aba da fase verde não tem teste.** `jest-expo` mocka `Tabs` como `View`, então
+    `href: null` é invisível para a suíte — mesma situação de `gestureEnabled` no onboarding. São
+    configuração de navegação, e a verificação é em device, nos dois sistemas.
 
 (Duas limitações antigas foram **resolvidas** no M3 e não constam acima: `comprometimentoRenda`
 deixou de ser aproximação e `proximosVencimentos` deixou de voltar vazio.)
@@ -368,7 +396,7 @@ deixou de ser aproximação e `proximosVencimentos` deixou de voltar vazio.)
 | **Telas do M1 não exercitadas** | Cadastro, detalhe, edição, quitação e exclusão contra o backend real |
 | ~~**Login de verdade**~~ | **Fechada no M8.** Cadastro, login, sessão revogável e recuperação de senha (ADR 0012). A tela de token do beta foi removida |
 | ~~**Não há como cobrar**~~ | **Fechada no M9.** In-app purchase com validação no servidor, provedor de loja plugável e paywall por método HTTP (ADR 0013). Falta cadastrar o produto nas lojas |
-| **Recuperação de senha sem SMTP** | Sem `BUDDY_SMTP_*` configurado, nenhum código é enviado — e a rota continua respondendo 202, porque responder outra coisa a transformaria em verificador de cadastro. É a única dependência externa do produto cuja ausência não tem contorno pela interface |
+| **Recuperação de senha sem SMTP** | Sem `DEVONADA_SMTP_*` configurado, nenhum código é enviado — e a rota continua respondendo 202, porque responder outra coisa a transformaria em verificador de cadastro. É a única dependência externa do produto cuja ausência não tem contorno pela interface |
 | **URL pública de exclusão** | `GET /exclusao` existe, mas só onde a API existe. A exigência do Google é uma URL pública — falta domínio |
 | **CI** | Nenhum pipeline. Os gates dependem de disciplina |
 | **Tetos do consignado** | Sem default e sem rotina de atualização — mudam por resolução do CNPS |

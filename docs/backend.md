@@ -12,19 +12,36 @@
 
 ```bash
 cd backend
-cp .env.example .env                      # gere o BUDDY_API_TOKEN
+cp .env.example .env                      # veja os três ajustes abaixo
 docker compose up -d                      # Postgres na 5433
-source venv/bin/activate
-alembic upgrade head
-uvicorn main:app --host 0.0.0.0 --port 8001 --reload
-pytest                                     # 370 testes
+python3 -m venv venv && ./venv/bin/pip install -r requirements.txt
+./venv/bin/alembic upgrade head
+./venv/bin/uvicorn main:app --host 0.0.0.0 --port 8001 --reload
+./venv/bin/pytest                          # 452 testes
 ```
 
-**Portas escolhidas por colisão, não por gosto:** a 8000 e a 5432 já são do stack do
-`biahflow-portal-cliente`. A API vai na **8001**, o Postgres na **5433**.
+**Três ajustes no `.env` recém-copiado**, e só o primeiro é obrigatório:
 
-Depois de subir, cole o `BUDDY_API_TOKEN` no app em **Painel → Configurar conexão**. Sem isso,
-toda tela de dados vira 401.
+| Chave | Valor | Por quê |
+|---|---|---|
+| `DEVONADA_JWT_SECRET` | `python -c "import secrets; print(secrets.token_urlsafe(32))"` | Sem default de propósito. Vazio ⇒ 500 em toda rota autenticada |
+| `DEVONADA_CORREIO` | `memoria` em desenvolvimento | Sem SMTP não há recuperação de senha, e a rota responde 202 assim mesmo — para não virar verificador de cadastro. Em `memoria` o código de 6 dígitos sai no log do processo |
+| `DEVONADA_LOJA` | `memoria` em desenvolvimento | Evita precisar de credencial de App Store / Play só para rodar local |
+
+Os tetos do consignado ficam **vazios**, e isso está certo: sem o teto a regra devolve `None` e o
+achado não é produzido, nunca um teto chutado (ADR 0008).
+
+**Portas escolhidas por colisão, não por gosto:** a 8000 e a 5432 já são do stack do
+`biahflow-portal-cliente`. A API vai na **8001**, o Postgres na **5433**. O
+`docker-compose.yml` fixa `name: devonada` pelo mesmo motivo — sem isso o Compose deriva o
+projeto do diretório (`backend`), que colide com o repositório de origem do fork.
+
+**`--host 0.0.0.0` não é enfeite:** sem ele o uvicorn só escuta em `127.0.0.1`, e um celular na
+mesma rede não alcança a API.
+
+**Não há token para colar.** A tela de token e o `DEVONADA_API_TOKEN` saíram no M8 (ADR 0012):
+hoje se cria conta pelo próprio app, com e-mail e senha. O primeiro cadastro num banco sem
+usuários adota o tenant do beta, para dívidas e caixa já cadastrados não ficarem órfãos.
 
 ---
 
@@ -40,7 +57,7 @@ assinatura.py   a trava de escrita: GET livre, write exige assinatura (ADR 0013)
 domain/         REGRAS DE NEGÓCIO puras, com fonte citada
 leitura.py      adaptadores persistência → domínio, compartilhados entre routers
 routers/        dividas · resumo · simulacoes · parcelas · perfil · lembretes · contratos · chat
-                caixa · revisao · auth · conta · assinatura
+                caixa · metas · revisao · auth · conta · assinatura
 llm/            ÚNICO lugar que conhece SDK de modelo (ADR 0007)
 correio/        ÚNICO lugar que fala SMTP — mesmo desenho da camada llm/
 loja/           ÚNICO lugar que fala com App Store e Google Play — mesmo desenho
@@ -99,8 +116,10 @@ varre `app.openapi()` e falha se `LIVRES` crescer sem decisão explícita.
 | CET não informado | Taxa efetiva anual é informação obrigatória | CDC, art. 52, II | `domain/revisao.py` |
 | `valorJusto` | `valorCobrado` − Σ achados **com valor** | — (subtração, não estimativa; ADR 0008) | `domain/revisao.py` |
 | Situação da assinatura | 7 dias de teste da criação da conta; a data mais distante entre teste e compra | **nenhuma — e o docstring diz por quê** | `domain/assinatura.py` |
+| `aporteSugerido` de meta | O que falta ÷ meses que faltam, para cima; `None` sem prazo | — (aritmética sobre o que o usuário informou; ADR 0017) | `domain/metas.py` |
+| Situação da meta | Aporte declarado ≥ sugerido; `None` sem prazo **ou** sem aporte | — (comparação entre dois números do próprio usuário) | `domain/metas.py` |
 
-> **A última linha é o único "sem fonte" desta tabela que não é uma escolha de método, e ela
+> **A linha da assinatura é o único "sem fonte" desta tabela que não é uma escolha de método, e ela
 > precisa ser lida com atenção.** A regra deste diretório é que nenhuma REGRA FINANCEIRA é
 > inventada: as linhas acima levam artigo de lei porque descrevem dinheiro que a lei define, e um
 > número chutado ali sairia na tela do usuário como se fosse direito dele. Período de teste é de
@@ -109,6 +128,12 @@ varre `app.openapi()` e falha se `LIVRES` crescer sem decisão explícita.
 >
 > `domain/assinatura.py` declara isso no próprio docstring, para que ninguém conclua que a fonte
 > foi esquecida — e para que ele não vire precedente para o próximo `* 1.1`.
+>
+> **`domain/metas.py` cai do outro lado da linha, e o cabeçalho dele explica onde.** Ele divide o que
+> a pessoa disse que falta pelo prazo que ela mesma escolheu — a conta que ela faria no papel, e o
+> mesmo método de `aporte_de_provisao`. Seria invenção afirmar quanto ela *deveria* guardar, ou
+> projetar rendimento que ninguém informou; nada ali faz isso. E onde falta dado, o módulo devolve
+> `None` em vez de escolher um horizonte plausível — que é exatamente o padrão da ADR 0008.
 
 ### As limitações declaradas
 
@@ -203,9 +228,9 @@ contrato, assistente do chat — falam com o `Protocol ClienteLLM` e não sabem 
 do outro lado. A decisão e o porquê estão na **ADR 0007**.
 
 ```
-BUDDY_LLM_PROVIDER          openai (padrão) | anthropic
-BUDDY_LLM_MODEL_EXTRACAO    modelo da leitura de contrato
-BUDDY_LLM_MODEL_ASSISTENTE  modelo do chat
+DEVONADA_LLM_PROVIDER          openai (padrão) | anthropic
+DEVONADA_LLM_MODEL_EXTRACAO    modelo da leitura de contrato
+DEVONADA_LLM_MODEL_ASSISTENTE  modelo do chat
 ```
 
 **Modelo por capacidade, não global:** ler contrato exige visão, PDF e evidência literal por
@@ -229,7 +254,7 @@ e o schema, valendo para qualquer provedor; `extracao/extrator_llm.py` é a impl
 
 Lê PDF **e** foto sem OCR separado — sem dependência de Tesseract no servidor.
 
-`BUDDY_EXTRATOR` continua existindo porque a porta faz sentido: um extrator determinístico para
+`DEVONADA_EXTRATOR` continua existindo porque a porta faz sentido: um extrator determinístico para
 o layout de um banco específico seria mais exato que qualquer modelo, e entraria sem tocar a rota.
 
 **Três guardrails aplicados no servidor, não só no cliente:**
@@ -317,8 +342,8 @@ Recurso de outro tenant devolve **404, nunca 403**: um 403 confirmaria que o id 
 > ser rápido e não exigir infraestrutura; para rodar contra o mesmo banco da produção:
 >
 > ```bash
-> docker exec buddy-postgres psql -U buddy -d postgres -c "CREATE DATABASE buddy_test;"
-> BUDDY_TEST_DATABASE_URL=postgresql+psycopg://buddy:buddy@localhost:5433/buddy_test pytest
+> docker exec devonada-postgres psql -U devonada -d postgres -c "CREATE DATABASE devonada_test;"
+> DEVONADA_TEST_DATABASE_URL=postgresql+psycopg://devonada:devonada@localhost:5433/devonada_test pytest
 > ```
 >
 > Os 420 testes passam nos dois. **A fixture `engine` precisa de `eng.dispose()` no `finally`**:
@@ -343,11 +368,11 @@ Recurso de outro tenant devolve **404, nunca 403**: um 403 confirmaria que o id 
 > valeu pela metade: ele já mandava `Bearer` e já tratava 401, mas ganhou renovação silenciosa —
 > a peça mais fácil de quebrar do milestone, e a única que exige aparelho para se ter certeza.
 
-> **Recuperação de senha depende de SMTP configurado.** Sem `BUDDY_SMTP_HOST` e
-> `BUDDY_SMTP_REMETENTE`, `POST /v1/auth/senha/recuperacao` continua respondendo `202` — ela
+> **Recuperação de senha depende de SMTP configurado.** Sem `DEVONADA_SMTP_HOST` e
+> `DEVONADA_SMTP_REMETENTE`, `POST /v1/auth/senha/recuperacao` continua respondendo `202` — ela
 > responde 202 sempre, de propósito — mas nenhum código sai, e quem esqueceu a senha fica sem
 > caminho de volta para dados financeiros que são só dele. O envio é plugável
-> (`BUDDY_CORREIO=smtp|memoria`), e `memoria` serve para desenvolvimento e para a suíte.
+> (`DEVONADA_CORREIO=smtp|memoria`), e `memoria` serve para desenvolvimento e para a suíte.
 >
 > É a única dependência externa do produto cuja ausência não tem contorno pela interface. As
 > outras degradam com frase útil e caminho manual: sem chave de LLM o chat responde 503 e a

@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>devo.nada — telas v2 · renda, gastos, respiro e metas</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&display=swap');
+
+:root{
+  --grafite:#101216;
+  --grafite-2:#181B21;
+  --grafite-3:#1F232B;
+  --papel:#F2F2ED;
+  --vermelho:#E5352B;
+  --vermelho-bg:rgba(229,53,43,.12);
+  --ambar:#F0A31C;
+  --ambar-bg:rgba(240,163,28,.12);
+  --verde:#1FC16B;
+  --verde-bg:rgba(31,193,107,.12);
+  --cinza:#8A8F98;
+  --linha:#262A31;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+body{background:#0A0B0E;color:var(--papel);font-family:'Inter',system-ui,sans-serif;line-height:1.5}
+.wrap{max-width:1400px;margin:0 auto;padding:0 24px}
+header{padding:56px 0 8px}
+.eyebrow{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--cinza);font-weight:600;margin-bottom:14px}
+h1{font-family:'Archivo Black',sans-serif;font-size:clamp(26px,4vw,38px);font-weight:400;letter-spacing:-0.02em}
+h1 .dot{color:var(--vermelho)}
+.lead{color:var(--cinza);max-width:64ch;margin-top:10px;font-size:15px}
+
+.gallery{
+  display:flex;gap:28px;overflow-x:auto;padding:40px 24px 56px;
+  scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;
+}
+.gallery::-webkit-scrollbar{height:8px}
+.gallery::-webkit-scrollbar-thumb{background:var(--linha);border-radius:99px}
+.frame{scroll-snap-align:center;flex-shrink:0}
+.frame .title{font-size:13px;font-weight:600;margin-bottom:4px;text-align:center}
+.frame .sub{font-size:12px;color:var(--cinza);text-align:center;margin-bottom:14px;max-width:340px}
+
+.phone{
+  width:340px;height:700px;background:var(--grafite);
+  border:1px solid var(--linha);border-radius:36px;
+  padding:20px 18px 0;overflow:hidden;position:relative;
+  display:flex;flex-direction:column;
+}
+.statusbar{display:flex;justify-content:space-between;font-size:11px;color:var(--cinza);margin-bottom:16px;font-weight:500}
+.screen{flex:1;overflow:hidden;display:flex;flex-direction:column;gap:12px}
+
+.applogo{font-family:'Archivo Black',sans-serif;font-size:18px;letter-spacing:-0.02em}
+.topbar{display:flex;justify-content:space-between;align-items:center}
+.screen-title{font-weight:700;font-size:17px}
+.card{background:var(--grafite-2);border:1px solid var(--linha);border-radius:16px;padding:16px}
+.microlabel{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--cinza);font-weight:600}
+.bignum{font-family:'Archivo Black',sans-serif;letter-spacing:-0.02em}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;border-radius:99px;padding:4px 10px}
+.pill.red{background:var(--vermelho-bg);color:var(--vermelho)}
+.pill.amber{background:var(--ambar-bg);color:var(--ambar)}
+.pill.green{background:var(--verde-bg);color:var(--verde)}
+.pill .dot-s{width:7px;height:7px;border-radius:50%;background:currentColor}
+.bar{height:6px;background:var(--grafite-3);border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:99px}
+.btn{border:none;border-radius:14px;padding:14px;font-family:'Inter';font-weight:700;font-size:14px;text-align:center;cursor:default}
+.btn.primary{background:var(--verde);color:#08120C}
+.btn.ghost{background:var(--grafite-2);color:var(--papel);border:1px solid var(--linha)}
+.tabbar{
+  display:flex;justify-content:space-around;padding:14px 0 22px;
+  border-top:1px solid var(--linha);margin:0 -18px;background:var(--grafite);
+  font-size:10px;color:var(--cinza);font-weight:600;
+}
+.tabbar .tab{display:flex;flex-direction:column;align-items:center;gap:5px}
+.tabbar .ic{width:20px;height:20px;border-radius:6px;background:var(--grafite-3)}
+.tabbar .tab.active{color:var(--papel)}
+.tabbar .tab.active .ic{background:var(--vermelho)}
+.tabbar.phase-green .tab.active .ic{background:var(--verde)}
+
+/* renda */
+.income-types{display:flex;flex-direction:column;gap:10px}
+.itype{background:var(--grafite-2);border:1px solid var(--linha);border-radius:16px;padding:14px;display:flex;gap:12px;align-items:flex-start}
+.itype.selected{border-color:var(--verde)}
+.itype .radio{width:18px;height:18px;border-radius:50%;border:2px solid var(--cinza);margin-top:2px;flex-shrink:0}
+.itype.selected .radio{border-color:var(--verde);background:radial-gradient(circle at center,var(--verde) 40%,transparent 45%)}
+.itype b{font-size:14px;display:block}
+.itype p{font-size:12px;color:var(--cinza);margin-top:2px}
+.hint{
+  background:var(--grafite-2);border:1px solid var(--linha);border-radius:12px;
+  padding:12px 14px;font-size:12px;color:var(--cinza);
+  border-left:2px solid var(--verde);
+}
+.hint b{color:var(--papel)}
+.input{
+  background:var(--grafite-3);border:1px solid var(--linha);border-radius:14px;
+  padding:13px 14px;font-size:14px;color:var(--papel);display:flex;justify-content:space-between;
+}
+.input span{color:var(--cinza);font-size:12px}
+
+/* gastos */
+.exp-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--linha);font-size:13px}
+.exp-row:last-child{border-bottom:none}
+.exp-row .nm{font-weight:600}
+.exp-row .dt{font-size:11px;color:var(--cinza)}
+.exp-row .vl{font-weight:600}
+.calc{background:var(--grafite-2);border:1px solid var(--linha);border-radius:16px;padding:16px}
+.calc .line{display:flex;justify-content:space-between;font-size:13px;padding:5px 0;color:var(--cinza)}
+.calc .line b{color:var(--papel);font-weight:600}
+.calc .total{
+  display:flex;justify-content:space-between;align-items:center;
+  border-top:1px solid var(--linha);margin-top:8px;padding-top:12px;
+}
+.calc .total .bignum{font-size:22px;color:var(--verde)}
+.respiro-line b{color:var(--verde)!important}
+
+/* respiro card */
+.respiro{background:var(--grafite-2);border:1px solid rgba(31,193,107,.35);border-radius:16px;padding:16px}
+.respiro .r-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.respiro .bignum{font-size:20px;color:var(--verde)}
+
+/* marco */
+.marco{align-items:center;text-align:center;justify-content:center;gap:16px}
+.marco .mdot{width:58px;height:58px;border-radius:50%;background:var(--verde);box-shadow:0 0 50px rgba(31,193,107,.3)}
+.marco .mtitle{font-family:'Archivo Black',sans-serif;font-size:26px;letter-spacing:-0.02em;line-height:1.15}
+.marco .mtitle em{font-style:normal;color:var(--verde)}
+.marco p.mp{font-size:13px;color:var(--cinza);max-width:26ch}
+.marco .unlock{background:var(--grafite-2);border:1px solid rgba(31,193,107,.35);border-radius:16px;padding:16px;width:100%}
+.marco .unlock .bignum{font-size:24px;color:var(--verde)}
+.marco .unlock p{font-size:12px;color:var(--cinza);margin-top:4px}
+.marco .permission{font-size:13px;font-weight:700;color:var(--verde)}
+
+/* metas */
+.meta-item{background:var(--grafite-2);border:1px solid var(--linha);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.meta-item .row1{display:flex;justify-content:space-between;align-items:center}
+.meta-item .who{font-weight:700;font-size:14px}
+.meta-item .when{font-size:11px;color:var(--cinza)}
+.meta-item .vals{display:flex;justify-content:space-between;font-size:12px;color:var(--cinza)}
+.meta-item .vals b{color:var(--papel);font-weight:600}
+footer{padding:20px 0 64px;color:var(--cinza);font-size:13px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="eyebrow">Telas do app · v2 — renda, gastos, respiro e metas</div>
+    <h1>devo<span class="dot">.</span>nada</h1>
+    <p class="lead">Quatro telas novas: setup de renda por tipo (CLT/PJ/autônomo), gastos com a "capacidade de ataque", a tela de marco com o Respiro, e as metas pós-quitação. Deslize →</p>
+  </div>
+</header>
+
+<div class="gallery">
+
+  <!-- 06 · RENDA -->
+  <div class="frame">
+    <div class="title">06 · Renda — Setup por tipo</div>
+    <div class="sub">Renda variável tratada de verdade: mediana, não média</div>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+      <div class="screen">
+        <div class="screen-title">Como você ganha dinheiro?</div>
+        <div class="income-types">
+          <div class="itype">
+            <div class="radio"></div>
+            <div><b>CLT</b><p>Salário fixo. Vamos considerar 13º e férias como reforço na rota.</p></div>
+          </div>
+          <div class="itype">
+            <div class="radio"></div>
+            <div><b>PJ por hora</b><p>Taxa × horas por mês, já descontando impostos.</p></div>
+          </div>
+          <div class="itype selected">
+            <div class="radio"></div>
+            <div><b>Autônomo</b><p>Renda que varia mês a mês. A gente planeja pelo mês fraco, não pelo bom.</p></div>
+          </div>
+        </div>
+        <div class="input">Entradas dos últimos 3 meses <span>R$ 4.100 · 6.800 · 3.900</span></div>
+        <div class="hint"><b>Sua renda de planejamento: R$ 4.100/mês.</b> Usamos a mediana — um mês bom não pode definir seu compromisso. Se cair mais, é aporte extra; se cair menos, o plano se ajusta sem quebrar.</div>
+        <div class="btn primary">Continuar</div>
+        <div style="flex:1"></div>
+        <div class="tabbar">
+          <div class="tab active"><div class="ic"></div>Rota</div>
+          <div class="tab"><div class="ic"></div>Dívidas</div>
+          <div class="tab"><div class="ic"></div>Buddy</div>
+          <div class="tab"><div class="ic"></div>Extrato</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 07 · GASTOS -->
+  <div class="frame">
+    <div class="title">07 · Gastos — Capacidade de ataque</div>
+    <div class="sub">Renda − fixos − variáveis − Respiro = o que ataca a dívida</div>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+      <div class="screen">
+        <div class="topbar">
+          <div class="screen-title">Seu mês</div>
+          <span class="pill green"><span class="dot-s"></span>Autônomo</span>
+        </div>
+        <div class="card">
+          <div class="microlabel" style="margin-bottom:8px">Gastos fixos</div>
+          <div class="exp-row"><div><div class="nm">Aluguel</div><div class="dt">vence dia 5</div></div><div class="vl">R$ 1.400</div></div>
+          <div class="exp-row"><div><div class="nm">Luz + internet</div><div class="dt">vence dia 10</div></div><div class="vl">R$ 310</div></div>
+          <div class="exp-row"><div><div class="nm">Escola</div><div class="dt">vence dia 8</div></div><div class="vl">R$ 520</div></div>
+        </div>
+        <div class="card">
+          <div class="microlabel" style="margin-bottom:8px">Variáveis (envelope)</div>
+          <div class="exp-row"><div class="nm">Mercado + farmácia + transporte</div><div class="vl">R$ 1.100</div></div>
+        </div>
+        <div class="calc">
+          <div class="line"><span>Renda de planejamento</span><b>R$ 4.100</b></div>
+          <div class="line"><span>Fixos + variáveis</span><b>− R$ 3.330</b></div>
+          <div class="line respiro-line"><span>Respiro (lazer sem culpa)</span><b>− R$ 150</b></div>
+          <div class="total">
+            <div class="microlabel">Capacidade de ataque</div>
+            <div class="bignum">R$ 620/mês</div>
+          </div>
+        </div>
+        <div class="hint">É com esse número que o buddy monta suas propostas de negociação.</div>
+        <div style="flex:1"></div>
+        <div class="tabbar">
+          <div class="tab active"><div class="ic"></div>Rota</div>
+          <div class="tab"><div class="ic"></div>Dívidas</div>
+          <div class="tab"><div class="ic"></div>Buddy</div>
+          <div class="tab"><div class="ic"></div>Extrato</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 08 · MARCO / RESPIRO -->
+  <div class="frame">
+    <div class="title">08 · Marco — Respiro desbloqueado</div>
+    <div class="sub">A tela anti-desistência: comemorar faz parte do plano</div>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+      <div class="screen marco">
+        <div style="flex:1"></div>
+        <div class="mdot"></div>
+        <div class="mtitle">Primeira dívida<br><em>quitada.</em></div>
+        <p class="mp">R$ 9.870 viraram R$ 5.900 — e agora viraram passado.</p>
+        <div class="unlock">
+          <div class="microlabel">Seu respiro deste marco</div>
+          <div class="bignum">R$ 120</div>
+          <p>Jantar a dois? Unha e cabelo? Sorvete com as crianças? Escolhe — <b style="color:var(--papel)">tá no plano.</b></p>
+        </div>
+        <div class="permission">Aproveita sem culpa. Você pagou por isso — literalmente.</div>
+        <div class="btn primary" style="width:100%">Usar meu respiro</div>
+        <div class="btn ghost" style="width:100%">Guardar pro próximo marco</div>
+        <div style="flex:1"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 09 · METAS -->
+  <div class="frame">
+    <div class="title">09 · Metas — Rota de Chegada</div>
+    <div class="sub">Pós-quitação: mesma mecânica, semântica invertida. App em fase verde</div>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+      <div class="screen">
+        <div class="topbar">
+          <div class="screen-title">Suas metas</div>
+          <span class="pill green"><span class="dot-s"></span>devo nada</span>
+        </div>
+        <div class="meta-item">
+          <div class="row1">
+            <div><div class="who">🛟 Reserva de emergência</div><div class="when">6× seus fixos · meta R$ 13.400</div></div>
+            <span class="pill green"><span class="dot-s"></span>Em dia</span>
+          </div>
+          <div class="vals"><span>Guardado: <b>R$ 5.360</b></span><span>Aporte: <b>R$ 670/mês</b></span></div>
+          <div class="bar"><i style="width:40%;background:var(--verde)"></i></div>
+        </div>
+        <div class="meta-item">
+          <div class="row1">
+            <div><div class="who">✈️ Viagem em família</div><div class="when">julho 2027 · meta R$ 6.000</div></div>
+            <span class="pill green"><span class="dot-s"></span>Em dia</span>
+          </div>
+          <div class="vals"><span>Guardado: <b>R$ 1.800</b></span><span>Aporte: <b>R$ 380/mês</b></span></div>
+          <div class="bar"><i style="width:30%;background:var(--verde)"></i></div>
+        </div>
+        <div class="meta-item">
+          <div class="row1">
+            <div><div class="who">🚗 Trocar de carro</div><div class="when">2028 · meta R$ 35.000</div></div>
+            <span class="pill amber"><span class="dot-s"></span>Aporte baixo</span>
+          </div>
+          <div class="vals"><span>Guardado: <b>R$ 2.100</b></span><span>Sugerido: <b>R$ 1.150/mês</b></span></div>
+          <div class="bar"><i style="width:6%;background:var(--ambar)"></i></div>
+        </div>
+        <div class="btn ghost">+ Nova meta (aposentadoria, estudo...)</div>
+        <div style="flex:1"></div>
+        <div class="tabbar phase-green">
+          <div class="tab"><div class="ic"></div>Rota</div>
+          <div class="tab active"><div class="ic"></div>Metas</div>
+          <div class="tab"><div class="ic"></div>Buddy</div>
+          <div class="tab"><div class="ic"></div>Extrato</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <div class="wrap">devo.nada · telas v2 · complementa as telas v1 (fluxo de dívidas) e o design-system.md</div>
+</footer>
+</body>
+</html>
