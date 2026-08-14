@@ -42,6 +42,7 @@ export default function Preferencias() {
   if (isPending) {
     return (
       <Screen>
+        <PageHeader eyebrow="Seu contexto" title="Preferências" onBack={() => router.back()} />
         <LoadingState label="Carregando seu perfil" />
       </Screen>
     );
@@ -50,6 +51,7 @@ export default function Preferencias() {
   if (error) {
     return (
       <Screen>
+        <PageHeader eyebrow="Seu contexto" title="Preferências" onBack={() => router.back()} />
         <ErrorState error={error} onRetry={refetch} />
       </Screen>
     );
@@ -108,6 +110,7 @@ function Formulario({ inicial, onPronto }: { inicial: PerfilFinanceiro; onPronto
           eyebrow="Seu contexto"
           title="Preferências"
           description="Quem depende de você e quando os avisos aparecem. Sua renda fica na aba Caixa."
+          onBack={() => router.back()}
         />
 
         <ErroDeMutacao error={atualizar.error} fallback={'Não deu para salvar. Tente de novo.'} />

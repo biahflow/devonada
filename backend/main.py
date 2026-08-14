@@ -17,6 +17,7 @@ from routers import (
     contratos,
     dividas,
     lembretes,
+    metas,
     parcelas,
     perfil,
     resumo,
@@ -38,7 +39,7 @@ settings = get_settings()
 # raciocínio de `routers/conta.tabelas_do_tenant()`, e há um teste em
 # `test_assinatura_api.py` que varre `app.routes` e falha se uma rota de escrita
 # ficar fora das duas listas.
-app = FastAPI(title="Buddy Financeiro API", dependencies=[Depends(exigir_assinatura)])
+app = FastAPI(title="devo.nada API", dependencies=[Depends(exigir_assinatura)])
 
 # Restrito de propósito. `allow_origins=["*"]` fazia a API responder a qualquer
 # página web aberta no navegador do usuário.
@@ -95,6 +96,7 @@ app.include_router(lembretes.router)
 app.include_router(contratos.router)
 app.include_router(chat.router)
 app.include_router(caixa.router)
+app.include_router(metas.router)
 app.include_router(auth.router)
 app.include_router(conta.router)
 app.include_router(assinatura.router)
@@ -103,7 +105,7 @@ app.include_router(assinatura.router)
 @app.get("/")
 def raiz():
     """Health check."""
-    return {"status": "ok", "message": "Buddy Financeiro API"}
+    return {"status": "ok", "message": "devo.nada API"}
 
 
 @app.get("/exclusao", response_class=FileResponse, include_in_schema=False)

@@ -1,4 +1,8 @@
-const DEV_DEFAULT = 'http://localhost:8000';
+// 8001, não 8000: a 8000 já é do stack do biahflow-portal-cliente. Ver
+// backend/docker-compose.yml. Isto é só o fallback de quem esqueceu o `.env` —
+// com a variável preenchida ele nunca é lido, e apontar para a porta errada
+// fazia o erro parecer de rede em vez de configuração.
+const DEV_DEFAULT = 'http://localhost:8001';
 
 /**
  * Config do cliente. O app é um cliente "burro": só fala com a SUA API.

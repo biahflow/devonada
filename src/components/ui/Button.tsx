@@ -16,17 +16,28 @@ interface Props {
   accessibilityHint?: string;
 }
 
+/**
+ * `danger` NÃO tem fundo vermelho, e isso é regra de marca, não descuido: neste
+ * app não existe botão vermelho, nem para ação destrutiva (ADR 0015). O
+ * vermelho aqui aparece só no texto e na borda, e quem carrega o peso da ação
+ * irreversível é a confirmação — um diálogo dedicado —, não a cor do botão.
+ *
+ * Modo de falha que isso previne: uma tela cheia de vermelho vista por alguém
+ * que já está com medo do próprio extrato. O vermelho é o status da dívida, e
+ * gastá-lo num botão de "excluir" tira dele o significado que a marca inteira
+ * depende que ele tenha.
+ */
 const container: Record<Variant, ViewStyle> = {
   primary: { backgroundColor: colors.primary },
   secondary: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.primarySoft },
-  danger: { backgroundColor: colors.danger },
+  danger: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.dangerBorder },
   ghost: { backgroundColor: 'transparent' },
 };
 
 const labelColor: Record<Variant, string> = {
   primary: colors.onPrimary,
   secondary: colors.primary,
-  danger: colors.onPrimary,
+  danger: colors.danger,
   ghost: colors.inkSoft,
 };
 

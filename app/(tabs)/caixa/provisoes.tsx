@@ -69,6 +69,7 @@ export default function ProvisoesCaixa() {
           eyebrow="Caixa"
           title="O que vence de uma vez"
           description="IPVA, seguro, licenciamento. Guardando um pouco por mês, janeiro deixa de ser susto."
+          onBack={() => router.back()}
         />
 
         {provisoes.length === 0 ? (
@@ -82,8 +83,6 @@ export default function ProvisoesCaixa() {
         )}
 
         <NovaProvisao />
-
-        <Button label="Voltar ao caixa" onPress={() => router.back()} variant="ghost" />
       </ScrollView>
     </Screen>
   );

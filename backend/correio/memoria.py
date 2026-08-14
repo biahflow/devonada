@@ -17,7 +17,7 @@ inspecionar.
 
 CAIXA: list[Mensagem] = []
 
-logger = logging.getLogger("buddy.correio")
+logger = logging.getLogger("devonada.correio")
 
 
 class CorreioMemoria(Correio):
@@ -34,7 +34,7 @@ class CorreioMemoria(Correio):
         # NÃO é exceção ao guardrail 5. O que sai aqui é o código de seis
         # dígitos e o destinatário, nunca dado financeiro — a mensagem já nasce
         # sem ele, por decisão da própria camada. E este provedor é escolha
-        # explícita por `BUDDY_CORREIO=memoria`: o padrão é `smtp`, e um
+        # explícita por `DEVONADA_CORREIO=memoria`: o padrão é `smtp`, e um
         # servidor de produção que caia aqui está mal configurado de um jeito
         # muito maior que o log.
         logger.warning(

@@ -8,22 +8,22 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_PRODUTO_ASSINATURA_IOS": "app.buddyfinanceiro.buddy.mensal",
-        "EXPO_PUBLIC_PRODUTO_ASSINATURA_ANDROID": "app.buddyfinanceiro.buddy.mensal"
+        "EXPO_PUBLIC_PRODUTO_ASSINATURA_IOS": "br.com.devonada.app.mensal",
+        "EXPO_PUBLIC_PRODUTO_ASSINATURA_ANDROID": "br.com.devonada.app.mensal"
       }
     },
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_PRODUTO_ASSINATURA_IOS": "app.buddyfinanceiro.buddy.mensal",
-        "EXPO_PUBLIC_PRODUTO_ASSINATURA_ANDROID": "app.buddyfinanceiro.buddy.mensal"
+        "EXPO_PUBLIC_PRODUTO_ASSINATURA_IOS": "br.com.devonada.app.mensal",
+        "EXPO_PUBLIC_PRODUTO_ASSINATURA_ANDROID": "br.com.devonada.app.mensal"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_PRODUTO_ASSINATURA_IOS": "app.buddyfinanceiro.buddy.mensal",
-        "EXPO_PUBLIC_PRODUTO_ASSINATURA_ANDROID": "app.buddyfinanceiro.buddy.mensal"
+        "EXPO_PUBLIC_PRODUTO_ASSINATURA_IOS": "br.com.devonada.app.mensal",
+        "EXPO_PUBLIC_PRODUTO_ASSINATURA_ANDROID": "br.com.devonada.app.mensal"
       }
     }
   },

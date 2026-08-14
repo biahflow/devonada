@@ -57,6 +57,10 @@ quanto o das certas — ele impede que o mesmo caminho seja tentado duas vezes.
 | [0008](0008-valor-justo-e-soma-de-achados.md) | `valorJusto` é soma de achados citáveis, não estimativa | aceito |
 | [0009](0009-o-usuario-decide-a-ordem-dos-potes.md) | O usuário decide a ordem dos potes; o app mostra a aritmética | aceito |
 | [0010](0010-paleta-derivada-de-pierre-e-budgi.md) | Paleta derivada de Pierre e Budgi; lime é preenchimento, nunca texto | superseded por ADR 0011 |
-| [0011](0011-forma-do-budgi-a-partir-das-telas.md) | A forma vem das telas do produto, não do CSS da landing | aceito |
+| [0011](0011-forma-do-budgi-a-partir-das-telas.md) | A forma vem das telas do produto, não do CSS da landing | superseded por ADR 0015 |
 | [0012](0012-conta-de-usuario.md) | Conta de usuário: JWT curto, refresh rotacionado e a sessão como único estado global | aceito |
 | [0013](0013-assinatura-e-paywall.md) | Assinatura in-app: teste de 7 dias, somente leitura depois, e validação no servidor | aceito |
+| [0014](0014-fork-e-marca-devonada.md) | devo.nada nasce como fork, não como projeto novo | aceito |
+| [0015](0015-vermelho-e-status-de-divida.md) | Vermelho é status de dívida, e a interface é escura | aceito |
+| [0016](0016-voltar-e-entrada-multi-divida.md) | Toda tela empilhada tem volta, e o onboarding aceita mais de uma dívida | aceito |
+| [0017](0017-entidade-meta-e-fase-verde.md) | `Meta` é entidade nova, e a fase verde troca a aba sem esconder as dívidas | aceito |

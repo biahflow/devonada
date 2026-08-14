@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -10,9 +10,9 @@ class Settings(BaseSettings):
     e nenhum número que muda com o tempo fica cravado no código.
     """
 
-    model_config = SettingsConfigDict(env_file=".env", env_prefix="BUDDY_", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", env_prefix="DEVONADA_", extra="ignore")
 
-    database_url: str = "postgresql+psycopg://buddy:buddy@localhost:5433/buddy"
+    database_url: str = "postgresql+psycopg://devonada:devonada@localhost:5433/devonada"
 
     # Chave de assinatura do access token (ADR 0012). SEM DEFAULT de propósito:
     # um default publicado no repositório é uma chave que qualquer pessoa usa
@@ -137,7 +137,7 @@ class Settings(BaseSettings):
     google_service_account_json: str = ""
     google_package_name: str = ""
 
-    # As chaves NÃO levam o prefixo BUDDY_ — são as variáveis que os próprios
+    # As chaves NÃO levam o prefixo DEVONADA_ — são as variáveis que os próprios
     # SDKs usam. Elas passam por aqui de propósito: um SDK lê `os.environ`, e
     # `pydantic-settings` carrega o `.env` para dentro do objeto de settings,
     # não para o ambiente do processo. Sem esta ponte, a chave escrita no
@@ -145,6 +145,24 @@ class Settings(BaseSettings):
     # configurado" com a chave preenchida na frente do desenvolvedor.
     openai_api_key: str = Field(default="", validation_alias="OPENAI_API_KEY")
     anthropic_api_key: str = Field(default="", validation_alias="ANTHROPIC_API_KEY")
+
+    @field_validator("teto_juros_consignado_inss_bps", "teto_juros_cartao_consignado_bps", mode="before")
+    @classmethod
+    def _vazio_e_nao_configurado(cls, v: object) -> object:
+        """
+        String vazia vira 0, que é como estes campos dizem "não configurado".
+
+        O `.env.example` entrega os dois tetos VAZIOS de propósito — preencher
+        exige conferir a resolução do CNPS na fonte oficial, e um teto chutado
+        produziria achado inventado (ADR 0008). Sem esta coerção, copiar o
+        `.env.example` como a documentação manda derrubava o servidor inteiro no
+        import, com `ValidationError` — e o erro não menciona o arquivo, então a
+        pista some.
+
+        Vale só para estes dois: todo o resto que aceita ausência já é `str`, e
+        `""` é um valor legítimo lá.
+        """
+        return 0 if v == "" else v
 
     @property
     def cors_origin_list(self) -> list[str]:

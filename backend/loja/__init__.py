@@ -8,7 +8,7 @@ PLATAFORMAS = ("ios", "android")
 
 def obter_loja(plataforma: str) -> Loja:
     """
-    Escolhe o adaptador por `BUDDY_LOJA` e pela plataforma de quem comprou.
+    Escolhe o adaptador por `DEVONADA_LOJA` e pela plataforma de quem comprou.
 
     A PLATAFORMA É PARÂMETRO e o provedor é configuração, ao contrário da camada
     de LLM, onde o provedor é a escolha. O motivo é que aqui não há escolha a
@@ -16,7 +16,7 @@ def obter_loja(plataforma: str) -> Loja:
     que atenda um app das duas lojas falando com uma só.
 
     O import da implementação é preguiçoso, como em `llm/`: quem roda a suíte
-    com `BUDDY_LOJA=memoria` não carrega `httpx` nem `jwt` por causa disto.
+    com `DEVONADA_LOJA=memoria` não carrega `httpx` nem `jwt` por causa disto.
     """
     settings = get_settings()
 

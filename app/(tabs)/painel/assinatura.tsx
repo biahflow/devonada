@@ -62,6 +62,7 @@ function Conteudo({ situacao }: { situacao: SituacaoAssinatura }) {
           eyebrow="Sua conta"
           title="Assinatura"
           description={descricaoDe(situacao)}
+          onBack={() => router.back()}
         />
 
         {erro ? <Feedback tone="error" message={erro} /> : null}
@@ -115,7 +116,6 @@ function Conteudo({ situacao }: { situacao: SituacaoAssinatura }) {
             loading={processando}
             variant="ghost"
           />
-          <Button label="Voltar" onPress={() => router.back()} variant="ghost" />
         </View>
 
         <Text style={styles.rodape}>

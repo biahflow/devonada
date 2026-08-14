@@ -34,6 +34,7 @@ export default function RevisaoDeCobranca() {
       eyebrow="Revisão"
       title="O que vale contestar"
       description="Cada ponto abaixo vem com a fonte e o trecho do seu contrato."
+      onBack={() => router.back()}
     />
   );
 

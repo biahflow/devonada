@@ -23,6 +23,7 @@ export default function PlanoDePagamento() {
       eyebrow="Plano"
       title="Suas parcelas"
       description="Marque o que já pagou. O painel acompanha sozinho."
+      onBack={() => router.back()}
     />
   );
 

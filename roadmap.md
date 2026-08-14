@@ -1,4 +1,42 @@
-# Roadmap — front do Buddy Financeiro
+# Roadmap — devo.nada
+
+> **Leia primeiro (10/08/2026).** Este produto virou **devo.nada** (ADR 0014). O que está escrito
+> abaixo de "Base atual" até o M9 é o histórico da construção sob a marca anterior, e fica como
+> está: são as decisões que explicam por que o código é como é. Do **M10 em diante** é o que falta
+> para dezembro.
+>
+> **A data manda.** O lançamento é em dezembro de 2026, no curso de finanças de fim de ano de uma
+> igreja — audiência cativa, no mês em que o brasileiro mais se endivida, com o 13º recém-caído na
+> mão de quem vai negociar. São ~16 semanas, e elas não perdoam semana parada.
+>
+> Este roadmap continua sendo **sequência de construção, não cronograma** — a única seção com
+> datas é "Sequência até dezembro", no fim.
+
+---
+
+## Onde a concepção do devo.nada mora
+
+`docs/concepcao/` guarda o material que originou a marca: `roadmap-v1.md`, `design-system-v1.md` e
+as telas `v1`–`v3`. É **fonte histórica, não canônica**. Em qualquer divergência, mandam os
+documentos vivos: `docs/domain.md`, `docs/guardrails.md`, `docs/design-system.md`,
+`docs/api-contract.md` e este arquivo.
+
+Uma nota que vale a leitura, porque poupa retrabalho: a concepção descrevia como novidade uma
+dúzia de coisas que **já eram código verde** — cronograma de parcelas, avalanche × bola de neve,
+mínimo existencial, achados com fonte legal, cascata da capacidade, provisões anuais, fechamento
+do mês, conta e assinatura. Antes de "construir" qualquer item vindo de lá, confira em
+`docs/inventario.md` se ele já existe.
+
+E duas decisões que a concepção trazia e **foram revertidas** ao encontrar o código:
+
+- **Valor justo não vem de taxa média do Banco Central.** Vem da soma dos achados citáveis
+  (ADR 0008). Sem achado, é `null` e a tela diz "ainda não calculado". Não existe lei que diga
+  quanto uma dívida *deveria* custar, e produzir esse número seria inventar regra financeira —
+  justamente o que o produto não faz.
+- **Renda típica é o pior mês, não a mediana.** O plano precisa sobreviver ao mês fraco, e quem
+  ganha por hora tem mês fraco.
+
+---
 
 > Atualizado em 07/08/2026. Sequência de construção, **não cronograma**.
 > Escopo: o cliente Expo / React Native. O **backend faz parte do repositório** e é desenvolvido
@@ -449,7 +487,7 @@ dispositivos e não tem revogação granular; inaceitável no primeiro convidado
 - [x] Recuperação por código de 6 dígitos, com hash no banco, teto de tentativas e validade de 30
       minutos. Código, e não link: link que abre o app exige *universal link* com domínio
       associado nas duas plataformas, e não há host https.
-- [x] Correio plugável (`BUDDY_CORREIO`), no padrão da ADR 0007. A suíte usa o de memória — a
+- [x] Correio plugável (`DEVONADA_CORREIO`), no padrão da ADR 0007. A suíte usa o de memória — a
       regra de que **nenhum teste toca a rede** passou a valer para e-mail também.
 - [x] **O primeiro cadastro adota o tenant do beta.** Sem isso, as dívidas e o caixa já
       cadastrados ficariam alcançáveis por nenhum login e apagáveis por nenhuma exclusão de conta.
@@ -505,7 +543,7 @@ as decisões, na ADR 0013.
 - [x] Fora da trava ficam `/v1/auth`, `/v1/assinatura` e `/v1/conta`. Não são exceções de recurso:
       são as rotas de começar, gerenciar e encerrar a relação. Exigir assinatura para assinar é
       deadlock, e travar a exclusão de conta reprova na diretriz 5.1.1(v) da Apple.
-- [x] `backend/loja/` plugável (`BUDDY_LOJA`), no padrão da ADR 0007: Apple, Google e memória.
+- [x] `backend/loja/` plugável (`DEVONADA_LOJA`), no padrão da ADR 0007: Apple, Google e memória.
       **Cobrança entrou na regra de que nenhum teste toca a rede.**
 - [x] **O recibo do aparelho é chave de busca, nunca fonte da verdade.** O servidor extrai o
       identificador e pergunta à loja com credencial que só ele tem. Um app modificado consegue
@@ -539,6 +577,170 @@ as decisões, na ADR 0013.
 
 **Sai com:** o app cobrando pelas lojas, com sete dias de teste e somente leitura depois — e
 ninguém trancado para fora do próprio dado.
+
+---
+
+## M10 — Fork e marca — entregue, aguardando validação em device
+
+O produto virou devo.nada. Ver ADR 0014 (o fork) e ADR 0015 (vermelho é status, e a interface é
+escura).
+
+- [x] Fork com histórico preservado; identidade renomeada (`app.json`, `package.json`, prefixo
+      `DEVONADA_*`, bundle id `br.com.devonada.app`). O domínio **não** foi renomeado: `divida`,
+      `valorCobrado`, `CriticidadeTipo` e `caixa` são a linguagem ubíqua, e mexer neles custaria
+      743 testes sem entregar nada ao usuário.
+- [x] `src/theme/theme.ts` reescrito para a paleta escura. Custou **um arquivo** mais uma borda no
+      `Card` — porque a regra de zero hex fora do theme se pagou: 75 arquivos consomem token e
+      nenhum define cor.
+- [x] Inter + Archivo Black no lugar de Nunito Sans, com `numeric` mantido em Inter de propósito
+      (ver abaixo). Fontes confirmadas no bundle exportado.
+- [x] `Button` variante `danger` perdeu o fundo vermelho — neste app não existe botão vermelho,
+      nem para destruição.
+- [x] Gates verdes depois da troca: 291 Jest em 30 suítes, 452 pytest, typecheck, lint e
+      `bundle:check`.
+- [ ] **Remedir os contrastes.** É o débito conhecido da ADR 0015 e o mais sério: a paleta clara
+      tinha todo par texto/fundo medido em WCAG 2.1, todo anel de categoria em 3:1 e toda dupla
+      semântica em CIEDE2000. Virar o tema invalidou as três tabelas, e os valores atuais foram
+      escolhidos por leitura de tela — o método que o próprio design system proíbe.
+- [ ] **Medir a largura de dígito de `Inter_700Bold`.** Nunito Sans foi escolhida por medição, não
+      por gosto: dígitos de largura fixa, e por isso coluna de reais não dança. Enquanto a medição
+      não existir, `numeric` fica em Inter e só `display`/`displaySm` usam Archivo Black.
+- [ ] **Ícone e splash.** Os PNG ainda são da marca anterior — o app roda com a paleta certa e o
+      ícone errado.
+- [x] **Abas renomeadas e reordenadas** para Rota · Dívidas · Buddy · Extrato. Rótulo e ordem, não
+      rota: `painel`, `dividas`, `index` e `caixa` continuam sendo o que são no código.
+- [x] **O ponto da marca virou código** — `Brand` mais `estadoDaRota()`, uma função pura com
+      teste. Vermelho enquanto há saldo devedor, verde depois de quitar, e `neutro` para conta
+      nova, que é o estado que impede o ponto de nascer verde. A barra de abas segue o mesmo
+      estado: quando a pessoa zera, o app inteiro muda de fase.
+- [x] **Splash, login e registro com a marca**, mais a `NotaDePrivacidade` — a regra de ouro nº 1
+      dita na tela em que a pessoa mais desconfia.
+- [x] **Home "Rota de Fuga"**: topbar com o ponto, saldo devedor em Archivo Black, card do buddy
+      com a próxima ação determinística. O diagnóstico completo continua logo abaixo.
+- [ ] `custoDiarioJuros` no resumo. É a frase mais forte que o card do buddy poderia ter — "essa
+      dívida cresce R$ 41 por dia" — e ela é conta, então é do servidor (guardrail 1.2). Enquanto
+      não existir, o card não a diz.
+- [ ] Varrer a documentação herdada: `architecture.md`, `agent-guidelines.md`, `inventario.md` e
+      `README.md` ainda falam da marca anterior.
+
+## M11 — Respiro — a intervenção anti-desistência
+
+O item mais valioso que a concepção trouxe, e o único que nenhum concorrente tem. A justificativa
+inteira está em `domain.md` (verbete `respiro`) e as regras de copy em `guardrails.md`, 4.1.
+
+- [ ] `respiro` entra na **cascata de `domain/caixa.py`** como linha de primeira classe, ao lado
+      de gasto e provisão — nunca como sobra. A capacidade passa a descontá-lo.
+- [ ] Tabela `respiro` mais o registro de uso do mês. Gasto de respiro **não** entra em nenhum
+      cálculo de alerta.
+- [ ] `marco`: primeira negociação fechada, primeira dívida quitada, 25/50/75% da rota. O valor do
+      respiro escala com o marco.
+- [ ] `RespiroCard` e `MarcoScreen` (spec em `design-system.md`, 4c).
+- [ ] Teste de copy gêmeo dos do M4/M6/M7, quebrando em texto que trate respiro como desvio,
+      recompensa condicionada ou culpa.
+- [ ] O piso legal continua acima: respiro sai da capacidade, e a capacidade nunca invade o mínimo
+      existencial.
+
+## M12 — Renda tipada, negociação por canal e a Rota de Chegada
+
+- [x] **Metas nomeadas e a aba da fase verde** (ADR 0017). A tela 09 pedia uma lista de metas com
+      nome, emoji, prazo e selo de situação; o que existia eram seis colunas fixas no `perfil` que
+      alimentam a cascata do caixa. A entidade `Meta` entrou **aditiva** — mover os potes mudaria a
+      capacidade de todo mundo em silêncio no primeiro deploy —, e o custo assumido é o produto ter
+      dois sentidos de "meta": "Seus potes" no Extrato, "Suas metas" na aba.
+- [x] **`aporteSugerido` e `status` vêm do servidor e não são persistidos.** A conta é o que falta
+      dividido pelos meses que faltam, o mesmo método de `aporte_de_provisao`. Sem prazo não há
+      sugestão; sem aporte declarado não há status — e a tela então **não exibe selo**, em vez de
+      exibir palpite. `aporte_baixo` é âmbar, nunca vermelho (ADR 0015).
+- [x] **A segunda aba troca na fase verde** com `href: null`, que tira da barra sem tirar da rota:
+      `/dividas` continua alcançável e a tela de Metas oferece o caminho. Sem isso, quem quitasse
+      tudo e contraísse dívida nova não teria como cadastrá-la.
+- [ ] `fonte_renda` ganha `tipo` (`clt` · `pj_hora` · `autonomo`), com a UX dedicada de cada um —
+      13º e férias no CLT, taxa × horas menos imposto no PJ, renda típica no autônomo.
+- [ ] Compromisso **percentual** para renda variável, no lugar de valor fixo.
+- [ ] `script` ganha as **três variantes de canal** (`telefone` · `chat` · `email`), mesmo motor
+      de valor justo, formatos diferentes. Ver `domain.md`, verbete `canal`.
+- [ ] Alerta de validação de canal abrindo o script escrito e regra de pagamento fechando —
+      **é anti-golpe embutido no próprio script**, e é o item de maior retorno por linha do
+      milestone.
+- [ ] Registro de resultado da negociação em qualquer canal. Coletar isso **desde o dia 1** é o
+      que constrói o benchmark de desconto por credor, que é o maior ativo competitivo do produto.
+
+## M13 — Entrada pelo alívio — parcialmente entregue
+
+O app começava pelo formulário. Quem está endividado e com medo não preenche formulário — o valor
+tem de vir antes do esforço. O M7 já tinha provado isso com o "Nível 0" do caixa.
+
+- [x] Onboarding cuja **primeira pergunta é "qual dívida tira seu sono?"** — não renda, não CPF.
+      Cinco escolhas que já classificam a dívida por criticidade, sem o usuário precisar saber o
+      que é criticidade. Gatilho derivado de `quantidadeDividas === 0`, sem flag nova.
+- [x] **A escolha é MÚLTIPLA, e a concepção pedia uma só** (ADR 0016). "Começa por uma só" foi
+      abandonado porque a carteira real não é assim — cartão E empréstimo é o caso comum —, e o
+      "depois cuida do resto" nunca virou caminho: a lista de dívidas só oferecia cadastro no
+      estado vazio. O passo 2 virou uma fila de dois campos por dívida, com a contagem à vista
+      ("1 de 2"), e **nada é gravado antes do fim** — voltar na fila não duplica dívida.
+- [x] **A lista de dívidas passa a oferecer cadastro com a lista cheia.** Era o outro lado da mesma
+      falha, e o teste que a cobre é regressão nomeada em `lista-dividas.test.tsx`.
+- [x] **Dois caminhos de entrada**, e esta foi a descoberta que mudou o desenho: `montar_script()`
+      devolve `None` sem achados, e cadastro manual não produz achado nenhum. Quem tem o documento
+      manda a foto e recebe a triagem inteira; quem não tem recebe a triagem honesta.
+- [x] **Triagem instantânea em duas versões.** Com contrato: cobrado × justo, economia e os
+      achados com fonte. Sem contrato: **"ainda não calculado"** no lugar do número, e o caminho
+      para o documento. Há teste que quebra se um número de economia aparecer sem achado que o
+      sustente — é a ADR 0008 aplicada à tela que mais teria tentação de inventar.
+- [x] "Devo pra uma pessoa" como escolha de entrada. É enorme no Brasil, nenhum app trata, e o
+      peso emocional é diferente do de uma dívida bancária.
+- [ ] Data de origem no onboarding. Hoje entra como "hoje", e a consequência é conhecida: a
+      prescrição (CC art. 206) conta a partir daí, então ela alerta cedo demais, nunca tarde.
+- [ ] **Documento durante a fila multi-dívida.** Quem marca duas ou mais cadastra por valor e
+      recebe triagem sem achado: `/dividas/contrato` vive fora do grupo `(onboarding)` e sair para
+      lá abandonaria o resto da fila. Resolver pede uma tela de upload dentro do grupo, ou a fila
+      persistida entre rotas.
+- [ ] **Login social (Apple e Google).** A tela de entrada já tem os dois botões do desenho da
+      tela 11, **desligados**, com legenda dizendo quando chegam. Falta tudo do servidor: troca de
+      token, coluna de provedor no usuário, `expo-apple-authentication` e Google Sign-In no app, e
+      credenciais reais nas duas plataformas. Sign in with Apple é **exigência** da Apple para app
+      que ofereça qualquer login social, então os dois andam juntos.
+- [ ] **Páginas de Termos e Política de Privacidade.** A linha legal da tela de entrada é texto sem
+      link porque as URLs não existem. Item de pré-lançamento, não polimento: as duas lojas pedem.
+- [ ] Extração de **boleto, carta e print de cobrança** — a camada de extração existe para
+      contrato; falta o schema e o prompt destes. Vale integralmente o guardrail 8: campo sem
+      trecho citável é descartado, e o arquivo é lido e descartado.
+- [ ] Notificações discretas: a palavra "dívida" nunca aparece em push (guardrail 4).
+
+## M14 — Lei do Superendividamento no corpus
+
+- [ ] Lei 14.181/2021 no RAG jurídico, ao lado do CDC. Para quem tem muitos credores, o script
+      individual não resolve: o caminho é a repactuação em bloco.
+- [ ] A triagem reconhece o perfil e nomeia esse caminho — **mantendo o enquadramento do M7**: o
+      app diz que os números **não fecham** (fato aritmético) e convida a investigar a
+      repactuação. Nunca "você está superendividado". A definição legal (CDC art. 54-A, § 1º)
+      exige boa-fé e dívida de consumo, e software não apura nenhuma das duas. O teste de copy que
+      quebra na palavra continua valendo.
+- [ ] Trilha de auditoria "como calculamos" exposta na tela — o backend já tem a fonte em
+      docstring; falta o campo na API e o disclosure na interface.
+
+---
+
+## Fora do MVP de dezembro — de propósito
+
+Não porque sejam ruins, mas porque a data é real e o escopo tem de caber nela. Cada um tem valor
+claro e nenhum bloqueia o lançamento:
+
+- **Open Finance.** A concepção o colocava cedo; ele é, na verdade, o maior salto de
+  complexidade, custo e risco regulatório do produto — o Banco Central exige instituição
+  autorizada para integração direta, e o caminho realista é agregador. Ver `docs/data-ingestion.md`.
+- **"Posso?"** — decisão de compra em tempo real, no momento da tentação. Depende do Respiro e do
+  envelope de variáveis funcionando, e por isso vem depois deles. Forte candidato a subir de
+  prioridade se o dogfood mostrar que é a feature mais usada no dia a dia — é o tipo de coisa que
+  só o uso real revela.
+- **Analisador de propostas** (print da contraproposta → armadilhas: juros embutidos, reaging,
+  seguro empurrado).
+- **Diretório verificado de canais oficiais** por credor, com deep link `wa.me`. Não é bot proxy:
+  a API do WhatsApp não permite terceiro enviar mensagem em nome de alguém, e não se ia querer o
+  risco jurídico de um bot "aceitando" acordo errado. Quem conversa é o usuário, na conta dele.
+- **Validação anti-golpe de boleto/Pix** antes de pagar acordo (beneficiário × credor).
+- **Simulador de ligação (roleplay)**, teleprompter com objeções, metas pós-quitação, modo casal,
+  turmas de quitação, calculadora web.
 
 ---
 
@@ -578,7 +780,7 @@ ninguém trancado para fora do próprio dado.
 - [x] Assinatura por **in-app purchase** (`expo-iap` + validação direta com as duas lojas). Sete
       dias de teste, somente leitura depois, preço vindo da loja (ADR 0013).
 - [ ] **Produto de assinatura cadastrado** na App Store Connect e no Play Console, e as credenciais
-      preenchidas (`BUDDY_APPLE_*`, `BUDDY_GOOGLE_*`). O código está pronto e a suíte prova o ciclo
+      preenchidas (`DEVONADA_APPLE_*`, `DEVONADA_GOOGLE_*`). O código está pronto e a suíte prova o ciclo
       contra o adaptador de memória; **compra de verdade não foi exercitada uma única vez.**
 - [ ] *Development build* pelo EAS. O Expo Go não carrega o módulo nativo da loja.
 
@@ -619,6 +821,51 @@ ninguém trancado para fora do próprio dado.
   seção 5.
 - **Proteção contra screenshot** nas telas de dívida.
 - **Acessibilidade auditada** com leitor de tela real, não só `accessibilityLabel` presente.
+
+---
+
+## Sequência até dezembro
+
+A única seção deste documento com datas. Ela é escrita de trás para frente, a partir do dia do
+curso.
+
+| Quando | O quê |
+|---|---|
+| **Ago, sem. 1** | M10 fechado: fork, marca, gates verdes. *(feito em 10/08)* |
+| **Ago–Set** | M11 (Respiro) e M12 (renda tipada + script por canal) |
+| **Set–Out** | M13 (entrada pelo alívio) e M14 (Lei do Superendividamento) |
+| **Fim de Out** | **Feature freeze.** Daqui em diante só bugfix, polimento e device |
+| **Nov, sem. 1–2** | Submissão nas lojas |
+| **Nov, sem. 2–4** | Beta fechado com 10–20 pessoas da própria igreja |
+| **Dez** | Lançamento no curso |
+
+**Submeter em novembro não é folga, é seguro de vida.** O review da Apple fica lento e
+imprevisível em dezembro, e a data do curso não se move.
+
+**Contingência, definida agora e não em novembro:** se as lojas atrasarem, o curso recebe
+TestFlight/APK mais a calculadora de valor justo na web. Ninguém sai de mãos vazias nem no pior
+cenário.
+
+**Dois itens que não são código e podem parar o lançamento** — ambos precisam começar em agosto:
+
+1. **Revisão da copy de negociação por advogado.** Consultoria jurídica e postulação são
+   privativas de advogado (Lei 8.906/94, art. 1º); informar sobre a lei não é. Os guardrails já
+   fazem o certo — citar fonte, nunca afirmar ilegalidade, não redigir petição, disclaimer no
+   card, teste que quebra em "ilegal" e "é seu direito". É o único item da lista que pode
+   **encerrar** o produto em vez de atrasar um release.
+2. **Publicar sob CNPJ**, não conta pessoal.
+
+E um risco que não é técnico e merece ser dito: **o que decide este lançamento não é o roadmap, é
+quantas horas por semana dá para proteger para ele** entre os clientes. Essa conta vale ser feita
+honestamente antes de a data ser prometida à igreja.
+
+---
+
+## Métrica de ativação — instrumentar desde já
+
+O momento "aha" deste produto é **a primeira negociação registrada com desconto**. Tudo no
+onboarding deve ser medido contra isso: quantos % chegam lá, e em quantos dias. É essa taxa que
+diz se o produto funciona, muito antes de qualquer número de receita.
 
 ---
 

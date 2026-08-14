@@ -1,26 +1,26 @@
 {
   "expo": {
-    "name": "Buddy Financeiro",
-    "slug": "buddy-financeiro",
+    "name": "devo.nada",
+    "slug": "devonada",
     "version": "0.0.1",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
-    "scheme": "buddyfinanceiro",
+    "userInterfaceStyle": "dark",
+    "scheme": "devonada",
     "icon": "./assets/icon.png",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FFFFFF"
+      "backgroundColor": "#101216"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.buddyfinanceiro.buddy"
+      "bundleIdentifier": "br.com.devonada.app"
     },
     "android": {
-      "package": "app.buddyfinanceiro.buddy",
+      "package": "br.com.devonada.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FFFFFF"
+        "backgroundColor": "#101216"
       },
       "permissions": ["com.android.vending.BILLING"]
     },

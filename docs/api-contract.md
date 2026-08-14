@@ -356,6 +356,14 @@ Unidades, sem exceção:
 se o usuário ainda não informou a renda, vêm ausentes e o painel exibe um convite a preencher,
 não um zero.
 
+> **Campo pedido e ainda não existente: `custoDiarioJuros`** (centavos, opcional). O card do buddy
+> na Rota quer dizer "essa dívida cresce R$ 41 por dia" — é a frase mais concreta que a tela
+> poderia ter, e concretude é o que o `guardrails.md`, seção 4, pede da copy. Mas o número é
+> `saldo × taxa ÷ 30`: valor derivado, e o guardrail 1.2 proíbe o cliente produzi-lo. Enquanto o
+> campo não existir, **o card simplesmente não diz a frase** — `src/util/proximaAcao.ts` registra
+> a ausência no docstring em vez de improvisar a conta. Ausente quando a dívida não tem taxa
+> informada, pela mesma disciplina de `valorCorrigido`.
+
 > **De onde sai a renda deste resumo** (M7.2). O caixa é a fonte; o perfil é fallback — o mesmo
 > caminho de `POST /v1/dividas/simulacoes`. `rendaMensal` é a renda **líquida** da cascata do
 > caixa: o limite de 30% se lê sobre o que de fato entra, e sem `imposto_bps` informado a líquida
@@ -802,7 +810,7 @@ Os dois ficam no `expo-secure-store`. Nenhum deles em `AsyncStorage` (guardrails
 | `409` | e-mail já cadastrado — a `message` manda para o login |
 | `422` | e-mail inválido ou senha com menos de 8 caracteres, com `campo` |
 
-**O primeiro cadastro num banco sem usuários adota `BUDDY_TENANT_ID`** (ADR 0012, item 2). Os
+**O primeiro cadastro num banco sem usuários adota `DEVONADA_TENANT_ID`** (ADR 0012, item 2). Os
 demais recebem um UUID novo. Nada disso é visível no contrato — é comportamento de servidor.
 
 #### `POST /v1/auth/login`
@@ -952,6 +960,59 @@ assinar a si mesmo.
 | `422` | a loja não reconheceu o recibo, ou as credenciais não estão configuradas |
 | `409` | esse recibo já pertence a outra conta — mesma conta de loja em dois cadastros |
 
+### 3.12 M12 · metas nomeadas (ADR 0017)
+
+> **`/v1/metas` NÃO é `/v1/caixa/metas`.** Aquele guarda os seis potes fixos do perfil que entram na
+> **cascata** do fechamento do mês (imposto, reserva, aposentadoria) — ver M7. Este é uma coleção
+> livre que o usuário cria e apaga, e que **não entra em cálculo de capacidade nenhum**. A colisão de
+> nome é dívida assumida na ADR 0017, porque unificar obrigaria a recalcular a cascata. Na tela, um é
+> "Seus potes" e o outro é "Suas metas".
+
+#### `GET /v1/metas`
+
+```json
+{ "metas": [
+  { "id": "uuid", "nome": "Reserva de emergência", "emoji": "🛟",
+    "valorAlvo": 1340000, "saldo": 536000,
+    "dataAlvo": "2027-08", "aporteMensal": 67000,
+    "aporteSugerido": 67000, "status": "em_dia", "ativa": true }
+] }
+```
+
+Dinheiro em **centavos**. `dataAlvo` é `AAAA-MM` — meta não vence num dia, vence num mês.
+
+**`aporteSugerido` e `status` são DERIVADOS NO SERVIDOR e nunca persistidos** (ADR 0003 e 0017). O
+sugerido divide o que falta pelos meses que faltam, arredondando para cima — o mesmo método de
+`aporte_de_provisao`. Gravá-lo deixaria a tela mostrando o número de quando a meta foi criada: a
+mesma meta pede um valor em agosto e outro em novembro.
+
+| Campo | Ausente (`null`) quando |
+|---|---|
+| `aporteSugerido` | falta `dataAlvo` — sem prazo não existe divisor, e inventar um horizonte produziria número que o usuário levaria a sério |
+| `status` | falta `dataAlvo` **ou** falta `aporteMensal` — em nenhum dos dois casos há base para dizer que alguém está atrasado |
+
+`status` é `em_dia` \| `aporte_baixo` \| `atingida`. `atingida` vem antes de tudo e não depende de
+aporte. **Na tela, `aporte_baixo` é âmbar e nunca vermelho** (ADR 0015).
+
+#### `POST /v1/metas` → `201`
+
+```json
+{ "nome": "Viagem em família", "emoji": "✈️", "valorAlvo": 600000,
+  "saldo": 180000, "dataAlvo": "2027-07", "aporteMensal": 38000 }
+```
+
+`nome` e `valorAlvo` obrigatórios (`valorAlvo > 0`); o resto é opcional. `dataAlvo` fora de
+`AAAA-MM` devolve `422`.
+
+#### `PATCH /v1/metas/{id}` · `DELETE /v1/metas/{id}` → `204`
+
+`PATCH` é parcial: campo ausente fica como está, e **`null` grava ausência** — é como o usuário
+remove o prazo ou o aporte de uma meta. Sem essa distinção não haveria desfazer.
+
+`DELETE` apaga de verdade, como fonte de renda e ao contrário de dívida: meta cadastrada errado é
+ruído de cadastro, não histórico financeiro. Quem quer guardar sem ver na lista usa `ativa: false`.
+Id de outro tenant devolve `404`, nunca `403` — um `403` confirmaria que o id existe.
+
 ---
 
 ## 4. Fila do backend
@@ -1007,7 +1068,7 @@ existencial não têm o que exibir.*
 
 - [~] `POST /v1/contratos` — multipart, `202`, processamento em background
 - [~] `GET /v1/contratos/{id}` — polling
-- [x] Extração com extrator plugável (`BUDDY_EXTRATOR`), Claude com visão lendo PDF e foto
+- [x] Extração com extrator plugável (`DEVONADA_EXTRATOR`), Claude com visão lendo PDF e foto
 - [x] **Campo sem `trecho` é zerado no servidor** antes de sair da rota (guardrail 8.1)
 - [x] Arquivo lido em memória e nunca gravado em disco (ADR 0005)
 - [ ] **Exige `ANTHROPIC_API_KEY`.** Sem ela o upload responde "falhou" com mensagem útil
@@ -1113,7 +1174,7 @@ e dois deles são código.*
       `tenant_id` entra na exclusão no commit em que nasce. Há teste que falha se alguma tabela
       ficar fora — sem ele, a próxima migration deixaria dado órfão em silêncio
 - [~] `GET /exclusao` — página pública, exigência do Google
-- [x] Correio plugável (`BUDDY_CORREIO`), no padrão da ADR 0007. A suíte usa o de memória: e-mail
+- [x] Correio plugável (`DEVONADA_CORREIO`), no padrão da ADR 0007. A suíte usa o de memória: e-mail
       entra na regra de que **nenhum teste toca a rede**
 - [x] O token fixo do beta **saiu** de `config.py`, de `auth.py` e do app
 - [x] A fixture `auth` do `conftest.py` passou a criar conta de verdade — os 370 testes anteriores
@@ -1134,7 +1195,7 @@ e dois deles são código.*
 - [x] **Leitura nunca é bloqueada**, e a exclusão de conta também não (Apple 5.1.1(v); LGPD, 18)
 - [x] Teste que varre `app.openapi()` e falha se `LIVRES` crescer sem decisão explícita — gêmeo do
       que varre as tabelas na exclusão de conta
-- [x] `backend/loja/` plugável (`BUDDY_LOJA`), no padrão da ADR 0007: Apple, Google e memória. A
+- [x] `backend/loja/` plugável (`DEVONADA_LOJA`), no padrão da ADR 0007: Apple, Google e memória. A
       suíte usa o de memória, e **cobrança entra na regra de que nenhum teste toca a rede**
 - [x] **O recibo do aparelho é chave de busca, nunca fonte da verdade** — quem afirma a validade é
       a loja, consultada pelo servidor com credencial que só ele tem
@@ -1147,6 +1208,22 @@ e dois deles são código.*
 > **A fixture `auth` não mudou.** Toda conta da suíte nasce pela rota de registro, e conta
 > recém-criada está dentro do teste de 7 dias — os 420 testes anteriores passaram intactos. O
 > plano previa cirurgia no `conftest.py` e ela não foi necessária.
+
+### Bloco 12 — M12 · metas nomeadas (ADR 0017)
+
+- [~] `meta` — migration `e07b3c5d91a8`. **Aditiva**: as seis colunas de meta do `perfil` não são
+      migradas, porque alimentam a cascata de `domain/caixa` e movê-las mudaria a capacidade de todo
+      mundo em silêncio no primeiro deploy
+- [~] `GET`/`POST`/`PATCH`/`DELETE /v1/metas` — CRUD no formato de `fontes`/`gastos`/`provisoes`
+- [~] `domain/metas.py` — `aporte_sugerido` e `status`, puros. **Sem fonte legal, e o módulo declara
+      isso no cabeçalho**: ele divide o que o usuário informou pelo prazo que o usuário escolheu, que
+      é o mesmo método de `aporte_de_provisao`. Seria invenção afirmar quanto ele *deveria* guardar
+- [~] **Nenhuma coluna de valor calculado.** Sugerido e status saem a cada resposta, porque dependem
+      do mês em que a pergunta é feita
+- [~] Ausência tratada nos dois sentidos: sem `data_alvo` não há sugestão; sem `aporte_mensal` não há
+      status. `None` nos dois, e a tela então não exibe selo em vez de exibir palpite
+- [ ] `GET /v1/metas/{id}` — não existe de propósito: a coleção cabe numa resposta, e a tela de
+      edição lê do cache que a aba já buscou (ADR 0002). Entra se algum dia houver deep link direto
 
 ### Estado observado em device
 

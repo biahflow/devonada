@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>devo.nada — telas v3 · splash, login e entrada</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&display=swap');
+
+:root{
+  --grafite:#101216;
+  --grafite-2:#181B21;
+  --grafite-3:#1F232B;
+  --papel:#F2F2ED;
+  --vermelho:#E5352B;
+  --vermelho-bg:rgba(229,53,43,.12);
+  --ambar:#F0A31C;
+  --ambar-bg:rgba(240,163,28,.12);
+  --verde:#1FC16B;
+  --verde-bg:rgba(31,193,107,.12);
+  --cinza:#8A8F98;
+  --linha:#262A31;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+body{background:#0A0B0E;color:var(--papel);font-family:'Inter',system-ui,sans-serif;line-height:1.5}
+.wrap{max-width:1400px;margin:0 auto;padding:0 24px}
+header{padding:56px 0 8px}
+.eyebrow{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--cinza);font-weight:600;margin-bottom:14px}
+h1{font-family:'Archivo Black',sans-serif;font-size:clamp(26px,4vw,38px);font-weight:400;letter-spacing:-0.02em}
+h1 .dot{color:var(--vermelho)}
+.lead{color:var(--cinza);max-width:64ch;margin-top:10px;font-size:15px}
+
+.gallery{display:flex;gap:28px;overflow-x:auto;padding:40px 24px 56px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+.gallery::-webkit-scrollbar{height:8px}
+.gallery::-webkit-scrollbar-thumb{background:var(--linha);border-radius:99px}
+.frame{scroll-snap-align:center;flex-shrink:0}
+.frame .title{font-size:13px;font-weight:600;margin-bottom:4px;text-align:center}
+.frame .sub{font-size:12px;color:var(--cinza);text-align:center;margin-bottom:14px;max-width:340px}
+
+.phone{
+  width:340px;height:700px;background:var(--grafite);
+  border:1px solid var(--linha);border-radius:36px;
+  padding:20px 18px 0;overflow:hidden;position:relative;
+  display:flex;flex-direction:column;
+}
+.statusbar{display:flex;justify-content:space-between;font-size:11px;color:var(--cinza);margin-bottom:16px;font-weight:500}
+.screen{flex:1;overflow:hidden;display:flex;flex-direction:column;gap:12px}
+
+.microlabel{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--cinza);font-weight:600}
+.bignum{font-family:'Archivo Black',sans-serif;letter-spacing:-0.02em}
+.card{background:var(--grafite-2);border:1px solid var(--linha);border-radius:16px;padding:16px}
+.btn{border:none;border-radius:14px;padding:14px;font-family:'Inter';font-weight:700;font-size:14px;text-align:center;cursor:default;width:100%}
+.btn.primary{background:var(--verde);color:#08120C}
+.btn.ghost{background:var(--grafite-2);color:var(--papel);border:1px solid var(--linha)}
+.btn.social{background:var(--papel);color:var(--grafite);display:flex;align-items:center;justify-content:center;gap:9px}
+.btn.social.dark{background:var(--grafite-2);color:var(--papel);border:1px solid var(--linha)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;border-radius:99px;padding:4px 10px}
+.pill.red{background:var(--vermelho-bg);color:var(--vermelho)}
+.pill.green{background:var(--verde-bg);color:var(--verde)}
+.pill .dot-s{width:7px;height:7px;border-radius:50%;background:currentColor}
+.bar{height:6px;background:var(--grafite-3);border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:99px}
+
+/* SPLASH */
+.splash{align-items:center;justify-content:center;text-align:center;gap:0;position:relative}
+.splash .mark{font-family:'Archivo Black',sans-serif;font-size:44px;letter-spacing:-0.03em;line-height:1}
+.splash .mark .d{
+  color:var(--vermelho);
+  animation:pulse 2.4s ease-in-out infinite;
+}
+@keyframes pulse{
+  0%,100%{color:var(--vermelho);text-shadow:0 0 0 rgba(229,53,43,0)}
+  50%{color:var(--vermelho);text-shadow:0 0 22px rgba(229,53,43,.55)}
+}
+.splash .tagline{margin-top:18px;font-size:13px;color:var(--cinza);max-width:24ch}
+.splash .footer-mark{position:absolute;bottom:34px;font-size:11px;color:#4A4F57;letter-spacing:.05em}
+
+/* LOGIN */
+.login-head{margin-top:8px}
+.login-head .mark{font-family:'Archivo Black',sans-serif;font-size:26px;letter-spacing:-0.03em}
+.login-head .mark .d{color:var(--vermelho)}
+.login-head h2{font-family:'Archivo Black',sans-serif;font-size:24px;font-weight:400;letter-spacing:-0.02em;line-height:1.2;margin-top:26px}
+.login-head p{font-size:13px;color:var(--cinza);margin-top:8px;max-width:30ch}
+.field{background:var(--grafite-3);border:1px solid var(--linha);border-radius:14px;padding:13px 14px;font-size:14px;color:var(--cinza)}
+.field.filled{color:var(--papel)}
+.divider{display:flex;align-items:center;gap:12px;color:var(--cinza);font-size:11px;margin:2px 0}
+.divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--linha)}
+.legal{font-size:11px;color:#5C616A;text-align:center;line-height:1.5}
+.legal b{color:var(--cinza);font-weight:500}
+.privacy-note{
+  background:var(--grafite-2);border:1px solid var(--linha);border-left:2px solid var(--verde);
+  border-radius:12px;padding:12px 14px;font-size:12px;color:var(--cinza);
+}
+.privacy-note b{color:var(--papel)}
+
+/* ONBOARDING */
+.ob-progress{display:flex;gap:6px;margin-bottom:6px}
+.ob-progress i{flex:1;height:3px;border-radius:99px;background:var(--grafite-3)}
+.ob-progress i.on{background:var(--verde)}
+.ob h2{font-family:'Archivo Black',sans-serif;font-size:26px;font-weight:400;letter-spacing:-0.02em;line-height:1.2}
+.ob p.helper{font-size:13px;color:var(--cinza);max-width:32ch}
+.choice{
+  background:var(--grafite-2);border:1px solid var(--linha);border-radius:16px;
+  padding:15px;display:flex;align-items:center;gap:12px;font-size:14px;font-weight:600;
+}
+.choice .emoji{font-size:18px}
+.choice.selected{border-color:var(--verde)}
+.skip{text-align:center;font-size:12px;color:var(--cinza);font-weight:600}
+
+/* TRIAGEM */
+.result-hero{text-align:center;padding:6px 0}
+.result-hero .microlabel{margin-bottom:8px}
+.compare{display:flex;gap:10px}
+.compare .card{flex:1;text-align:center}
+.compare .bignum{font-size:19px}
+.compare .red{color:var(--vermelho)}
+.compare .green{color:var(--verde)}
+.buddy{display:flex;gap:12px;align-items:flex-start;background:var(--grafite-2);border:1px solid var(--linha);border-radius:16px;padding:14px}
+.buddy .b-dot{width:10px;height:10px;border-radius:50%;background:var(--verde);margin-top:5px;flex-shrink:0}
+.buddy p{font-size:13px}
+.buddy p b{font-weight:700}
+.save-badge{
+  background:var(--verde-bg);border:1px solid rgba(31,193,107,.3);border-radius:14px;
+  padding:13px;text-align:center;
+}
+.save-badge .bignum{font-size:26px;color:var(--verde)}
+.save-badge p{font-size:11px;color:var(--cinza);margin-top:2px}
+footer{padding:20px 0 64px;color:var(--cinza);font-size:13px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="eyebrow">Telas do app · v3 — entrada</div>
+    <h1>devo<span class="dot">.</span>nada</h1>
+    <p class="lead">Splash, login e o "onboarding pelo alívio": valor entregue em 3 minutos, antes de pedir cadastro completo. Deslize →</p>
+  </div>
+</header>
+
+<div class="gallery">
+
+  <!-- 10 · SPLASH -->
+  <div class="frame">
+    <div class="title">10 · Splash</div>
+    <div class="sub">O ponto pulsa em vermelho — a marca já conta a história</div>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+      <div class="screen splash">
+        <div class="mark">devo<span class="d">.</span>nada</div>
+        <div class="tagline">Sua rota de saída das dívidas</div>
+        <div class="footer-mark">carregando...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 11 · LOGIN -->
+  <div class="frame">
+    <div class="title">11 · Entrar / Criar conta</div>
+    <div class="sub">Social login primeiro. Discrição e privacidade ditas na cara</div>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+      <div class="screen">
+        <div class="login-head">
+          <div class="mark">devo<span class="d">.</span>nada</div>
+          <h2>Vamos começar<br>sua rota.</h2>
+          <p>Sem julgamento, sem burocracia. Em 3 minutos você já sabe quanto sua dívida realmente vale.</p>
+        </div>
+        <div style="flex:1"></div>
+        <div class="btn social">
+          <span></span> Continuar com Apple
+        </div>
+        <div class="btn social dark">
+          <span>G</span> Continuar com Google
+        </div>
+        <div class="divider">ou</div>
+        <div class="field">seu@email.com</div>
+        <div class="btn ghost">Entrar com e-mail</div>
+        <div class="privacy-note"><b>Seus dados nunca viram oferta de crédito.</b> A gente não vende, não repassa e não te oferece empréstimo. Nunca.</div>
+        <div class="legal">Ao continuar você aceita os <b>Termos</b> e a <b>Política de Privacidade</b>.</div>
+        <div style="height:8px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 12 · ONBOARDING -->
+  <div class="frame">
+    <div class="title">12 · Onboarding pelo alívio</div>
+    <div class="sub">A 1ª pergunta não é sobre renda. É sobre a dor</div>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+      <div class="screen ob">
+        <div class="ob-progress"><i class="on"></i><i></i><i></i></div>
+        <h2>Qual dívida tira<br>seu sono?</h2>
+        <p class="helper">Começa por uma só. A gente resolve essa primeiro e depois cuida do resto — sem pressa e sem sermão.</p>
+        <div style="height:4px"></div>
+        <div class="choice selected"><span class="emoji">💳</span> Cartão de crédito / rotativo</div>
+        <div class="choice"><span class="emoji">🏦</span> Empréstimo ou consignado</div>
+        <div class="choice"><span class="emoji">🛒</span> Crediário / carnê de loja</div>
+        <div class="choice"><span class="emoji">📄</span> Conta atrasada (luz, água, aluguel)</div>
+        <div class="choice"><span class="emoji">🤝</span> Devo pra uma pessoa</div>
+        <div style="flex:1"></div>
+        <div class="btn primary">Continuar</div>
+        <div class="skip">Prefiro só dar uma olhada primeiro</div>
+        <div style="height:10px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 13 · PRIMEIRO VALOR -->
+  <div class="frame">
+    <div class="title">13 · Triagem instantânea</div>
+    <div class="sub">O "aha" antes de qualquer cadastro completo</div>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+      <div class="screen">
+        <div class="ob-progress"><i class="on"></i><i class="on"></i><i class="on"></i></div>
+        <div class="result-hero">
+          <div class="microlabel">Cartão rotativo · Banco X</div>
+          <div class="bignum" style="font-size:15px;color:var(--cinza);margin-top:6px">Essa dívida dá pra resolver.</div>
+        </div>
+        <div class="compare">
+          <div class="card">
+            <div class="microlabel">Banco cobra</div>
+            <div class="bignum red">R$ 9.870</div>
+          </div>
+          <div class="card">
+            <div class="microlabel">Valor justo</div>
+            <div class="bignum green">R$ 5.900</div>
+          </div>
+        </div>
+        <div class="save-badge">
+          <div class="microlabel">Você pode economizar até</div>
+          <div class="bignum">R$ 3.970</div>
+          <p>com base nas taxas médias do Banco Central para essa modalidade</p>
+        </div>
+        <div class="buddy">
+          <div class="b-dot"></div>
+          <div><p>Preparei seu <b>script de negociação</b> com a base legal. É só ligar ou mandar no WhatsApp do banco — eu te acompanho na conversa.</p></div>
+        </div>
+        <div style="flex:1"></div>
+        <div class="btn primary">Ver meu script</div>
+        <div class="btn ghost">Adicionar outra dívida</div>
+        <div style="height:10px"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <div class="wrap">devo.nada · telas v3 · complementa v1 (dívidas/negociação) e v2 (renda, respiro, metas)</div>
+</footer>
+</body>
+</html>

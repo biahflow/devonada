@@ -33,6 +33,7 @@ export default function NovaDivida() {
               ? 'Preenchi com o que entendi da nossa conversa. Confira antes de salvar.'
               : 'Só o que você já sabe. O resto o buddy ajuda a descobrir.'
           }
+          onBack={() => router.back()}
         />
 
         <ErroDeMutacao error={criar.error} fallback={'Não deu para salvar. Tente de novo.'} />

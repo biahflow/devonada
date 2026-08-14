@@ -6,7 +6,7 @@ __all__ = ["Correio", "ErroDeCorreio", "Mensagem", "obter_correio"]
 
 def obter_correio() -> Correio:
     """
-    Escolhe a implementação por `BUDDY_CORREIO`.
+    Escolhe a implementação por `DEVONADA_CORREIO`.
 
     Provedor desconhecido levanta `ErroDeCorreio` em vez de cair num default
     silencioso: um typo na variável de ambiente que faz o servidor "enviar" para

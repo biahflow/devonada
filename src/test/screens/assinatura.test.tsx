@@ -30,7 +30,7 @@ const ATIVA = {
   podeEscrever: true,
   expiraEm: '2026-09-06T00:00:00Z',
   diasRestantes: 30,
-  produtoId: 'buddy.assinatura.mensal',
+  produtoId: 'devonada.assinatura.mensal',
   renovacaoAutomatica: true,
 };
 

@@ -1,22 +1,31 @@
+# Nome de projeto EXPLÍCITO, e não é preferência.
+#
+# Sem esta linha o Compose deriva o projeto do nome do diretório — que é
+# `backend` aqui e `backend` também no repositório de onde este veio (ADR 0014).
+# Os dois passam a disputar o mesmo slot: subir o Postgres de um RECRIA o
+# container do outro, e as duas stacks ficam se derrubando sem aviso. Aconteceu
+# uma vez, e o volume antigo sobreviveu por sorte, não por desenho.
+name: devonada
+
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: buddy-postgres
+    container_name: devonada-postgres
     environment:
-      POSTGRES_USER: buddy
-      POSTGRES_PASSWORD: buddy
-      POSTGRES_DB: buddy
+      POSTGRES_USER: devonada
+      POSTGRES_PASSWORD: devonada
+      POSTGRES_DB: devonada
     ports:
       # 5433 de propósito: a 5432 já é do stack do biahflow-portal-cliente.
       # Dois projetos disputando a mesma porta é o bug que custou uma tarde.
       - '5433:5432'
     volumes:
-      - buddy_pgdata:/var/lib/postgresql/data
+      - devonada_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U buddy -d buddy']
+      test: ['CMD-SHELL', 'pg_isready -U devonada -d devonada']
       interval: 5s
       timeout: 5s
       retries: 10
 
 volumes:
-  buddy_pgdata:
+  devonada_pgdata:

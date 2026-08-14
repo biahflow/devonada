@@ -21,9 +21,14 @@ export default function EditarDivida() {
   const proposta = paramsParaProposta(params);
   const veioDaConversa = temProposta(params);
 
+  // Nos três ramos, não só no de conteúdo: formulário que não carrega sem saída
+  // é tela travada (ADR 0016).
+  const voltar = () => router.back();
+
   if (isPending) {
     return (
       <Screen>
+        <PageHeader eyebrow="Edição" title="Carregando" onBack={voltar} />
         <LoadingState label="Carregando a dívida" />
       </Screen>
     );
@@ -32,6 +37,7 @@ export default function EditarDivida() {
   if (error || !data) {
     return (
       <Screen>
+        <PageHeader eyebrow="Edição" title="Não deu para abrir" onBack={voltar} />
         <ErrorState error={error} onRetry={refetch} />
       </Screen>
     );
@@ -54,6 +60,7 @@ export default function EditarDivida() {
               ? 'Marquei o que entendi da nossa conversa. Confira antes de salvar.'
               : 'Corrija o que mudou.'
           }
+          onBack={voltar}
         />
 
         <ErroDeMutacao error={atualizar.error} fallback={'Não deu para salvar. Tente de novo.'} />

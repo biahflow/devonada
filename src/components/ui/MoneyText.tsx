@@ -3,7 +3,7 @@ import { colors, typography } from '../../theme/theme';
 import { formatBRL } from '../../util/money';
 
 type Size = 'body' | 'numeric' | 'displaySm' | 'display';
-type Tone = 'ink' | 'inkSoft' | 'accent' | 'onPrimary' | 'warning';
+type Tone = 'ink' | 'inkSoft' | 'accent' | 'onPrimary' | 'warning' | 'debt';
 
 interface Props {
   /** Valor em CENTAVOS inteiros. Nunca reais, nunca float. */
@@ -31,6 +31,11 @@ const tones: Record<Tone, string> = {
   // `warning`, nunca `danger`: quem chega nesse número já está com medo, e o
   // vermelho de alarme é o que os apps tradicionais fazem (guardrail 4).
   warning: colors.warning,
+  // SALDO DEVEDOR, e só ele. É o vermelho da marca, o mesmo do ponto do
+  // wordmark — o número que a jornada do produto existe para fazer sumir
+  // (ADR 0015). Não use em erro: erro é `danger`, e a tela precisa saber dizer
+  // qual dos dois quis dizer.
+  debt: colors.debt,
 };
 
 /** Só os tamanhos grandes recuam o símbolo; em corpo de texto ficaria ruidoso. */

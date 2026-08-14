@@ -17,12 +17,12 @@ memória guardar a mensagem numa lista: em vez de perguntar à Apple o que o
 recibo significa, o recibo já diz. Um teste que quer assinatura vencida escreve
 `expiraEm` no passado, e não precisa de mock nem de monkeypatch em lugar nenhum.
 
-ELE NÃO É ACEITO EM PRODUÇÃO — só chega aqui quem configurou `BUDDY_LOJA=memoria`
+ELE NÃO É ACEITO EM PRODUÇÃO — só chega aqui quem configurou `DEVONADA_LOJA=memoria`
 explicitamente. O padrão é `real`, e um servidor que caia neste adaptador está
 mal configurado de um jeito muito maior que a assinatura.
 """
 
-logger = logging.getLogger("buddy.loja")
+logger = logging.getLogger("devonada.loja")
 
 
 class LojaMemoria:

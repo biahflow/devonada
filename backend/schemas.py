@@ -672,6 +672,60 @@ class RespostaMetas(Camel):
     metas: MetasCaixa
 
 
+# --- Metas nomeadas (/v1/metas) ---
+#
+# COISA DIFERENTE DE `MetasCaixa` LOGO ACIMA, e o nome colidir é dívida assumida
+# na ADR 0017. `MetasCaixa` são os seis potes fixos que entram na cascata do
+# fechamento; `Meta` é uma coleção livre que a pessoa cria e apaga, e que não
+# entra em cálculo de capacidade nenhum. Na tela, os potes se chamam "Seus
+# potes" e as metas se chamam "Suas metas".
+
+StatusMeta = Literal["em_dia", "aporte_baixo", "atingida"]
+
+MesAlvo = Annotated[str, StringConstraints(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")]
+
+
+class NovaMeta(Camel):
+    nome: str = Field(min_length=1, max_length=120)
+    emoji: str | None = Field(default=None, max_length=8)
+    valorAlvo: int = Field(gt=0)
+    saldo: int = Field(default=0, ge=0)
+    # Os dois opcionais, e a ausência é significativa: sem prazo não existe
+    # aporte sugerido, e sem aporte declarado não existe status. Ver
+    # domain/metas.py.
+    dataAlvo: MesAlvo | None = None
+    aporteMensal: int | None = Field(default=None, ge=0)
+    ativa: bool = True
+
+
+class MetaPatch(Camel):
+    nome: str | None = Field(default=None, min_length=1, max_length=120)
+    emoji: str | None = Field(default=None, max_length=8)
+    valorAlvo: int | None = Field(default=None, gt=0)
+    saldo: int | None = Field(default=None, ge=0)
+    dataAlvo: MesAlvo | None = None
+    aporteMensal: int | None = Field(default=None, ge=0)
+    ativa: bool | None = None
+
+
+class Meta(NovaMeta):
+    id: str
+    # DERIVADOS, calculados a cada resposta e nunca persistidos: valor calculado
+    # que dorme em coluna é valor que envelhece errado. `None` quando falta prazo
+    # (ou, no status, quando falta o aporte declarado) — a tela então não afirma
+    # nada, em vez de afirmar um palpite. ADR 0003.
+    aporteSugerido: int | None = None
+    status: StatusMeta | None = None
+
+
+class RespostaMeta(Camel):
+    meta: Meta
+
+
+class ListaMetas(Camel):
+    metas: list[Meta]
+
+
 class SnapshotCaixa(Camel):
     id: str
     calculadoEm: datetime

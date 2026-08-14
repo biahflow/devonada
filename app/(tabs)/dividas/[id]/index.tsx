@@ -21,9 +21,15 @@ export default function DetalheDivida() {
   const quitar = useQuitarDivida(id);
   const excluir = useExcluirDivida(id);
 
+  // A SETA APARECE NOS TRÊS RAMOS, não só no de conteúdo. Sem ela, uma dívida
+  // que não carrega deixa a pessoa presa numa tela de erro sem saída — e é
+  // exatamente aí que ela quer sair (ADR 0016).
+  const voltar = () => router.back();
+
   if (isPending) {
     return (
       <Screen>
+        <PageHeader eyebrow="Dívida" title="Carregando" onBack={voltar} />
         <LoadingState label="Carregando a dívida" />
       </Screen>
     );
@@ -32,6 +38,7 @@ export default function DetalheDivida() {
   if (error || !data) {
     return (
       <Screen>
+        <PageHeader eyebrow="Dívida" title="Não deu para abrir" onBack={voltar} />
         <ErrorState error={error} onRetry={refetch} />
       </Screen>
     );
@@ -80,6 +87,7 @@ export default function DetalheDivida() {
           eyebrow={quitada ? 'Quitada' : 'Dívida ativa'}
           title={divida.credor}
           description={`Registrada desde ${isoParaBR(divida.dataOrigem)}`}
+          onBack={voltar}
         />
 
         {divida.possivelPrescricao ? (

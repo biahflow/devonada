@@ -1,144 +1,173 @@
 /**
- * Tokens de design. Fonte da verdade dos valores; o porquê está em
+ * Tokens de design do devo.nada. Fonte da verdade dos valores; o porquê está em
  * docs/design-system.md.
  *
- * Tese emocional do produto: reduzir ansiedade, não gerar alarme. A ação é um
- * teal sóbrio, a conquista é violeta e o vermelho existe só como `danger`, para
- * erro e ação destrutiva — jamais como estética de "você está devendo".
+ * Tese emocional do produto: a interface é CALMA e o vermelho é STATUS, nunca
+ * cenário. O usuário chega ansioso — o fundo é grafite, e o vermelho aparece só
+ * onde há dívida. A jornada do produto é vê-lo desaparecer. Verde é a única cor
+ * que celebra, e é também a cor da ação: toda ação neste app é um passo para
+ * fora da dívida. Ver ADR 0015.
  *
- * Todo par texto/fundo daqui foi medido (WCAG 2.1, piso 4,5:1), todo anel de
- * categoria foi medido como objeto gráfico (piso 3:1) e toda dupla de semânticas
- * que pode aparecer lado a lado foi medida em CIEDE2000 (piso ΔE 15) antes de
- * virar código. A tabela está em docs/design-system.md, seção 1. Ver ADR 0011.
+ * ATENÇÃO — os contrastes desta paleta AINDA NÃO FORAM MEDIDOS. A paleta
+ * anterior (ADR 0011) tinha todo par texto/fundo medido em WCAG 2.1 e toda
+ * dupla semântica em CIEDE2000; virar o tema de claro para escuro invalida
+ * cada uma dessas medições. Medir de novo é item de pré-lançamento, não
+ * opcional: contraste é acessibilidade, e o público deste app inclui gente
+ * lendo no ônibus com a tela no sol.
+ *
+ * Os nomes dos tokens são os mesmos da paleta anterior de propósito: 75
+ * arquivos os consomem e nenhum define cor própria (zero hex fora deste
+ * arquivo). Trocar valor não custa nada; trocar nome custaria 75 diffs.
  */
 export const colors = {
-  background: '#F8FAFC', // fundo de tela
-  surface: '#FFFFFF', // card, campo, bolha do assistente
-  neutralSurface: '#F1F5F9', // badge neutro, bolha do assistente, área recuada
-  border: '#E2E8F0', // divisor DENTRO de card; o card em si não tem borda
+  background: '#101216', // fundo de tela (grafite)
+  surface: '#181B21', // card, campo, bolha do buddy
+  neutralSurface: '#1F232B', // input, trilha de barra, área recuada, avatar
+  border: '#262A31', // divisor e — no escuro — a borda do próprio card
 
-  ink: '#0F172A', // texto principal
-  inkSoft: '#5C6B80', // texto secundário — passa 4,5:1 nas três superfícies
-
-  primary: '#017A70', // ação: botão, link, aba ativa (branco por cima: 5,23:1)
-  primaryHover: '#016258', // estado pressionado
-  primaryBright: '#029488', // marca de gráfico — validada por script, ver 4b.
-  //                           NUNCA como fundo de texto.
-  primarySoft: '#99F6E4', // anel de foco
-  primarySurface: '#F0FDFA', // badge, banner informativo, bolha do usuário
-  primaryDeep: '#134E4A', // texto sobre `primarySurface`
-  onPrimary: '#FFFFFF',
+  ink: '#F2F2ED', // texto principal (paper)
+  inkSoft: '#8A8F98', // texto secundário, label, metadado
 
   /**
-   * Conquista, economia, insight. Violeta, como no Budgi — 5,70:1 sobre branco,
-   * então é texto direto, sem a acrobacia de pastilha que o lime exigia.
+   * Ação. Verde, porque a ação é sempre um passo para fora da dívida — e por
+   * isso NÃO EXISTE BOTÃO VERMELHO neste app, nem para destruição (ali se usa
+   * ghost + confirmação).
    */
-  accent: '#7C3AED',
-  accentSurface: '#F5F3FF',
+  primary: '#1FC16B',
+  primaryHover: '#17A559', // estado pressionado
+  primaryBright: '#3FDC8A', // marca de gráfico. NUNCA como fundo de texto.
+  primarySoft: '#2A6E4C', // anel de foco
+  primarySurface: '#12251B', // badge, banner informativo, bolha do usuário
+  primaryDeep: '#7CE8AF', // texto sobre `primarySurface`
+  onPrimary: '#08120C',
 
-  warning: '#B45309', // atraso e atenção factual, sem alarme
-  warningSurface: '#FEF3C7',
-  warningBorder: '#FDE68A',
+  /**
+   * Conquista, economia, marco. No tema anterior era violeta; aqui é verde,
+   * porque no devo.nada verde é a única cor que celebra. Fica um passo mais
+   * claro que `primary` de propósito: se conquista e botão fossem o mesmo
+   * verde, a vitória sumiria dentro da barra de ação.
+   */
+  accent: '#3FDC8A',
+  accentSurface: '#132A1F',
 
-  danger: '#B91C1C', // usar quase nunca; jamais como estética dominante
-  dangerSurface: '#FEF2F2',
-  dangerBorder: '#FECACA',
+  warning: '#F0A31C', // acordo em andamento, atraso factual, sem alarme
+  warningSurface: '#2A2010',
+  warningBorder: '#4A3612',
 
-  /** Botão circular de enviar do chat — o único elemento escuro do app. */
-  inkFill: '#18181B',
+  /**
+   * Vermelho. Duas semânticas no mesmo valor, e isso é intencional:
+   * `danger` (erro, ação destrutiva) e `debt` (status de dívida) — ver o par
+   * abaixo. Regra dura: no máximo ~10% de qualquer tela, NUNCA como fundo de
+   * tela, seção ou botão.
+   */
+  danger: '#E5352B',
+  dangerSurface: '#2A1412',
+  dangerBorder: '#4A1B17',
+
+  /**
+   * Status de dívida — o nome semântico que código novo deve usar. Aponta para
+   * o mesmo valor de `danger` porque a marca só tem um vermelho; existe
+   * separado para que a tela diga o que quer dizer: `debt` marca saldo devedor,
+   * `danger` marca erro. Um dia um deles pode mudar de valor sem arrastar o
+   * outro.
+   */
+  debt: '#E5352B',
+  debtSurface: '#2A1412',
+  debtBorder: '#5C201B', // borda do card de dívida crítica
+
+  /** Botão circular de enviar do chat. No escuro, quem se destaca é o verde. */
+  inkFill: '#1FC16B',
 } as const;
 
 /**
- * Anel do ícone de categoria. É COR DE OBJETO GRÁFICO, medida contra o piso de
- * 3:1, não contra o de texto — e ela nunca informa sozinha: o glifo e o rótulo
- * ao lado carregam o significado.
+ * Anel do ícone de categoria. É COR DE OBJETO GRÁFICO — no escuro precisa de
+ * mais luminosidade que a versão clara para se manter legível sobre o grafite.
+ * Ela nunca informa sozinha: o glifo e o rótulo ao lado carregam o significado.
  *
- * São quatro matizes, não seis, e a razão é medida: o coral fica a ΔE 11,9 do
- * âmbar e o violeta a ΔE 12,4 do azul (OKLab, validador de dataviz). Dois anéis
- * que se confundem não acrescentam nada. Este conjunto passa separação de CVD
- * com folga — pior par ΔE 17,9 em deuteranopia.
+ * O verde ficou de fora de propósito: é cor semântica reservada (ação e
+ * conquista), e cor reservada não vira "categoria 5". Mesma razão pela qual o
+ * violeta ficava de fora na paleta anterior.
  *
- * O violeta ficou de fora de propósito por um segundo motivo: ele é o `accent`
- * do sistema, e cor semântica reservada não vira "categoria 5".
+ * PENDENTE: a separação CIEDE2000 destes quatro matizes sobre o novo fundo não
+ * foi remedida. Ver o aviso no topo do arquivo.
  */
 export const categoria = {
-  teal: '#0D9488',
-  azul: '#2563EB',
-  magenta: '#BE185D',
-  ambar: '#D97706',
+  teal: '#2DD4BF',
+  azul: '#60A5FA',
+  magenta: '#F472B6',
+  ambar: '#FBBF24',
 } as const;
 
 export type CategoriaCor = keyof typeof categoria;
 
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32, xxxl: 48 } as const;
 
-export const radius = { sm: 8, md: 14, lg: 20, xl: 24, pill: 999 } as const;
+export const radius = { sm: 8, md: 14, lg: 16, xl: 24, pill: 999 } as const;
 
 /**
- * Nunito Sans, carregada em app/_layout.tsx. Com fontes customizadas o React
- * Native não deriva peso a partir de `fontWeight` de forma confiável entre
- * plataformas — cada peso é uma família própria.
+ * Duas famílias, com papéis separados — ver docs/design-system.md, seção 3.
  *
- * Ela foi escolhida por uma razão medida, não estética: **os dígitos já são de
- * largura fixa por padrão** (variação 0,00px entre 0 e 9). Isso dispensa
- * `fontVariant: ['tabular-nums']`, cujo suporte com fonte customizada é
- * justamente o que não dá para garantir entre iOS e Android. Figtree, a primeira
- * escolha, não tem `tnum` nem dígitos tabulares: o "1" mede 16,5px onde o "0"
- * mede 25,6px, e uma coluna de reais dançaria.
+ * Inter carrega todo o texto. Archivo Black carrega o wordmark e o número
+ * protagonista de uma tela, e NADA MAIS: ela é display, e display em texto
+ * corrido fica ilegível em tela pequena.
+ *
+ * POR QUE `numeric` NÃO É ARCHIVO BLACK, apesar de a marca dizer "valor
+ * monetário sempre em Archivo Black": `numeric` é o número que aparece em
+ * COLUNA — parcelas, lista de gastos, extrato. A paleta anterior escolheu
+ * Nunito Sans por uma razão medida, não estética: os dígitos dela são de
+ * largura fixa, e por isso uma coluna de reais não dança. Ao trocar a fonte
+ * essa garantia se perdeu, e ela precisa ser reconquistada por medição, não por
+ * suposição. Até lá, `display` e `displaySm` (o número único e grande de cada
+ * tela, onde não há coluna com que se alinhar) usam Archivo Black, e a coluna
+ * fica em Inter.
+ *
+ * ITEM DE VALIDAÇÃO EM APARELHO: medir a largura de "0" e "1" em
+ * Inter_700Bold. Se divergirem, `numeric` precisa de `fontVariant:
+ * ['tabular-nums']` ou de uma família tabular dedicada.
  */
 export const fontFamily = {
-  regular: 'NunitoSans_400Regular',
-  medium: 'NunitoSans_600SemiBold',
-  bold: 'NunitoSans_700Bold',
+  regular: 'Inter_400Regular',
+  medium: 'Inter_600SemiBold',
+  bold: 'Inter_700Bold',
+  /** Wordmark e número protagonista. Nunca em texto corrido. */
+  display: 'ArchivoBlack_400Regular',
 } as const;
 
 /**
- * Escala do Budgi: números protagonistas moderados, não display gigante. O
- * tracking é quase neutro — a fonte é humanista, e apertar o espacejamento dela
- * desfaz o ar que é justamente a característica do reference.
+ * Escala do devo.nada: o dinheiro é o protagonista visual, então o número
+ * grande é maior e mais pesado que na paleta anterior. Archivo Black já é
+ * densa — o tracking negativo do display é o que a impede de parecer inflada.
  */
 export const typography = {
   body: { fontSize: 16, lineHeight: 24, fontFamily: fontFamily.regular },
   bodyStrong: { fontSize: 16, lineHeight: 24, fontFamily: fontFamily.medium },
   title: { fontSize: 20, lineHeight: 26, fontFamily: fontFamily.bold, letterSpacing: -0.2 },
   caption: { fontSize: 13, lineHeight: 18, fontFamily: fontFamily.regular },
+  /** Número em COLUNA. Inter de propósito — ver a nota em `fontFamily`. */
   numeric: { fontSize: 18, lineHeight: 24, fontFamily: fontFamily.bold },
-  /** Número protagonista de uma tela. */
-  display: { fontSize: 32, lineHeight: 38, fontFamily: fontFamily.bold, letterSpacing: -0.5 },
+  /** Número protagonista de uma tela. Saldo devedor, valor justo, economia. */
+  display: { fontSize: 36, lineHeight: 42, fontFamily: fontFamily.display, letterSpacing: -1 },
   /** Número de destaque dentro de card menor, e título de tela. */
-  displaySm: { fontSize: 26, lineHeight: 32, fontFamily: fontFamily.bold, letterSpacing: -0.4 },
+  displaySm: { fontSize: 26, lineHeight: 32, fontFamily: fontFamily.display, letterSpacing: -0.6 },
   eyebrow: { fontSize: 11, lineHeight: 14, fontFamily: fontFamily.bold, letterSpacing: 1.6 },
 } as const;
 
 /**
- * Sombra difusa e larga, sem borda: no Budgi quem separa a superfície é a
- * sombra, não uma linha. `elevation` cobre o Android e as propriedades `shadow*`
- * cobrem o iOS — sempre defina as duas.
+ * No escuro, sombra não separa nada: preto sobre grafite é invisível. Quem
+ * separa a superfície aqui é a COR (`background` → `surface` →
+ * `neutralSurface`) mais a borda de `colors.border`.
+ *
+ * As chaves continuam existindo porque 75 arquivos as espalham em `...shadow.card`,
+ * e um objeto vazio mantém esse spread válido sem custo. `elevation: 0` é
+ * explícito: no Android a elevação desenha uma sombra própria, que no escuro
+ * vira uma mancha suja em volta do card.
+ *
+ * A exceção declarada da marca — o glow verde da tela de vitória e dos marcos —
+ * NÃO mora aqui: ela é celebração pontual, não hierarquia de superfície, e vive
+ * na própria tela.
  */
 export const shadow = {
-  card: {
-    // Medido em aparelho: com 0,05 de opacidade o card SUMIA no fundo depois que
-    // a borda saiu. Sem borda, a sombra é a única coisa que separa a superfície,
-    // e precisa ser sutil sem ser invisível.
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.09,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4,
-  },
-  soft: {
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.04,
-    shadowRadius: 32,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 3,
-  },
-  /** Composer e botões flutuantes, que precisam se destacar da lista atrás. */
-  float: {
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
-  },
+  card: { elevation: 0 },
+  soft: { elevation: 0 },
+  float: { elevation: 0 },
 } as const;

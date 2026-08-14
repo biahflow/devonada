@@ -96,7 +96,11 @@ describe('tela do painel', () => {
 
     await waitFor(() => expect(screen.getByText('jun/26')).toBeTruthy());
     expect(screen.getByText('jul/26')).toBeTruthy();
-    expect(screen.getByText('R$ 54.000,00')).toBeTruthy();
+    // `getAllBy`, não `getBy`: o mesmo valor aparece duas vezes na tela desde
+    // que a Rota ganhou o card do saldo — uma como extremo da curva, outra no
+    // "você começou com R$ X". São dois fatos diferentes sobre o mesmo número,
+    // e nenhum dos dois sobra.
+    expect(screen.getAllByText('R$ 54.000,00').length).toBeGreaterThan(0);
   });
 
   it('estado vazio do mês corrente convida a cadastrar', async () => {

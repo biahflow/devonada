@@ -8,26 +8,26 @@ from pathlib import Path
 # O backend não é um pacote instalável; os módulos são importados pela raiz.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-os.environ["BUDDY_JWT_SECRET"] = "segredo-de-teste-que-nao-existe-em-lugar-nenhum"
-os.environ["BUDDY_DATABASE_URL"] = "sqlite+pysqlite:///:memory:"
+os.environ["DEVONADA_JWT_SECRET"] = "segredo-de-teste-que-nao-existe-em-lugar-nenhum"
+os.environ["DEVONADA_DATABASE_URL"] = "sqlite+pysqlite:///:memory:"
 
 # E-MAIL TAMBÉM NÃO TOCA A REDE. O correio de memória guarda numa lista, e é
 # por ele que o teste de recuperação de senha lê o código — a alternativa seria
 # um mock por teste, que provaria menos e quebraria mais.
-os.environ["BUDDY_CORREIO"] = "memoria"
+os.environ["DEVONADA_CORREIO"] = "memoria"
 
 # Custo de bcrypt no teste: 4 rodadas em vez de 12. A suíte cria usuário em
 # quase todo teste, e 12 rodadas custam ~250 ms cada — a suíte inteira passaria
 # de 3 s para minutos. O custo de produção continua no código, não aqui.
-os.environ["BUDDY_BCRYPT_ROUNDS"] = "4"
+os.environ["DEVONADA_BCRYPT_ROUNDS"] = "4"
 
 # A suíte NÃO herda a configuração de LLM da máquina de quem roda. Sem estas
 # linhas, `backend/.env` decide qual provedor e qual implementação os testes
 # exercitam — e um `.env` desatualizado quebra a suíte por um motivo que não
 # tem nada a ver com o código sob teste. (Foi o que aconteceu.)
-os.environ["BUDDY_LLM_PROVIDER"] = "openai"
-os.environ["BUDDY_EXTRATOR"] = "llm"
-os.environ["BUDDY_ASSISTENTE"] = "determinista"
+os.environ["DEVONADA_LLM_PROVIDER"] = "openai"
+os.environ["DEVONADA_EXTRATOR"] = "llm"
+os.environ["DEVONADA_ASSISTENTE"] = "determinista"
 
 # A LOJA TAMBÉM NÃO TOCA A REDE. O adaptador de memória confere um recibo que
 # descreve a si mesmo, então dá para exercitar teste vencido, compra, renovação
@@ -38,7 +38,7 @@ os.environ["BUDDY_ASSISTENTE"] = "determinista"
 # registro, e uma conta recém-criada está dentro do teste de 7 dias. Foi por
 # isso que a trava de escrita entrou sem mexer em um único dos 420 testes que já
 # existiam. Quem quer o outro lado usa a fixture `assinatura_vencida`.
-os.environ["BUDDY_LOJA"] = "memoria"
+os.environ["DEVONADA_LOJA"] = "memoria"
 
 # NENHUM TESTE TOCA A REDE. Variável de ambiente vence o `.env` no
 # pydantic-settings, então zerar as chaves aqui garante que uma chave real na
@@ -63,7 +63,7 @@ A suíte roda em SQLite por padrão — rápido e sem infraestrutura.
 
 Para rodar contra o MESMO banco da produção, aponte a variável:
 
-    BUDDY_TEST_DATABASE_URL=postgresql+psycopg://buddy:buddy@localhost:5433/buddy_test pytest
+    DEVONADA_TEST_DATABASE_URL=postgresql+psycopg://devonada:devonada@localhost:5433/devonada_test pytest
 
 SQLite não pega divergência de dialeto: constraint que só o Postgres aplica,
 precisão de BigInteger, comportamento de índice. Rodar contra Postgres antes de
@@ -71,10 +71,10 @@ release é o que fecha essa lacuna — e por isso a troca é uma variável de
 ambiente, não uma edição de código.
 """
 
-URL_TESTE = os.environ.get("BUDDY_TEST_DATABASE_URL")
+URL_TESTE = os.environ.get("DEVONADA_TEST_DATABASE_URL")
 
 # A conta que a fixture `auth` cria. Ela é a PRIMEIRA do banco em todo teste, e
-# por isso adota `BUDDY_TENANT_ID` — o mesmo tenant que os testes anteriores ao
+# por isso adota `DEVONADA_TENANT_ID` — o mesmo tenant que os testes anteriores ao
 # M8 já assumiam sem saber.
 CONTA_EMAIL = "teste@exemplo.com"
 CONTA_SENHA = "senha-de-teste"
@@ -227,7 +227,7 @@ def assinatura_vencida(sessao):
 def recibo_de_memoria(
     transacao: str = "txn-1",
     dias: int = 30,
-    produto: str = "buddy.assinatura.mensal",
+    produto: str = "devonada.assinatura.mensal",
     renovacao: bool = True,
 ) -> str:
     """

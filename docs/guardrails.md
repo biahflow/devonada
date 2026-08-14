@@ -77,8 +77,8 @@ Todo número na tela veio de um campo tipado da API. Se um valor não veio, a UI
 - **Token só em `expo-secure-store`.** Nunca em `AsyncStorage`, nunca em estado global
   serializado, nunca em log. Vale para o par inteiro da ADR 0012 — acesso e refresh.
 - **Como a credencial chega ao aparelho: pelo login.** O parágrafo anterior descrevia o
-  `npm run token:qr`, que lia `BUDDY_API_TOKEN` de `backend/.env` e imprimia um QR. **Nada disso
-  existe desde o M8** — o script, a tela de token e o próprio `BUDDY_API_TOKEN` saíram junto com o
+  `npm run token:qr`, que lia `DEVONADA_API_TOKEN` de `backend/.env` e imprimia um QR. **Nada disso
+  existe desde o M8** — o script, a tela de token e o próprio `DEVONADA_API_TOKEN` saíram junto com o
   token fixo da ADR 0006. Hoje o usuário entra com e-mail e senha, e o `src/api/sessao.ts` guarda
   o par no SecureStore.
 - **Modo de falha que isso previne:** uma chave de LLM no bundle é extraída em minutos e vira
@@ -124,15 +124,49 @@ que o app apresentou com confiança demais, perde a negociação e responsabiliz
 A tese emocional está escrita no código, em `src/theme/theme.ts`: reduzir ansiedade, não gerar
 alarme. Quem chega neste app já está com medo do próprio extrato.
 
-- **Vermelho é exceção.** `colors.danger` existe para ação destrutiva e erro real. Não é a cor
-  de "você está devendo". Saldo devedor não é vermelho; é `ink` com contexto.
+**A ADR 0015 mudou a cor, não a tese.** Até ela, a regra era "saldo devedor não é vermelho". Hoje
+é o contrário — `colors.debt` marca dívida, porque a marca inteira depende de ver o vermelho
+desaparecer da tela conforme a pessoa quita. O que a troca revelou é que a tese anti-ansiedade
+nunca morou no token de cor: ela mora nos comportamentos abaixo, e **nenhum deles afrouxou**.
+
+- **Vermelho é status, nunca cenário.** Máximo ~10% de qualquer tela. **Nunca** como fundo de
+  tela, de seção ou de botão — e **não existe botão vermelho neste app**, nem para ação
+  destrutiva: ali se usa ghost mais confirmação. `colors.debt` marca saldo devedor e criticidade;
+  `colors.danger` marca erro. Mesmo valor, nomes diferentes, e a tela diz qual dos dois quis dizer.
 - **Proibido:** contagem regressiva de juros correndo em tempo real, badge de urgência
   artificial, notificação fora do horário combinado, gamificação que trata atraso como derrota
   moral, comparação com "outros usuários".
-- **Progresso é destacado com o acento violeta** (`colors.accent`): parcela quitada, economia
-  obtida, meses a menos. O app celebra o avanço, não pune o atraso. Ver `design-system.md`,
-  seção 1, e ADR 0011.
+  - **Exceção declarada, e só uma: o ponto da splash respira** (`src/components/SplashDevoNada.tsx`).
+    A regra existe contra alarme fabricado; ali não há dado, botão nem decisão — é a marca se
+    apresentando numa tela onde nada está em jogo, e é onde a pessoa aprende a ler o ponto que vai
+    acompanhá-la. Respeita `isReduceMotionEnabled` mostrando o ponto **parado**, não mais lento.
+    **Se esta animação aparecer numa tela com dado ou ação, ela virou o que a regra proíbe.**
+- **Progresso é destacado em verde** (`colors.accent`, um passo mais claro que `colors.primary`):
+  parcela quitada, economia obtida, meses a menos, marco atingido. O app celebra o avanço, não
+  pune o atraso. Barra de progresso mostra sempre **quanto já foi percorrido**, nunca quanto
+  falta. Ver `design-system.md`, seção 1, e ADR 0015.
 - Copy usa segunda pessoa e é específica. "Faltam 7 parcelas" em vez de "Atenção: dívida ativa".
+- **Discrição por padrão.** Vergonha é o sentimento central deste público, e a tela de bloqueio é
+  pública. A palavra "dívida" não aparece em push nem em notificação local. "Você tem um passo
+  hoje" chega; "Sua dívida do Nubank vence amanhã" delata a pessoa para quem estiver ao lado.
+
+### 4.1 Respiro — lazer é linha do plano, não desvio
+
+Austeridade total é a principal causa de desistência. Meses só pagando dívida, sem nenhum ganho
+visível, viram "perda total"; e gasto pequeno — um sorvete, uma unha — vira fonte de culpa e de
+conflito dentro de casa. Por isso todo plano reserva, **desde o dia 1**, uma fatia da capacidade
+para lazer e autocuidado. Ela é linha da cascata, no mesmo nível do aluguel, e não sobra.
+
+- **Gasto de respiro nunca gera alerta, aviso ou contabilização negativa.** O único acompanhamento
+  é quanto ainda há disponível. Copy correta: "sobram R$ 70 pra usar sem culpa". Copy proibida:
+  "você já gastou R$ 80".
+- **O buddy oferece; o usuário não pede permissão.** Respiro nunca é condicionado a desempenho
+  ("se você economizar, aí pode") — ele já está no plano, e é justamente essa incondicionalidade
+  que faz a culpa morrer.
+- **Respiro não usado não vira cobrança.** Ele acumula para o próximo marco ou vira aporte extra,
+  e a escolha é do usuário.
+- **O piso legal continua acima dele.** Respiro sai da capacidade, e a capacidade nunca invade o
+  mínimo existencial (seção 3 de `domain.md`).
 
 ---
 

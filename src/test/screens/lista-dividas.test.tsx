@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react-native';
+import { screen, waitFor, fireEvent } from '@testing-library/react-native';
 import ListaDividas from '../../../app/(tabs)/dividas/index';
 import { ApiError } from '../../api/client';
 import { limparMocksDeRede, nuncaResponde, responderPorRota } from '../api';
@@ -36,6 +36,22 @@ describe('tela de lista de dívidas', () => {
     await waitFor(() => expect(screen.getByText('Nenhuma dívida cadastrada')).toBeTruthy());
     expect(screen.getByText('Ler um contrato')).toBeTruthy();
     expect(screen.getByText('Cadastrar à mão')).toBeTruthy();
+  });
+
+  /**
+   * A REGRESSÃO QUE ORIGINOU ESTE TESTE: os dois caminhos de cadastro viviam só
+   * no `EmptyState`, que desaparece na primeira dívida. Quem terminava o
+   * onboarding com uma dívida cadastrada não tinha mais como registrar a segunda
+   * — sobravam "Ler contrato" no cabeçalho e "Simular quitação" no pé.
+   */
+  it('oferece cadastrar dívida também com a lista cheia', async () => {
+    responderPorRota({ '/v1/dividas': { dividas: [umaDivida({ credor: 'Nubank' })] } });
+    renderizarTela(<ListaDividas />);
+
+    await waitFor(() => expect(screen.getByText('Nubank')).toBeTruthy());
+    fireEvent.press(screen.getByRole('button', { name: 'Cadastrar dívida' }));
+
+    expect(global.mockRouter.push).toHaveBeenCalledWith('/dividas/nova');
   });
 
   it('lista as dívidas com credor, valor e criticidade', async () => {

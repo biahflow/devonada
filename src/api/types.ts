@@ -532,6 +532,44 @@ export interface MetasCaixa {
   rendimentoEsperadoBps?: number | null;
 }
 
+/* --- Metas nomeadas (/v1/metas) --- */
+
+/**
+ * COISA DIFERENTE DE `MetasCaixa` LOGO ACIMA. `MetasCaixa` são os seis potes
+ * fixos do perfil que entram na cascata do fechamento do mês — imposto, reserva,
+ * aposentadoria. `Meta` é a coleção livre da aba Metas: a pessoa cria, nomeia e
+ * apaga, e nada disso entra em cálculo de capacidade. A colisão de nome é dívida
+ * assumida na ADR 0017; na tela, um é "Seus potes" e o outro é "Suas metas".
+ */
+export type StatusMeta = 'em_dia' | 'aporte_baixo' | 'atingida';
+
+export interface NovaMeta {
+  nome: string;
+  emoji?: string | null;
+  /** Centavos. */
+  valorAlvo: number;
+  saldo?: number;
+  /** `AAAA-MM`. Ausente ⇒ meta sem prazo, e sem prazo não há sugestão. */
+  dataAlvo?: string | null;
+  /** Centavos. O que a pessoa DECLARA separar por mês. */
+  aporteMensal?: number | null;
+  ativa?: boolean;
+}
+
+export type MetaPatch = Partial<NovaMeta>;
+
+export interface Meta extends NovaMeta {
+  id: Uuid;
+  /**
+   * Derivados no servidor, nunca aqui: o sugerido divide o que falta pelos meses
+   * que faltam, e depende do mês em que a pergunta é feita. `null` quando falta
+   * prazo — e, no status, também quando falta o aporte declarado. A tela então
+   * não exibe pill, em vez de exibir palpite (ADR 0003).
+   */
+  aporteSugerido?: number | null;
+  status?: StatusMeta | null;
+}
+
 export interface SnapshotCaixa {
   id: Uuid;
   calculadoEm: string;
