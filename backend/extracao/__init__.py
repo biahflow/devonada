@@ -19,10 +19,10 @@ __all__ = [
 
 def obter_extrator() -> ExtratorDeContrato:
     """
-    Escolhe a implementação por `BUDDY_EXTRATOR`.
+    Escolhe a implementação por `DEVONADA_EXTRATOR`.
 
     Hoje só existe `llm`, que serve a qualquer provedor — quem escolhe o
-    provedor é `BUDDY_LLM_PROVIDER`, e este módulo não sabe qual é. O `extrator`
+    provedor é `DEVONADA_LLM_PROVIDER`, e este módulo não sabe qual é. O `extrator`
     continua sendo uma opção porque a porta faz sentido: um extrator
     determinístico para o layout de contrato de um banco específico seria mais
     exato que qualquer modelo, e entraria aqui sem tocar a rota.

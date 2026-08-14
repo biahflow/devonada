@@ -24,8 +24,13 @@ function preencher(rotulo: string, valor: string) {
 
 /**
  * Por PAPEL, e não por texto: o título da tela e o botão principal dizem a
- * mesma coisa de propósito — "Entrar", "Criar conta" — e `getByText` acharia os
- * dois. Buscar o botão é o que o usuário faz.
+ * mesma coisa de propósito — "Criar conta" aparece nos dois — e `getByText`
+ * acharia os dois. Buscar o botão é o que o usuário faz.
+ *
+ * O botão de e-mail diz "Entrar com e-mail" e não "Entrar" porque desde a tela
+ * 11 ele divide a tela com "Continuar com Apple" e "Continuar com Google": num
+ * leitor de tela, três botões de entrada em que um se chama só "Entrar" não
+ * dizem por onde cada um entra.
  */
 function tocarBotao(nome: string) {
   fireEvent.press(screen.getByRole('button', { name: nome }));
@@ -38,7 +43,7 @@ describe('Login', () => {
 
     preencher('E-mail', 'voce@exemplo.com');
     preencher('Senha', 'senha-bem-boa');
-    tocarBotao('Entrar');
+    tocarBotao('Entrar com e-mail');
 
     // `replace`, não `push`: voltar depois de entrar não pode devolver ao login.
     await waitFor(() => expect(global.mockRouter.replace).toHaveBeenCalledWith('/'));
@@ -50,14 +55,14 @@ describe('Login', () => {
 
     preencher('E-mail', 'voce@exemplo.com');
     preencher('Senha', 'errada');
-    tocarBotao('Entrar');
+    tocarBotao('Entrar com e-mail');
 
     expect(await screen.findByText('E-mail ou senha não conferem.')).toBeTruthy();
   });
 
   it('não vai à rede com o formulário vazio', async () => {
     renderizarTela(<Login />);
-    tocarBotao('Entrar');
+    tocarBotao('Entrar com e-mail');
 
     expect(await screen.findByText('Preencha o e-mail e a senha.')).toBeTruthy();
     expect(requestMock).not.toHaveBeenCalled();
@@ -69,17 +74,30 @@ describe('Login', () => {
 
     preencher('E-mail', 'voce@exemplo.com');
     preencher('Senha', 'senha-bem-boa');
-    tocarBotao('Entrar');
+    tocarBotao('Entrar com e-mail');
 
     // O botão continua tendo nome enquanto carrega — o spinner substitui o
     // texto, e sem `accessibilityLabel` ele ficaria mudo para o leitor de tela.
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Entrar', busy: true })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Entrar com e-mail', busy: true })).toBeTruthy());
   });
 
   it('oferece os dois caminhos de quem não consegue entrar', () => {
     renderizarTela(<Login />);
     expect(screen.getByRole('button', { name: 'Esqueci minha senha' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Criar conta' })).toBeTruthy();
+  });
+
+  // O ACORDO DA TELA 11: os botões sociais existem no desenho, e enquanto o
+  // backend não tiver Sign in with Apple nem Google Sign-In eles ficam
+  // DESLIGADOS de verdade — inclusive para o leitor de tela. Este teste falha no
+  // dia em que alguém os deixar tocáveis sem ter para onde mandar o toque.
+  it('mostra os caminhos sociais, e desligados enquanto não existem', () => {
+    renderizarTela(<Login />);
+
+    for (const nome of ['Continuar com Apple', 'Continuar com Google']) {
+      expect(screen.getByRole('button', { name: nome, disabled: true })).toBeTruthy();
+    }
+    expect(screen.getByText(/chega com a publicação nas lojas/i)).toBeTruthy();
   });
 });
 

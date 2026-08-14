@@ -45,6 +45,7 @@ export default function Simulador() {
       eyebrow="Simulação"
       title="Quando você fica livre"
       description="Duas formas de atacar as dívidas. Nenhuma das duas é a certa para todo mundo."
+      onBack={() => router.back()}
     />
   );
 

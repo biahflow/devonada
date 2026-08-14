@@ -32,8 +32,8 @@ jest.mock('expo-notifications', () => ({
  * inventar um sku —, e sem estas linhas todo teste de preço exercitaria o
  * caminho de "loja sem plano" achando que exercita o caminho feliz.
  */
-process.env.EXPO_PUBLIC_PRODUTO_ASSINATURA_IOS = 'buddy.assinatura.mensal';
-process.env.EXPO_PUBLIC_PRODUTO_ASSINATURA_ANDROID = 'buddy.assinatura.mensal';
+process.env.EXPO_PUBLIC_PRODUTO_ASSINATURA_IOS = 'devonada.assinatura.mensal';
+process.env.EXPO_PUBLIC_PRODUTO_ASSINATURA_ANDROID = 'devonada.assinatura.mensal';
 
 /**
  * Loja de aplicativos. O módulo nativo não existe sob jest — nem no Expo Go, o
@@ -50,7 +50,7 @@ jest.mock('expo-iap', () => ({
   initConnection: jest.fn().mockResolvedValue(true),
   endConnection: jest.fn().mockResolvedValue(true),
   fetchProducts: jest.fn().mockResolvedValue([
-    { id: 'buddy.assinatura.mensal', displayPrice: 'R$ 19,90', title: 'Buddy' },
+    { id: 'devonada.assinatura.mensal', displayPrice: 'R$ 19,90', title: 'Buddy' },
   ]),
   requestPurchase: jest.fn().mockResolvedValue(undefined),
   getAvailablePurchases: jest.fn().mockResolvedValue([]),

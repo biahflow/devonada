@@ -186,7 +186,7 @@ class TestFabrica:
         import config
         import llm
 
-        monkeypatch.setenv("BUDDY_LLM_PROVIDER", "inexistente")
+        monkeypatch.setenv("DEVONADA_LLM_PROVIDER", "inexistente")
         config.get_settings.cache_clear()
         try:
             with pytest.raises(ErroDeLLM):
@@ -199,7 +199,7 @@ class TestFabrica:
         import llm
         from llm.anthropic_cliente import ClienteAnthropic
 
-        monkeypatch.setenv("BUDDY_LLM_PROVIDER", "anthropic")
+        monkeypatch.setenv("DEVONADA_LLM_PROVIDER", "anthropic")
         config.get_settings.cache_clear()
         try:
             cliente = llm.obter_cliente("modelo-x")

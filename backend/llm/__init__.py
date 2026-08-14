@@ -21,7 +21,7 @@ __all__ = [
 
 def obter_cliente(modelo: str) -> ClienteLLM:
     """
-    Escolhe o adaptador por `BUDDY_LLM_PROVIDER`.
+    Escolhe o adaptador por `DEVONADA_LLM_PROVIDER`.
 
     O MODELO É PARÂMETRO, não configuração global: ler um contrato (visão, PDF,
     evidência literal por campo) e classificar a intenção de uma frase são

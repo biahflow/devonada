@@ -2,11 +2,14 @@ import { useState } from 'react';
 import { ScrollView, View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Screen } from '../../src/components/ui/Screen';
-import { PageHeader } from '../../src/components/ui/PageHeader';
+import { Brand } from '../../src/components/ui/Brand';
+import { NotaDePrivacidade } from '../../src/components/ui/NotaDePrivacidade';
 import { Card } from '../../src/components/ui/Card';
 import { Button } from '../../src/components/ui/Button';
 import { FormField } from '../../src/components/ui/FormField';
 import { Feedback } from '../../src/components/ui/Feedback';
+import { BotaoSocial } from '../../src/components/auth/BotaoSocial';
+import { Divisor } from '../../src/components/auth/Divisor';
 import { useRegistrar } from '../../src/hooks/useConta';
 import { ApiError } from '../../src/api/client';
 import { colors, spacing, typography } from '../../src/theme/theme';
@@ -42,11 +45,29 @@ export default function Registro() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <PageHeader
-          eyebrow="Buddy Financeiro"
-          title="Criar conta"
-          description="É o que permite abrir o app em outro aparelho e não perder o que você já preencheu."
-        />
+        <View style={styles.marca}>
+          <Brand size="md" />
+        </View>
+
+        <View style={styles.chamada}>
+          <Text style={styles.titulo}>Sua rota{'\n'}começa aqui.</Text>
+          <Text style={styles.subtitulo}>
+            É o que permite abrir o app em outro aparelho e não perder o que você já preencheu.
+          </Text>
+        </View>
+
+        {/* Mesmo par da tela de entrar, pela mesma razão: as duas telas não
+            podem divergir na ordem nem na promessa. Ver `BotaoSocial`. */}
+        <View style={styles.social}>
+          <BotaoSocial provedor="apple" label="Continuar com Apple" />
+          <BotaoSocial provedor="google" label="Continuar com Google" />
+          <Text style={styles.legendaSocial}>
+            Criar conta pela Apple ou pelo Google chega com a publicação nas lojas. Por enquanto, é
+            por e-mail.
+          </Text>
+        </View>
+
+        <Divisor />
 
         {registrar.error ? (
           <Feedback
@@ -108,6 +129,8 @@ export default function Registro() {
             Você pode apagar tudo a qualquer momento, pelo próprio app.
           </Text>
         </Card>
+
+        <NotaDePrivacidade />
       </ScrollView>
     </Screen>
   );
@@ -115,6 +138,18 @@ export default function Registro() {
 
 const styles = StyleSheet.create({
   conteudo: { paddingBottom: spacing.xxxl, gap: spacing.lg },
+  marca: { alignItems: 'flex-start', marginTop: spacing.sm },
+  chamada: { gap: spacing.sm },
+  titulo: {
+    ...typography.display,
+    fontSize: 30,
+    lineHeight: 36,
+    letterSpacing: -0.9,
+    color: colors.ink,
+  },
+  subtitulo: { ...typography.caption, color: colors.inkSoft, lineHeight: 19 },
+  social: { gap: spacing.sm },
+  legendaSocial: { ...typography.caption, color: colors.inkSoft, lineHeight: 18 },
   form: { gap: spacing.lg },
   explicacao: { ...typography.caption, color: colors.inkSoft },
 });

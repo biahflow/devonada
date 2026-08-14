@@ -72,6 +72,7 @@ export default function Renegociar() {
           eyebrow="Acordo"
           title="Novas condições"
           description="Anote o que ficou combinado. As condições antigas continuam no histórico."
+          onBack={() => router.back()}
         />
 
         <Card>

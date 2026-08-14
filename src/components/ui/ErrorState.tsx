@@ -36,7 +36,7 @@ function describe(error: unknown): { title: string; message: string } {
     }
     if (error.status === 404) {
       // 404 tem dois sentidos reais: o recurso sumiu, ou o app está falando com
-      // um servidor que não é o do Buddy. A dica de ambiente só existe em
+      // um servidor que não é o do devo.nada. A dica de ambiente só existe em
       // desenvolvimento — foi o que faltou para diagnosticar rápido quando outro
       // projeto ocupou a porta 8000 e respondeu 404 em tudo.
       return {

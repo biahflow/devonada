@@ -1,5 +1,5 @@
 {
-  "name": "buddy-financeiro-app",
+  "name": "devonada-app",
   "version": "0.0.1",
   "main": "expo-router/entry",
   "private": true,
@@ -24,7 +24,8 @@
     ]
   },
   "dependencies": {
-    "@expo-google-fonts/nunito-sans": "^0.4.2",
+    "@expo-google-fonts/archivo-black": "^0.4.1",
+    "@expo-google-fonts/inter": "^0.4.2",
     "@expo/vector-icons": "^15.0.3",
     "@react-native-community/datetimepicker": "8.4.4",
     "@react-native-community/slider": "5.0.1",

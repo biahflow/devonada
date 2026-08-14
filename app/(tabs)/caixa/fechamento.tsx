@@ -42,6 +42,7 @@ export default function FechamentoDoMes() {
       titleLead="Fechar"
       title="o mês"
       description="Confira o que mudou. O que é fixo já está na conta e não precisa ser digitado de novo."
+      onBack={() => router.back()}
     />
   );
 
@@ -88,6 +89,7 @@ function Formulario({
   proposta: { mes: string; itens: ItemFechamento[] };
   onPronto: () => void;
 }) {
+  const router = useRouter();
   // O estado começa com a sugestão; item sem referência começa VAZIO, e é o
   // `tocado` que separa "o usuário confirmou zero" de "o usuário não mexeu".
   const [valores, setValores] = useState<Record<string, number>>(() =>
@@ -125,6 +127,7 @@ function Formulario({
           titleLead="Fechar"
           title={formatMesCurto(proposta.mes)}
           description="Confira o que mudou. O que é fixo já está na conta e não precisa ser digitado de novo."
+          onBack={() => router.back()}
         />
 
         {recebimentos.length > 0 ? (

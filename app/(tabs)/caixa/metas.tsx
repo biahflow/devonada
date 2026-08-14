@@ -22,6 +22,7 @@ export default function MetasCaixaScreen() {
   if (isPending) {
     return (
       <Screen>
+        <PageHeader eyebrow="Caixa" title="Seus potes" onBack={() => router.back()} />
         <LoadingState label="Carregando suas metas" />
       </Screen>
     );
@@ -30,6 +31,7 @@ export default function MetasCaixaScreen() {
   if (error) {
     return (
       <Screen>
+        <PageHeader eyebrow="Caixa" title="Seus potes" onBack={() => router.back()} />
         <ErrorState error={error} onRetry={refetch} />
       </Screen>
     );
@@ -39,6 +41,7 @@ export default function MetasCaixaScreen() {
 }
 
 function Formulario({ inicial, onPronto }: { inicial: MetasCaixa; onPronto: () => void }) {
+  const router = useRouter();
   const [imposto, setImposto] = useState(inicial.impostoBps ?? 0);
   const [reservaAporte, setReservaAporte] = useState(inicial.reservaAporte ?? 0);
   const [reservaSaldo, setReservaSaldo] = useState(inicial.reservaSaldo ?? 0);
@@ -75,6 +78,7 @@ function Formulario({ inicial, onPronto }: { inicial: MetasCaixa; onPronto: () =
           eyebrow="Caixa"
           title="Seus potes"
           description="Imposto, reserva e aposentadoria. Todos opcionais — o que você não preencher simplesmente não entra na conta."
+          onBack={() => router.back()}
         />
 
         <Card>

@@ -36,6 +36,7 @@ export default function EnviarContrato() {
           eyebrow="Atalho"
           title="Ler o contrato"
           description="Mande o contrato do empréstimo, consignado ou financiamento. A gente lê e preenche o cadastro para você conferir."
+          onBack={() => router.back()}
         />
 
         <Card>

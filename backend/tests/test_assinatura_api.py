@@ -201,7 +201,7 @@ class TestCompra:
         )
         assert r.status_code == 200, r.text
         assert r.json()["status"] == "ativa"
-        assert r.json()["produtoId"] == "buddy.assinatura.mensal"
+        assert r.json()["produtoId"] == "devonada.assinatura.mensal"
 
         # E agora a mesma escrita passa — o 402 sai do caminho sem novo login.
         r = client.post(

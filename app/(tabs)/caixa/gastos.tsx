@@ -79,6 +79,7 @@ export default function GastosCaixa() {
           eyebrow="Caixa"
           title="Para onde vai"
           description="Cadastre uma vez e vale todo mês. Quem decide o que é essencial é você — não o app."
+          onBack={() => router.back()}
         />
 
         {gastos.length === 0 ? (
@@ -97,8 +98,6 @@ export default function GastosCaixa() {
         ) : null}
 
         <NovoGasto />
-
-        <Button label="Voltar ao caixa" onPress={() => router.back()} variant="ghost" />
       </ScrollView>
     </Screen>
   );

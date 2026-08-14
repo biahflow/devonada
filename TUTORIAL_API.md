@@ -44,7 +44,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routers import dividas, chat  # Importando as rotas (Passo 5 e 6)
 
-app = FastAPI(title="Buddy Financeiro API")
+app = FastAPI(title="devo.nada API")
 
 # Permite que qualquer origem (celular) consiga fazer requisições
 app.add_middleware(

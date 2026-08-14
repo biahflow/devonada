@@ -112,12 +112,23 @@ export default function ListaDividas() {
           ))}
         </GrupoDeLista>
 
-        <Button
-          label="Simular quitação"
-          onPress={() => router.push('/dividas/simulador')}
-          variant="secondary"
-          style={styles.rodape}
-        />
+        {/* CADASTRAR PRECISA EXISTIR COM A LISTA CHEIA, e por muito tempo não
+            existiu: os dois caminhos de cadastro viviam só no `EmptyState`, que
+            desaparece na primeira dívida. Quem terminava o onboarding com uma
+            dívida cadastrada não tinha mais como registrar a segunda — sobravam
+            "Ler contrato" no cabeçalho e "Simular quitação" no pé.
+
+            O primário fica aqui e não no slot `action` do cabeçalho: ali ele
+            brigaria com "Ler contrato", e o checklist do design system pede no
+            máximo um botão primário por tela. */}
+        <View style={styles.rodape}>
+          <Button label="Cadastrar dívida" size="lg" onPress={() => router.push('/dividas/nova')} />
+          <Button
+            label="Simular quitação"
+            onPress={() => router.push('/dividas/simulador')}
+            variant="secondary"
+          />
+        </View>
       </ScrollView>
     </Screen>
   );
@@ -139,5 +150,5 @@ const styles = StyleSheet.create({
   chipLabel: { ...typography.caption, color: colors.inkSoft },
   chipLabelAtivo: { ...typography.caption, color: colors.primaryDeep },
   divisor: { height: 1, backgroundColor: colors.border },
-  rodape: { marginTop: spacing.lg },
+  rodape: { marginTop: spacing.lg, gap: spacing.sm },
 });

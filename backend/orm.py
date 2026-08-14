@@ -337,6 +337,55 @@ class ProvisaoAnual(Base):
     )
 
 
+class Meta(Base):
+    """
+    Uma meta nomeada do usuário — reserva de emergência, viagem, trocar de carro.
+
+    NÃO CONFUNDIR COM AS "METAS DO CAIXA" de `Perfil` (`reserva_aporte`,
+    `aposentadoria_aporte` e companhia). Aquelas são seis colunas fixas que
+    alimentam a CASCATA do fechamento do mês: elas decidem quanto sai do mês
+    antes de sobrar capacidade. Estas são uma coleção livre, que a pessoa cria e
+    apaga, e que não entra em cálculo nenhum de capacidade.
+
+    Por que aditiva, e não substituta: mover a reserva do `Perfil` para cá
+    quebraria `domain/caixa`, que lê aquelas colunas para propor o fechamento. O
+    custo de conviver com dois sentidos de "meta" é um parágrafo de documentação;
+    o de unificar seria recalcular a cascata. Ver ADR 0017.
+
+    `data_alvo` é `AAAA-MM` em String(7), a mesma escolha de `FechamentoMes.mes`:
+    mês é a unidade que o usuário informa, e `Date` obrigaria a inventar um dia.
+
+    `aporte_mensal` é o que a pessoa DECLARA separar. O que ela precisaria
+    separar é `domain/metas.aporte_sugerido`, derivado e nunca persistido — valor
+    calculado que dorme em coluna é valor que envelhece errado.
+    """
+
+    __tablename__ = "meta"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=novo_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+
+    nome: Mapped[str] = mapped_column(String(120))
+    # Um emoji cabe em 8: alguns são pares de surrogates mais seletor de variação.
+    emoji: Mapped[str | None] = mapped_column(String(8), nullable=True)
+
+    valor_alvo: Mapped[int] = mapped_column(BigInteger)
+    saldo: Mapped[int] = mapped_column(BigInteger, default=0)
+
+    # NULLABLE de propósito, os dois. Meta sem prazo é meta legítima ("quero
+    # trocar de carro, um dia"), e sem prazo não existe aporte sugerido — o que a
+    # tela faz então é não mostrar pill, em vez de mostrar um palpite.
+    data_alvo: Mapped[str | None] = mapped_column(String(7), nullable=True)
+    aporte_mensal: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+
+    ativa: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    criada_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    atualizada_em: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class FechamentoMes(Base):
     """
     O mês que o usuário confirmou.

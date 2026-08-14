@@ -8,6 +8,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { useEstadoDaRota } from '../../hooks/useEstadoDaRota';
 import { colors, radius, spacing, typography } from '../../theme/theme';
 
 /** Curto e suave. Longo o bastante para ser percebido, curto para não atrasar. */
@@ -35,6 +36,15 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const [largura, setLargura] = useState(0);
   const [semMovimento, setSemMovimento] = useState(false);
   const x = useSharedValue(0);
+
+  // A ABA ATIVA VERMELHA É A ÚNICA EXCEÇÃO DECORATIVA DO VERMELHO NO APP, e ela
+  // marca "onde estou" enquanto existe dívida. Quando a pessoa zera, a barra
+  // inteira vira verde junto com o ponto do wordmark — o app muda de fase com
+  // ela, sem ninguém precisar avisar. É o mesmo resumo que a Rota já buscou:
+  // esta leitura não dispara requisição, sai do cache (ADR 0002).
+  const estado = useEstadoDaRota();
+  const corAtiva = estado === 'quitado' ? colors.primary : colors.debt;
+  const corDaPilula = estado === 'quitado' ? colors.primarySurface : colors.debtSurface;
 
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then(setSemMovimento).catch(() => {});
@@ -64,7 +74,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
           pointerEvents="none"
           style={[styles.pilulaContainer, { width: larguraDaAba }, pilula]}
         >
-          <View style={styles.pilula} />
+          <View style={[styles.pilula, { backgroundColor: corDaPilula }]} />
         </Animated.View>
       ) : null}
 
@@ -96,10 +106,13 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
           >
             {options.tabBarIcon?.({
               focused: ativo,
-              color: ativo ? colors.primary : colors.inkSoft,
+              color: ativo ? corAtiva : colors.inkSoft,
               size: 22,
             })}
-            <Text style={[styles.rotulo, ativo && styles.rotuloAtivo]} numberOfLines={1}>
+            <Text
+              style={[styles.rotulo, ativo && styles.rotuloAtivo, ativo && { color: corAtiva }]}
+              numberOfLines={1}
+            >
               {rotulo}
             </Text>
           </Pressable>
@@ -125,11 +138,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // A cor vem por prop, do estado da rota. O valor aqui é só o fallback do
+  // primeiro quadro, antes de o resumo chegar do cache.
   pilula: {
     width: 64,
     height: PILULA_ALTURA,
     borderRadius: radius.pill,
-    backgroundColor: colors.primarySurface,
+    backgroundColor: colors.debtSurface,
   },
   aba: {
     flex: 1,
@@ -140,5 +155,5 @@ const styles = StyleSheet.create({
     minHeight: 52,
   },
   rotulo: { ...typography.caption, fontSize: 12, color: colors.inkSoft },
-  rotuloAtivo: { color: colors.primary, fontFamily: typography.bodyStrong.fontFamily },
+  rotuloAtivo: { fontFamily: typography.bodyStrong.fontFamily },
 });

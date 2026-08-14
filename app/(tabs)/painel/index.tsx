@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { ScrollView, View, Text, StyleSheet, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Screen } from '../../../src/components/ui/Screen';
-import { PageHeader } from '../../../src/components/ui/PageHeader';
 import { Card } from '../../../src/components/ui/Card';
 import { Button } from '../../../src/components/ui/Button';
 import { StatTile } from '../../../src/components/ui/StatTile';
@@ -16,6 +15,9 @@ import { LinhaEvolucao } from '../../../src/components/charts/LinhaEvolucao';
 import { BarrasCriticidade } from '../../../src/components/charts/BarrasCriticidade';
 import { SeletorDeMes } from '../../../src/components/painel/SeletorDeMes';
 import { CardLembretes } from '../../../src/components/painel/CardLembretes';
+import { TopbarMarca } from '../../../src/components/rota/TopbarMarca';
+import { CardSaldo } from '../../../src/components/rota/CardSaldo';
+import { CardBuddy } from '../../../src/components/rota/CardBuddy';
 import { useResumo } from '../../../src/hooks/usePainel';
 import { mesAtual } from '../../../src/util/mes';
 import { formatBasisPoints } from '../../../src/util/percent';
@@ -35,11 +37,7 @@ export default function Painel() {
 
   const cabecalho = (
     <>
-      <PageHeader
-        titleLead="Seu"
-        title="painel"
-        description="Quanto pesa, para onde vai e o que muda se você agir."
-      />
+      <TopbarMarca />
       <SeletorDeMes mes={mes} maximo={hoje} onChange={setMes} />
     </>
   );
@@ -90,18 +88,12 @@ export default function Painel() {
       <ScrollView contentContainerStyle={styles.conteudo} showsVerticalScrollIndicator={false}>
         {cabecalho}
 
-        <Card>
-          <StatTile
-            rotulo="Total devido"
-            centavos={resumo.totalDevido}
-            destaque
-            contexto={
-              resumo.quantidadeDividas === 1
-                ? 'em 1 dívida'
-                : `em ${resumo.quantidadeDividas} dívidas`
-            }
-          />
-        </Card>
+        {/* A ordem desta tela É a tese do produto: o saldo diz onde você está,
+            o buddy diz o que fazer hoje, e o resto sustenta a frase dele. O
+            diagnóstico completo continua logo abaixo — ele só deixou de ser a
+            primeira coisa que a pessoa vê. */}
+        <CardSaldo resumo={resumo} />
+        <CardBuddy resumo={resumo} />
 
         <View style={styles.duplo}>
           <Card style={styles.metade}>
@@ -116,9 +108,9 @@ export default function Painel() {
           </Card>
           <Card style={styles.metade}>
             <StatTile
-              rotulo="Quitado no ano"
-              centavos={resumo.totalQuitadoNoAno}
-              contexto="parabéns por isso"
+              rotulo="Dívidas ativas"
+              texto={String(resumo.quantidadeDividas)}
+              contexto={resumo.totalQuitadoNoAno > 0 ? 'e já foram algumas' : undefined}
             />
           </Card>
         </View>

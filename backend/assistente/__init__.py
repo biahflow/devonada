@@ -23,10 +23,10 @@ __all__ = [
 
 def obter_assistente() -> Assistente:
     """
-    Escolhe a implementação por `BUDDY_ASSISTENTE`.
+    Escolhe a implementação por `DEVONADA_ASSISTENTE`.
 
     `llm` serve a qualquer provedor — quem escolhe o provedor é
-    `BUDDY_LLM_PROVIDER`, e este módulo não sabe qual é.
+    `DEVONADA_LLM_PROVIDER`, e este módulo não sabe qual é.
     """
     nome = get_settings().assistente
 

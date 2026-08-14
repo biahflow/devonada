@@ -66,6 +66,7 @@ export default function RendaCaixa() {
           eyebrow="Caixa"
           title="De onde vem sua renda"
           description="Uma linha por fonte. Renda que muda de mês para mês ganha um registro do que caiu."
+          onBack={() => router.back()}
         />
 
         {fontes.length === 0 ? (
@@ -79,8 +80,6 @@ export default function RendaCaixa() {
         )}
 
         <NovaFonte />
-
-        <Button label="Voltar ao caixa" onPress={() => router.back()} variant="ghost" />
       </ScrollView>
     </Screen>
   );
