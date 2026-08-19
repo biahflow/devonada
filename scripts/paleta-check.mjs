@@ -50,7 +50,7 @@ const pares = [
   { fg: 'inkSoft', bg: 'neutralSurface', intencao: 'texto' },
 
   // --- verde: ação e conquista ---------------------------------------------
-  { fg: 'primary', bg: 'background', intencao: 'texto', nota: 'link, aba ativa na fase verde' },
+  { fg: 'primary', bg: 'background', intencao: 'texto', nota: 'link' },
   { fg: 'primary', bg: 'surface', intencao: 'texto', nota: 'rótulo do Button secondary' },
   { fg: 'onPrimary', bg: 'primary', intencao: 'texto', nota: 'rótulo do Button primary' },
   { fg: 'primaryDeep', bg: 'primarySurface', intencao: 'texto', nota: 'Badge primario' },
@@ -67,9 +67,9 @@ const pares = [
   // --- vermelho como TEXTO -------------------------------------------------
   // `debt`/`danger` reprovam aqui; é por isso que existem `debtText`/`dangerText`.
   { fg: 'debtText', bg: 'background', intencao: 'texto', nota: 'saldo devedor em body/numeric' },
-  { fg: 'debtText', bg: 'surface', intencao: 'texto', nota: 'rótulo da aba ativa, sobre a barra' },
+  { fg: 'debtText', bg: 'surface', intencao: 'grafico', nota: 'o quadrado da aba ativa, sobre a barra — fase de dívida' },
   { fg: 'debtText', bg: 'neutralSurface', intencao: 'texto', nota: 'valor em área recuada' },
-  { fg: 'debtText', bg: 'debtSurface', intencao: 'texto', nota: 'rótulo da aba ativa, sobre a pílula' },
+  { fg: 'ink', bg: 'surface', intencao: 'texto', nota: 'rótulo da aba ativa, sobre a barra' },
   { fg: 'dangerText', bg: 'background', intencao: 'texto', nota: 'erro do chat' },
   { fg: 'dangerText', bg: 'surface', intencao: 'texto', nota: 'caption de erro de campo, rótulo do Button danger' },
   { fg: 'dangerText', bg: 'dangerSurface', intencao: 'texto', nota: 'Feedback error, Badge alto' },
@@ -82,9 +82,9 @@ const pares = [
     intencao: 'grafico',
     nota: 'ponto do wordmark, halo da splash, e o saldo devedor em display/displaySm — texto grande (≥26px), que a WCAG mede por este mesmo piso',
   },
-  { fg: 'debt', bg: 'surface', intencao: 'grafico', nota: 'ponto na TabBar e no PageHeader; saldo devedor grande dentro de card' },
+  { fg: 'debt', bg: 'surface', intencao: 'grafico', nota: 'ponto do wordmark na topbar de toda aba; saldo devedor grande dentro de card' },
   { fg: 'debt', bg: 'neutralSurface', intencao: 'grafico', nota: 'barra e borda de estado de erro' },
-  { fg: 'debt', bg: 'debtSurface', intencao: 'grafico', nota: 'pílula da aba ativa' },
+  { fg: 'primary', bg: 'surface', intencao: 'grafico', nota: 'o quadrado da aba ativa, sobre a barra — fase verde' },
 
   // --- marca de gráfico e anéis de categoria -------------------------------
   { fg: 'primaryBright', bg: 'background', intencao: 'grafico', nota: 'LinhaEvolucao' },

@@ -261,7 +261,7 @@ instrui a não pagar (`docs/guardrails.md`, seção 3).
 
 ### Rotas — `app/`, 4 abas
 
-Os rótulos que o usuário lê são **Rota · Dívidas · Buddy · Extrato**; os nomes de pasta são os do
+Os rótulos que o usuário lê são **Rota · Dívidas · Metas · Buddy · Caixa**; os nomes de pasta são os do
 domínio (`painel`, `dividas`, `index`, `caixa`) e não mudam, para não quebrar deep link nem teste.
 Na **fase verde** a segunda aba vira **Metas** (ADR 0017).
 
@@ -270,7 +270,7 @@ Na **fase verde** a segunda aba vira **Metas** (ADR 0017).
 | **Buddy** (chat) | `(tabs)/index` |
 | **Dívidas** | `dividas/index` (lista) · `nova` · `simulador` · `contrato/index` (envio) · `contrato/[id]` (revisão da extração) · `[id]/index` (detalhe) · `[id]/editar` · `[id]/plano` · `[id]/renegociar` · `[id]/revisao` |
 | **Metas** (fase verde) | `metas/index` (Rota de Chegada) · `metas/nova` · `metas/[id]/editar` |
-| **Extrato** (caixa) | `caixa/index` (a cascata) · `renda` · `gastos` · `provisoes` · `metas` ("Seus potes" — **não** é a aba Metas) |
+| **Caixa** | `caixa/index` (a cascata) · `renda` · `gastos` · `provisoes` · `metas` ("Seus potes" — **não** é a aba Metas) |
 | **Rota** (painel) | `painel/index` · `painel/preferencias` · `painel/assinatura` · `painel/excluir-conta` |
 | **(fora das abas)** | `(auth)/login` · `registro` · `esqueci-senha` · `redefinir-senha` — login com barra de abas embaixo é convite a tocar numa aba que vai 401ar |
 | **(fora das abas)** | `(onboarding)/divida` · `entrada` · `triagem` — quem chega sem dívida cadastrada não tem o que ver nas outras abas |

@@ -1,3 +1,4 @@
+import { StyleSheet } from 'react-native';
 import { render, screen, fireEvent } from '@testing-library/react-native';
 import { PageHeader } from './PageHeader';
 
@@ -27,6 +28,15 @@ describe('PageHeader', () => {
 
   // O slot `action` fica à direita e a seta acima: adicionar uma não pode ter
   // custado a outra, porque várias telas usam as duas ao mesmo tempo.
+  it('a seta fica à ESQUERDA, não esticada pela largura da tela', () => {
+    // Regressão vista em aparelho: sem `alignSelf`, o Pressable herda o
+    // `stretch` da coluna, ocupa a linha inteira e o ícone aparece centralizado
+    // no topo — com um alvo de toque cobrindo a largura toda.
+    render(<PageHeader title="Gastos" onBack={() => {}} />);
+    const estilo = StyleSheet.flatten(screen.getByLabelText('Voltar').props.style);
+    expect(estilo.alignSelf).toBe('flex-start');
+  });
+
   it('a seta convive com o slot de ação', () => {
     render(
       <PageHeader

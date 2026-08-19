@@ -2,6 +2,7 @@ import { ScrollView, RefreshControl, View, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Screen } from '../../../src/components/ui/Screen';
 import { PageHeader } from '../../../src/components/ui/PageHeader';
+import { TopbarMarca } from '../../../src/components/rota/TopbarMarca';
 import { Button } from '../../../src/components/ui/Button';
 import { LoadingState } from '../../../src/components/ui/LoadingState';
 import { ErrorState } from '../../../src/components/ui/ErrorState';
@@ -28,11 +29,14 @@ export default function Metas() {
   const { metas, isPending, error, refetch, isRefetching } = useMetasNomeadas();
 
   const cabecalho = (
-    <PageHeader
-      titleLead="Suas"
-      title="metas"
-      description="Para onde o dinheiro vai agora que ele é seu."
-    />
+    <>
+      <TopbarMarca />
+      <PageHeader
+        titleLead="Suas"
+        title="metas"
+        description="Para onde o dinheiro vai agora que ele é seu."
+      />
+    </>
   );
 
   if (isPending) {

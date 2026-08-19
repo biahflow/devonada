@@ -85,7 +85,7 @@ app/
     entrada.tsx                  passo 2 — documento (1 dívida) ou fila de dois campos (várias)
     triagem.tsx                  passo 3 — cobrado × justo, ou "ainda não calculado"
   (tabs)/
-    _layout.tsx                  Rota · Dívidas|Metas · Buddy · Extrato — a 2ª troca na fase verde
+    _layout.tsx                  Rota · Dívidas · Metas · Buddy · Caixa — cinco abas, sem ícone
     index.tsx                    Chat (rótulo "Buddy")
     dividas/
       _layout.tsx                pilha da aba

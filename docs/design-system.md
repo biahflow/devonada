@@ -144,7 +144,7 @@ justificativa fica ao lado dele. As exceções vigentes estão registradas na AD
 | `inkSoft` `#8A8F98` | `background` `#101216` | 5,77:1 | 4,5:1 | passa |
 | `inkSoft` `#8A8F98` | `surface` `#181B21` | 5,31:1 | 4,5:1 | passa |
 | `inkSoft` `#8A8F98` | `neutralSurface` `#1F232B` | 4,85:1 | 4,5:1 | passa |
-| `primary` `#1FC16B` | `background` `#101216` <br><sub>link, aba ativa na fase verde</sub> | 7,94:1 | 4,5:1 | passa |
+| `primary` `#1FC16B` | `background` `#101216` <br><sub>link</sub> | 7,94:1 | 4,5:1 | passa |
 | `primary` `#1FC16B` | `surface` `#181B21` <br><sub>rótulo do Button secondary</sub> | 7,31:1 | 4,5:1 | passa |
 | `onPrimary` `#08120C` | `primary` `#1FC16B` <br><sub>rótulo do Button primary</sub> | 8,07:1 | 4,5:1 | passa |
 | `primaryDeep` `#7CE8AF` | `primarySurface` `#12251B` <br><sub>Badge primario</sub> | 10,73:1 | 4,5:1 | passa |
@@ -156,9 +156,8 @@ justificativa fica ao lado dele. As exceções vigentes estão registradas na AD
 | `warning` `#F0A31C` | `neutralSurface` `#1F232B` | 7,47:1 | 4,5:1 | passa |
 | `warning` `#F0A31C` | `warningSurface` `#2A2010` <br><sub>Badge atencao, Feedback warning</sub> | 7,59:1 | 4,5:1 | passa |
 | `debtText` `#EC6C65` | `background` `#101216` <br><sub>saldo devedor em body/numeric</sub> | 6,16:1 | 4,5:1 | passa |
-| `debtText` `#EC6C65` | `surface` `#181B21` <br><sub>rótulo da aba ativa, sobre a barra</sub> | 5,67:1 | 4,5:1 | passa |
 | `debtText` `#EC6C65` | `neutralSurface` `#1F232B` <br><sub>valor em área recuada</sub> | 5,17:1 | 4,5:1 | passa |
-| `debtText` `#EC6C65` | `debtSurface` `#2A1412` <br><sub>rótulo da aba ativa, sobre a pílula</sub> | 5,72:1 | 4,5:1 | passa |
+| `ink` `#F2F2ED` | `surface` `#181B21` <br><sub>rótulo da aba ativa, sobre a barra</sub> | 15,36:1 | 4,5:1 | passa |
 | `dangerText` `#EC6C65` | `background` `#101216` <br><sub>erro do chat</sub> | 6,16:1 | 4,5:1 | passa |
 | `dangerText` `#EC6C65` | `surface` `#181B21` <br><sub>caption de erro de campo, rótulo do Button danger</sub> | 5,67:1 | 4,5:1 | passa |
 | `dangerText` `#EC6C65` | `dangerSurface` `#2A1412` <br><sub>Feedback error, Badge alto</sub> | 5,72:1 | 4,5:1 | passa |
@@ -167,10 +166,11 @@ justificativa fica ao lado dele. As exceções vigentes estão registradas na AD
 
 | Frente | Fundo | Contraste | Piso | Resultado |
 |---|---|---|---|---|
+| `debtText` `#EC6C65` | `surface` `#181B21` <br><sub>o quadrado da aba ativa, sobre a barra — fase de dívida</sub> | 5,67:1 | 3,0:1 | passa |
 | `debt` `#E5352B` | `background` `#101216` <br><sub>ponto do wordmark, halo da splash, e o saldo devedor em display/displaySm — texto grande (≥26px), que a WCAG mede por este mesmo piso</sub> | 4,35:1 | 3,0:1 | passa |
-| `debt` `#E5352B` | `surface` `#181B21` <br><sub>ponto na TabBar e no PageHeader; saldo devedor grande dentro de card</sub> | 4,00:1 | 3,0:1 | passa |
+| `debt` `#E5352B` | `surface` `#181B21` <br><sub>ponto do wordmark na topbar de toda aba; saldo devedor grande dentro de card</sub> | 4,00:1 | 3,0:1 | passa |
 | `debt` `#E5352B` | `neutralSurface` `#1F232B` <br><sub>barra e borda de estado de erro</sub> | 3,66:1 | 3,0:1 | passa |
-| `debt` `#E5352B` | `debtSurface` `#2A1412` <br><sub>pílula da aba ativa</sub> | 4,04:1 | 3,0:1 | passa |
+| `primary` `#1FC16B` | `surface` `#181B21` <br><sub>o quadrado da aba ativa, sobre a barra — fase verde</sub> | 7,31:1 | 3,0:1 | passa |
 | `primaryBright` `#3FDC8A` | `background` `#101216` <br><sub>LinhaEvolucao</sub> | 10,55:1 | 3,0:1 | passa |
 | `primaryBright` `#3FDC8A` | `surface` `#181B21` <br><sub>barra do Meter</sub> | 9,70:1 | 3,0:1 | passa |
 | `teal` `#2DD4BF` | `background` `#101216` <br><sub>anel do CategoriaIcon</sub> | 10,07:1 | 3,0:1 | passa |
@@ -201,11 +201,6 @@ justificativa fica ao lado dele. As exceções vigentes estão registradas na AD
 | `azul` `#60A5FA` × `magenta` `#F472B6` | ΔE 40,4 | ΔE 15 | passa |
 | `azul` `#60A5FA` × `ambar` `#FBBF24` | ΔE 55,5 | ΔE 15 | passa |
 | `magenta` `#F472B6` × `ambar` `#FBBF24` | ΔE 57,7 | ΔE 15 | passa |
-
-O que essas tabelas **não** provam: que a tela está legível em aparelho de entrada, com brilho
-baixo, no sol. Contraste medido é piso, não garantia — e a validação em device continua
-pendente, como em todo o M1.5–M9.
-
 ---
 
 ## 2. Escalas
@@ -528,11 +523,33 @@ daria os parabéns por uma corrida que a pessoa não começou. O estado sai de
 **`SplashDevoNada`** (`src/components/SplashDevoNada.tsx`) — a abertura. O ponto respira, e essa é
 a única animação de repetição do app: exceção declarada no `guardrails.md`, seção 4.
 
-**`TabBar`** — quatro abas: **Rota · Dívidas · Buddy · Extrato**. Os nomes de arquivo continuam
-`painel`, `dividas`, `index` e `caixa` (linguagem ubíqua do `domain.md`); muda o rótulo e a ordem,
-não a rota. **Ícone e pílula ativos seguem o estado da rota** — `debt` enquanto há dívida,
-`primary` depois de quitar. É a única exceção decorativa do vermelho, e é o que faz o app inteiro
-mudar de fase junto com o usuário.
+**`TabBar`** — cinco abas: **Rota · Dívidas · Metas · Buddy · Caixa**. Os nomes de arquivo
+continuam `painel`, `dividas`, `metas`, `index` e `caixa` (linguagem ubíqua do `domain.md`); muda
+o rótulo e a ordem, não a rota.
+
+**Não há ícone.** Cada aba é um quadrado de 26pt (`radius.sm`) sobre o rótulo escrito. Cinco
+pictogramas competindo no rodapé pedem que a pessoa decifre metáforas — um mapa, um alvo, uma
+caixa de entrada — na hora em que ela quer só trocar de tela; o rótulo em português já diz o que
+cada aba é. O que sobra para o elemento gráfico é o que o texto não diz: onde estou, e em que
+fase. É também o que faz cinco abas caberem onde cinco ícones brigariam.
+
+**O quadrado da aba ativa segue o estado da rota** — `debtText` enquanto há dívida, `primary`
+depois de quitar (`corDaFase`, exportada e testada). É a única exceção decorativa do vermelho, e é
+o que faz o app inteiro mudar de fase junto com o usuário. O rótulo ativo vira `ink`: o quadrado
+já carrega a cor, e repeti-la num texto de 12px gastaria o único elemento colorido em dois
+lugares.
+
+**A barra honra `href: null`, mas não pelo `href`.** O expo-router consome essa prop e a traduz
+para `tabBarItemStyle: { display: 'none' }`; como esta barra desenha `state.routes` na mão, ela
+precisa ler o estilo. Hoje nenhuma aba está escondida — Dívidas e Metas convivem —, e o mecanismo
+segue coberto por teste para a próxima que precisar sumir.
+
+> **Mudança de rumo em 19/08/2026.** A ADR 0017 previa que a segunda aba TROCASSE na fase verde:
+> "Dívidas" viraria "Metas". A troca nunca aconteceu em aparelho, porque a barra ignorava o
+> `href` — as duas sempre apareceram juntas. Ao corrigir o defeito, a decisão foi revista em vez
+> de aplicada: **Metas é destino, não prêmio de fim de jogo.** Quem está pagando dívida também
+> guarda para o IPVA de janeiro, e esconder a aba até a quitação adiava a única tela que fala do
+> depois.
 
 **`NotaDePrivacidade`** (`src/components/ui/NotaDePrivacidade.tsx`) — a regra de ouro nº 1 dita no
 login e no registro: "Seus dados nunca viram oferta de crédito." Se o produto um dia oferecer

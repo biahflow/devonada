@@ -630,7 +630,7 @@ declarando. O que sobrou de aberto aqui é o mesmo que sobra em M1.5–M9: devic
       virava um círculo vermelho cheio. Ficou em 55% no Android e 62% no iOS: **o ponto precisa de
       moldura para ler como ponto**, e um disco que preenche o quadro não se distingue de qualquer
       outro app de ícone vermelho.
-- [x] **Abas renomeadas e reordenadas** para Rota · Dívidas · Buddy · Extrato. Rótulo e ordem, não
+- [x] **Abas renomeadas e reordenadas** para Rota · Dívidas · Buddy · Caixa. Rótulo e ordem, não
       rota: `painel`, `dividas`, `index` e `caixa` continuam sendo o que são no código.
 - [x] **O ponto da marca virou código** — `Brand` mais `estadoDaRota()`, uma função pura com
       teste. Vermelho enquanto há saldo devedor, verde depois de quitar, e `neutro` para conta
@@ -685,7 +685,7 @@ inteira está em `domain.md` (verbete `respiro`) e as regras de copy em `guardra
       nome, emoji, prazo e selo de situação; o que existia eram seis colunas fixas no `perfil` que
       alimentam a cascata do caixa. A entidade `Meta` entrou **aditiva** — mover os potes mudaria a
       capacidade de todo mundo em silêncio no primeiro deploy —, e o custo assumido é o produto ter
-      dois sentidos de "meta": "Seus potes" no Extrato, "Suas metas" na aba.
+      dois sentidos de "meta": "Seus potes" no Caixa, "Suas metas" na aba.
 - [x] **`aporteSugerido` e `status` vêm do servidor e não são persistidos.** A conta é o que falta
       dividido pelos meses que faltam, o mesmo método de `aporte_de_provisao`. Sem prazo não há
       sugestão; sem aporte declarado não há status — e a tela então **não exibe selo**, em vez de
