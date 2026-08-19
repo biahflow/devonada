@@ -1,7 +1,7 @@
 # Inventário do devo.nada
 
-> **Documento derivado e datado.** Atualizado em **17/08/2026**, depois da entrega parcial do
-> **M13** (entrada pelo alívio).
+> **Documento derivado e datado.** Atualizado em **19/08/2026**, depois do fechamento dos quatro
+> débitos do **M10**.
 > Ele **descreve**, não decide: em qualquer divergência, quem manda é o documento canônico
 > apontado em cada seção (`docs/agent-guidelines.md`, seção "Ordem de precedência").
 > Não faz parte da ordem de precedência e não deve ser citado como fonte de regra.
@@ -47,7 +47,7 @@ distinção é do `roadmap.md` e este documento não a apaga.
 | M7.2 | Uma renda só: `fonte_renda` vira a fonte de verdade e o painel volta a exibir comprometimento | Entregue; **falta device** |
 | M8 | Conta de usuário: cadastro, login, sessão revogável, recuperação de senha e exclusão de conta | Entregue; **falta device** |
 | M9 | Assinatura in-app: 7 dias de teste, somente leitura depois, validação direta com as duas lojas | Entregue; **falta device e conta de loja** |
-| M10 | Fork e marca devo.nada: paleta escura, wordmark, splash, ícone (ADR 0014 e 0015) | Entregue; **falta device** |
+| M10 | Fork e marca devo.nada: paleta escura, wordmark, splash, ícone (ADR 0014, 0015 e 0018) | Entregue, **sem débito aberto** desde 19/08/2026: contrastes remedidos e virados gate, dígito medido, ícone refeito, `custoDiarioJuros` no resumo. **Falta device.** |
 | M12 | Metas nomeadas e a aba da fase verde: `/v1/metas`, cards da tela 09, troca de aba (ADR 0017) | Entregue; **falta device**. Renda tipada e negociação por canal continuam pendentes no M12. |
 | M13 | Entrada pelo alívio: onboarding em 3 passos, escolha **múltipla** de dívida e fila de cadastro (ADR 0016) | **Parcialmente entregue**: fluxo central entregue; data de origem, documento na fila e demais itens do milestone continuam pendentes. **Falta device**. |
 | — | Navegação: seta de voltar em toda tela empilhada (ADR 0016) | Entregue; **falta device** |
@@ -299,10 +299,16 @@ Deep link sempre por campo tipado, nunca por id extraído de texto.
 
 | Suíte | Números |
 |---|---|
-| Jest | **328 testes em 35 suítes**, verdes em 17/08/2026. O ambiente exigiu `--watchman=false`; há avisos de `act(...)` e de handle aberto a investigar. |
-| pytest | **480 testes**, verdes em SQLite em 17/08/2026; 14 avisos de depreciação/chave curta. A execução contra Postgres continua obrigatória antes de release. |
+| Jest | **441 testes em 40 suítes**, verdes em 19/08/2026. O ambiente exigiu `--watchman=false`; o processo **conclui a suíte e não encerra**, por handle aberto — a contagem sai antes disso. Há avisos de `act(...)` a investigar. |
+| pytest | **497 testes**, verdes em SQLite em 19/08/2026; 14 avisos de depreciação/chave curta. A execução contra Postgres continua obrigatória antes de release. |
 
-Gates locais: `npm run typecheck`, `npm run lint`, `npm test`, `npm run bundle:check`, `pytest`.
+Gates locais, **seis** desde 19/08/2026: `npm run typecheck`, `npm run lint`, `npm test`,
+`npm run bundle:check`, `npm run palette:check` e `npm run digits:check`, mais `pytest` no backend.
+
+Os dois últimos existem porque medição fora do repositório envelhece em silêncio — foi o que
+aconteceu com as tabelas de contraste quando o tema virou (ADR 0018). `palette:check` mede 54
+pares declarados em WCAG 2.1 e CIEDE2000; `digits:check` lê a largura de avanço dos dígitos
+direto do TTF.
 
 **Não existe CI.** `.github/` contém apenas `pull_request_template.md`. Os gates dependem de
 alguém rodá-los.
@@ -311,7 +317,7 @@ alguém rodá-los.
 cobre o campo, que a notificação toca na hora certa e que a permissão de câmera se comporta.
 Isso é o "falta device" que aparece em quase todos os milestones.
 
-## 8. Decisões arquiteturais — 17 ADRs
+## 8. Decisões arquiteturais — 18 ADRs
 
 | # | Decisão |
 |---|---|
@@ -332,6 +338,7 @@ Isso é o "falta device" que aparece em quase todos os milestones.
 | 0015 | Vermelho é status de dívida, e a interface é escura |
 | 0016 | Toda tela empilhada tem volta, e o onboarding aceita mais de uma dívida |
 | 0017 | `Meta` é entidade nova, e a fase verde troca a aba sem esconder as dívidas |
+| 0018 | A medição de contraste volta para dentro do repositório e vira gate; o vermelho ganha token de texto |
 
 ADR aceita nunca é reescrita — decisão que muda vira ADR nova.
 

@@ -582,8 +582,11 @@ ninguém trancado para fora do próprio dado.
 
 ## M10 — Fork e marca — entregue, aguardando validação em device
 
-O produto virou devo.nada. Ver ADR 0014 (o fork) e ADR 0015 (vermelho é status, e a interface é
-escura).
+O produto virou devo.nada. Ver ADR 0014 (o fork), ADR 0015 (vermelho é status, e a interface é
+escura) e ADR 0018 (a medição volta para dentro do repositório).
+
+**Os quatro débitos do fork fecharam em 19/08/2026**, e três deles fecharam medindo — não
+declarando. O que sobrou de aberto aqui é o mesmo que sobra em M1.5–M9: device.
 
 - [x] Fork com histórico preservado; identidade renomeada (`app.json`, `package.json`, prefixo
       `DEVONADA_*`, bundle id `br.com.devonada.app`). O domínio **não** foi renomeado: `divida`,
@@ -597,16 +600,36 @@ escura).
 - [x] `Button` variante `danger` perdeu o fundo vermelho — neste app não existe botão vermelho,
       nem para destruição.
 - [x] Gates verdes depois da troca: 291 Jest em 30 suítes, 452 pytest, typecheck, lint e
-      `bundle:check`.
-- [ ] **Remedir os contrastes.** É o débito conhecido da ADR 0015 e o mais sério: a paleta clara
-      tinha todo par texto/fundo medido em WCAG 2.1, todo anel de categoria em 3:1 e toda dupla
-      semântica em CIEDE2000. Virar o tema invalidou as três tabelas, e os valores atuais foram
-      escolhidos por leitura de tela — o método que o próprio design system proíbe.
-- [ ] **Medir a largura de dígito de `Inter_700Bold`.** Nunito Sans foi escolhida por medição, não
-      por gosto: dígitos de largura fixa, e por isso coluna de reais não dança. Enquanto a medição
-      não existir, `numeric` fica em Inter e só `display`/`displaySm` usam Archivo Black.
-- [ ] **Ícone e splash.** Os PNG ainda são da marca anterior — o app roda com a paleta certa e o
-      ícone errado.
+      `bundle:check`. **Em 19/08/2026, depois de fechar os débitos: 441 Jest em 40 suítes e 497
+      pytest**, com dois gates novos — `palette:check` e `digits:check` — que não existiam ali.
+- [x] **Contrastes remedidos, e a medição virou gate** (ADR 0018). 54 pares declarados em
+      `scripts/paleta-check.mjs`, medidos em WCAG 2.1 e CIEDE2000: 48 passam, 6 são exceções
+      justificadas, 0 reprovam. A tabela do `design-system.md` é a saída do script, não digitada.
+      **A medição achou o que a leitura de tela não achava:** `inkSoft`, o par que o documento
+      temia, passa em todas (pior caso 4,85); quem reprovava era `#E5352B` como TEXTO — 4,35 /
+      4,00 / 3,66 sobre as três superfícies e 4,04 sobre o próprio `dangerSurface`, contra o piso
+      de 4,5. A saída não foi mudar o hex da marca: entrou `debtText`, o mesmo vermelho clareado
+      só até passar, e `debt` segue intacto onde é objeto gráfico — a começar pelo ponto do
+      wordmark. O gate reprova quem trocar um hex sem remedir.
+- [x] **Largura de dígito medida — e não era item de device.** A largura de avanço de um glifo
+      está na tabela `hmtx` do TTF: é fato do arquivo, igual em todo aparelho, e `npm run
+      digits:check` a lê sem aparelho nenhum. O resultado justificou o receio: **a Inter é
+      proporcional nos três pesos** — em `Inter_700Bold` o "1" avança 883 onde o "0" avança 1381,
+      amplitude de 502 em 2048 (0,245 em). A coluna de reais dançava mesmo, ~4,4px por dígito "1"
+      que entrasse ou saísse da linha. `typography.numeric` ganhou `fontVariant: ['tabular-nums']`,
+      autorizado por a Inter DECLARAR a feature `tnum` na GSUB — pedir recurso OpenType que a
+      família não tem derruba o texto para fonte de sistema no Android. Archivo Black já era
+      tabular (amplitude zero), então `display`/`displaySm` não precisaram de nada.
+- [x] **Ícone e splash refeitos**, e o comando que os gera entrou no repositório
+      (`npm run assets:build`, Chrome headless, três SVG versionados como fonte). Os PNG antigos
+      eram da marca anterior — fundo branco, traçado teal, círculo violeta.
+      **Um erro de unidade apareceu na conferência:** o `design-system.md` mandava o ponto do
+      Android a "72%, dentro da zona segura", e a frase se contradizia — a janela garantida da
+      máscara é a de **72dp de 108dp**, ou 66,7%. O 72 era dp e virou porcentagem na escrita. A
+      72% da caixa o disco era recortado na borda em launcher circular, o grafite sumia e o ícone
+      virava um círculo vermelho cheio. Ficou em 55% no Android e 62% no iOS: **o ponto precisa de
+      moldura para ler como ponto**, e um disco que preenche o quadro não se distingue de qualquer
+      outro app de ícone vermelho.
 - [x] **Abas renomeadas e reordenadas** para Rota · Dívidas · Buddy · Extrato. Rótulo e ordem, não
       rota: `painel`, `dividas`, `index` e `caixa` continuam sendo o que são no código.
 - [x] **O ponto da marca virou código** — `Brand` mais `estadoDaRota()`, uma função pura com
@@ -617,9 +640,17 @@ escura).
       dita na tela em que a pessoa mais desconfia.
 - [x] **Home "Rota de Fuga"**: topbar com o ponto, saldo devedor em Archivo Black, card do buddy
       com a próxima ação determinística. O diagnóstico completo continua logo abaixo.
-- [ ] `custoDiarioJuros` no resumo. É a frase mais forte que o card do buddy poderia ter — "essa
-      dívida cresce R$ 41 por dia" — e ela é conta, então é do servidor (guardrail 1.2). Enquanto
-      não existir, o card não a diz.
+- [x] **`custoDiarioJuros` no resumo, e ele não viaja sozinho.** A frase que faltava ao card do
+      buddy é conta, então nasceu no servidor (guardrail 1.2), em `domain/resumo.py`, com as três
+      escolhas de método declaradas no docstring: divisor 30 do mês comercial, base igual à de
+      `custo_medio_juros_mensal`, e agregado. Nenhuma vem de lei, e está escrito que não vêm —
+      o docstring diz, com todas as letras, que o número **não é valor exigível e não deve ser
+      levado a uma negociação como se fosse**.
+      O agregado subestima quando parte da carteira não tem taxa, e o caso que prova isso é real:
+      R$ 91.000 devidos devolvendo R$ 1,00 por dia, porque R$ 90.000 estão sem taxa cadastrada.
+      Por isso entrou junto `quantidadeDividasSemTaxa`, e **o cliente exige os dois campos para
+      dizer a frase** — sem a contagem ele cala, porque não saberia se o número é total ou piso.
+      Ausência devolve `None`; zero só aparece quando a taxa zero foi de fato informada.
 - [x] **Documentação herdada varrida.** `README.md`, `architecture.md`, `agent-guidelines.md`,
       `inventario.md` e `backend.md` deixaram de falar da marca anterior. A varredura achou mais
       do que o nome: o template de PR ainda proibia vermelho fora de erro e destruição — o
