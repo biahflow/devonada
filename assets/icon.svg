@@ -1,7 +1,36 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <rect width="1024" height="1024" rx="0" fill="#FFFFFF"/>
-  <path d="M 232 356 L 420 512 L 608 452 L 792 668"
-        fill="none" stroke="#029488" stroke-width="72"
-        stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="792" cy="668" r="76" fill="#7C3AED"/>
+  <!--
+    O ícone do app para iOS — e a fonte versionada do assets/icon.png.
+
+    O ícone é SÓ O PONTO. O wordmark `devo.nada` é Archivo Black em caixa baixa
+    com tracking negativo, e em 1024² reduzido para a grade do aparelho ele vira
+    borrão. O que sobrevive daquele tamanho é o elemento que já carrega o
+    significado inteiro da marca: o ponto entre "devo" e "nada", que reporta o
+    estado do usuário e não a empresa. Ver src/components/ui/Brand.tsx e ADR 0015.
+
+    O ponto é VERMELHO porque este é um arquivo estático e o estado em que a
+    pessoa chega ao app é `divida` — a mesma escolha que SplashDevoNada.tsx já faz
+    ao fixar estado="divida". Ícone alternativo por estado da rota é nice-to-have
+    pós-MVP (design-system.md, seção 1), e um PNG não muda de cor sozinho.
+
+    Geometria: r = 317,44, diâmetro de 634,88 = 62% da caixa.
+
+    O PONTO PRECISA DE MOLDURA PARA LER COMO PONTO. A versão anterior deste
+    arquivo usava r = 512 — o disco tangente às quatro bordas —, e o resultado
+    depois do arredondamento do iOS era um quadrado vermelho de cantos redondos,
+    com um fiapo de grafite. Isso tem presença, mas não é a marca: no wordmark o
+    ponto é pequeno em relação ao que está em volta, e é a proporção que faz dele
+    um ponto em vez de um fundo. A 62% sobra grafite em todo o perímetro depois
+    do squircle, e o ícone diz a mesma coisa que o logo diz.
+
+    Cores — as duas saem de src/theme/theme.ts, nenhuma é digitada de memória, e
+    `npm run assets:build` reprova se algum hex daqui deixar de corresponder ao
+    token:
+      #101216  colors.background  (o grafite; o mesmo de app.json)
+      #E5352B  colors.debt        (o ponto; o hex da marca, que a ADR 0018
+                                   decidiu NÃO mexer quando ele reprovou como
+                                   texto — para texto existe colors.debtText)
+  -->
+  <rect width="1024" height="1024" fill="#101216"/>
+  <circle cx="512" cy="512" r="317.44" fill="#E5352B"/>
 </svg>

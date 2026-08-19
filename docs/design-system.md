@@ -734,14 +734,64 @@ o produto reporta o estado do usuário. Ver ADR 0015 e a tabela de estados na se
 Variações: principal (sobre grafite), invertida (sobre paper, para material impresso e social),
 empilhada, e o ícone.
 
-| Arquivo | Tamanho | Observação |
-|---|---|---|
-| `assets/icon.png` | 1024² | o ponto sangrando até a borda; o iOS aplica o próprio arredondamento |
-| `assets/adaptive-icon.png` | 1024² | ponto a 72%, dentro da zona segura da máscara do Android |
-| `assets/splash.png` | 1024² | o ponto sozinho sobre `#101216` |
+| PNG | Fonte versionada | Tamanho | O que é |
+|---|---|---|---|
+| `assets/icon.png` | `assets/icon.svg` | 1024² | o ponto a 62% da caixa, r = 317,44; sobra grafite em todo o perímetro depois do arredondamento do iOS |
+| `assets/adaptive-icon.png` | `assets/adaptive-icon.svg` | 1024² | camada de frente do Android: ponto a 55% da caixa, r = 281,6 |
+| `assets/splash.png` | `assets/splash.svg` | 1024² | o ponto sozinho a 15% da caixa, r = 76,8, sobre `#101216` |
 
-Os PNG são rasterizados do SVG com Chrome headless — a máquina não tem `rsvg-convert`,
-ImageMagick nem `sharp`. O script vive fora do repositório; a fonte versionada é o SVG.
+**São três SVG e não um**, porque a única diferença entre eles é o raio, e raio escondido em
+parâmetro de script é número que ninguém acha depois. Cada PNG tem a fonte ao lado.
 
-> **PENDENTE:** os três PNG e o `assets/icon.svg` ainda são os da marca anterior. Trocá-los é
-> item de pré-lançamento — o app hoje roda com a paleta certa e o ícone errado.
+O ponto é **vermelho** nos três: PNG não muda de cor, e o estado em que a pessoa chega ao app é
+`divida` — a mesma escolha que `SplashDevoNada.tsx` já faz. O ícone alternativo por estado da rota
+continua nice-to-have pós-MVP (seção 1).
+
+Dois números que valem a pena estar escritos:
+
+- **Android, os 55% — e o "72" que este documento errava.** A versão anterior desta tabela dizia
+  "ponto a 72%, dentro da zona segura da máscara do Android", e a frase se contradizia: a janela
+  garantida da máscara é a de **72dp de 108dp**, ou **66,7%** da caixa (682,67px aqui). O 72 era
+  a medida em dp, e virou "72 por cento" em algum momento da escrita. A 72% da caixa o disco
+  passava 27,3px ALÉM da janela por lado, e em launcher de máscara circular ele era recortado
+  na borda: o grafite sumia e o ícone virava um círculo vermelho cheio.
+
+  **O ponto precisa de moldura para ler como ponto.** No wordmark ele é pequeno em relação ao que
+  está em volta, e é a proporção que faz dele um ponto em vez de um fundo — um disco que preenche
+  o quadro inteiro tem presença, mas não é esta marca, e não se distingue de qualquer outro app de
+  ícone vermelho. A 55% (r = 281,6) o disco fica 59,7px dentro da janela por lado, e sobra anel de
+  grafite visível mesmo no recorte circular, que é o mais agressivo. O `icon.svg` do iOS desceu de
+  512 para 317,44 (62%) pela mesma razão: tangente às bordas, depois do squircle sobrava um fiapo.
+- **Os dois raios são decisão de marca, não de implementação.** Mexer neles muda o que a pessoa vê
+  na grade do aparelho, e nenhum gate reprova quem mexer.
+- **Splash, os 15%.** `app.json` declara `resizeMode: "contain"`, então em retrato a imagem
+  quadrada é escalada pela largura: o ponto ocupa 15% da largura da tela, ~62dp num aparelho de
+  411dp — exatamente o halo de 62dp que `SplashDevoNada.tsx` desenha atrás do ponto do wordmark.
+  A splash nativa entrega para a do JS sem salto de tamanho.
+
+### A rasterização é um comando, e ele mora aqui
+
+```bash
+npm run assets:build     # os três PNG, a partir dos três SVG
+```
+
+Chrome headless, porque a máquina não tem `rsvg-convert`, ImageMagick nem `sharp` — e nenhum
+deles vale uma dependência npm para gerar três arquivos. O binário é **procurado** (Chrome,
+Chromium, Brave, Edge, e `CHROME_PATH` na frente de todos), nunca cravado.
+
+O que mudou não foi a ferramenta, foi o endereço: o script vivia **fora do repositório**, e essa
+linha custou a marca inteira. O `icon.svg` anterior tinha fundo branco, traçado teal `#029488` e
+círculo violeta `#7C3AED`; a ADR 0015 virou a paleta e nenhum desses hex sobreviveu — e os assets
+ficaram como estavam, porque não havia comando para reclamar. É a mesma falha que a ADR 0018
+descreve no validador de paleta, no mesmo mês.
+
+Então o comando confere antes de rasterizar: cada hex dos SVG tem de ser um token de
+`src/theme/theme.ts`, e da lista declarada da marca (`background` e `debt`). Cor fora dela não
+vira PNG. Depois da captura ele lê o IHDR de volta — janela que não abriu no tamanho pedido
+devolve imagem menor sem erro nenhum. `scripts/marca.test.js` exercita a mesma implementação sob
+o jest, inclusive contra os arquivos versionados.
+
+> **Nenhum gate prova que este ícone se distingue dos outros na grade do aparelho.** Que ele é o
+> ponto certo, na cor certa e no tamanho certo, está medido; se ele é reconhecível ao lado de
+> outros ícones vermelhos, e como a máscara de cada launcher o trata, é **validação em device** e
+> não foi feita.

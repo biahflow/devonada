@@ -12,6 +12,7 @@
     "lint:fix": "eslint . --fix",
     "test": "jest",
     "test:watch": "jest --watch",
+    "assets:build": "node scripts/rasterizar-assets.mjs",
     "bundle:check": "expo export --platform ios --output-dir .expo/bundle-check --clear",
     "palette:check": "node scripts/paleta-check.mjs",
     "digits:check": "node scripts/digitos-check.mjs"
