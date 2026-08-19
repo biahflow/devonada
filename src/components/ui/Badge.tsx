@@ -17,7 +17,7 @@ const tones = {
   primario: { bg: colors.primarySurface, fg: colors.primaryDeep },
   progresso: { bg: colors.accentSurface, fg: colors.accent },
   atencao: { bg: colors.warningSurface, fg: colors.warning },
-  alto: { bg: colors.dangerSurface, fg: colors.danger },
+  alto: { bg: colors.dangerSurface, fg: colors.dangerText },
 } as const;
 
 export function Badge({ label, tone = 'neutro' }: Props) {

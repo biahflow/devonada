@@ -78,6 +78,7 @@ src/
   components/                ui/ · chat/ · cards/
   screens/                   composição de tela
 backend/                     FastAPI — território do dono do repositório
+scripts/                     ferramentas de linha de comando em node puro (CommonJS)
 docs/                        documentos canônicos
 ```
 
@@ -140,6 +141,7 @@ npm run typecheck    # tsc --noEmit
 npm run lint         # eslint
 npm test             # jest — inclui os testes de tela
 npm run bundle:check # expo export: prova que o grafo inteiro compila
+npm run palette:check # WCAG 2.1 e CIEDE2000 dos pares declarados de src/theme/theme.ts
 ```
 
 ### O que cada gate pega — e o que nenhum deles pega
@@ -150,12 +152,13 @@ npm run bundle:check # expo export: prova que o grafo inteiro compila
 | `lint` | regra de hook violada, `any`, `setState` em efeito |
 | `test` | **lógica e comportamento de tela**: ordenação errada, estado não tratado, copy que sumiu |
 | `bundle:check` | import quebrado, módulo que não resolve em arquivo que nenhum teste importa |
+| `palette:check` | par de cor abaixo do piso de contraste, e token de cor renomeado sem a lista de pares acompanhar |
 
 As duas primeiras categorias se sobrepõem menos do que parece: renomear prop é `typecheck`;
 inverter uma ordem de prioridade passa por ele intacto e só o teste de tela vê.
 
 > **Nenhum gate prova que a tela está legível, bonita ou que cabe no aparelho.** Eles provam que
-> ela renderiza e reage. Layout, contraste percebido, comportamento de teclado e safe area em
+> ela renderiza, reage e que as cores passam o piso de contraste — que é piso, não legibilidade. Layout, contraste percebido, comportamento de teclado e safe area em
 > aparelho com notch **exigem validação humana em device** — um agente não consegue fazer isso e
 > não deve afirmar que fez.
 
@@ -183,7 +186,7 @@ Uma tarefa só entra em execução quando:
 
 ## Definition of Done
 
-- [ ] Os quatro gates passam: `typecheck`, `lint`, `test` e `bundle:check`.
+- [ ] Os cinco gates passam: `typecheck`, `lint`, `test`, `bundle:check` e `palette:check`.
 - [ ] Nenhuma verificação foi desativada para concluir a tarefa.
 - [ ] Tela nova tem teste em `src/test/screens/` cobrindo os quatro estados.
 - [ ] O que **não** foi validado em device está dito explicitamente no relato.

@@ -61,6 +61,6 @@ const styles = StyleSheet.create({
   optional: { ...typography.caption, color: colors.inkSoft },
   input: fieldStyles.input,
   inputError: { borderColor: colors.danger },
-  error: { ...typography.caption, color: colors.danger },
+  error: { ...typography.caption, color: colors.dangerText },
   hint: { ...typography.caption, color: colors.inkSoft },
 });

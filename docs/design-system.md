@@ -49,14 +49,31 @@ E uma regra de voz que atravessa tudo: **vitória se escreve na primeira pessoa 
 | `inkFill` | `#1FC16B` | botão circular de enviar do chat |
 | `warning` | `#F0A31C` | **acordo em andamento**, atraso factual, sem alarme |
 | `warningSurface` · `warningBorder` | `#2A2010` · `#4A3612` | fundo e borda de atenção |
-| `danger` | `#E5352B` | erro e ação destrutiva |
+| `danger` | `#E5352B` | erro e ação destrutiva, em **objeto gráfico** |
+| `dangerText` | `#EC6C65` | erro em **texto**: caption de campo, rótulo de botão, banner |
 | `dangerSurface` · `dangerBorder` | `#2A1412` · `#4A1B17` | fundo e borda de erro |
-| `debt` | `#E5352B` | **status de dívida**: saldo devedor, criticidade, ponto do logo |
+| `debt` | `#E5352B` | **status de dívida** em objeto gráfico: ponto do logo, pill, barra, borda, e o saldo em `display`/`displaySm` |
+| `debtText` | `#EC6C65` | status de dívida em **texto**: valor em `body`/`numeric`, rótulo da aba ativa |
 | `debtSurface` · `debtBorder` | `#2A1412` · `#5C201B` | fundo de pill e borda de dívida crítica |
 
 **Regra do vermelho.** Máximo ~10% de qualquer tela. **Nunca** como fundo de tela, de seção ou de
 botão. `debt` marca dívida, `danger` marca erro — mesmo valor, nomes diferentes, e a tela diz qual
 dos dois quis dizer. Ver ADR 0015 e `guardrails.md`, seção 4.
+
+**Regra do vermelho em texto, e ela é uma regra porque foi medida.** `#E5352B` dá **4,35 / 4,00 /
+3,66** sobre `background` / `surface` / `neutralSurface`. Passa o piso de 3:1 de objeto gráfico e
+de texto grande, e **reprova** o piso de 4,5:1 de texto de corpo. Por isso o vermelho tem dois
+tokens e não dois valores por acaso:
+
+- **objeto gráfico e texto grande** (`display`, `displaySm`) → `debt` / `danger`, o hex da marca;
+- **texto de corpo, legenda e rótulo** → `debtText` / `dangerText`, `#EC6C65`.
+
+`#EC6C65` **não é um vermelho novo**: é o mesmo clareado até 4,5:1 com folga, preservando matiz e
+saturação até onde 8 bits permitem (H 3,23° → 3,11°; S 78,15% → 78,03%). Mudar o hex de `debt`
+resolveria o contraste e mudaria o ponto do wordmark — que é a marca. Ver ADR 0018.
+
+O `MoneyText` aplica isso sozinho: o tom `debt` muda de valor com o `size`, porque o número
+protagonista tem direito ao vermelho da marca e a coluna de valores não.
 
 **Não existe botão vermelho.** Nem para ação destrutiva: ali se usa ghost mais confirmação. O CTA
 primário é sempre verde, porque toda ação neste app é um passo para fora da dívida.
@@ -90,37 +107,104 @@ Quatro matizes para o anel do `CategoriaIcon`: `teal #2DD4BF`, `azul #60A5FA`,
 luminosidade para se manterem legíveis sobre o grafite.
 
 São **cor de objeto gráfico**, medidas contra o piso de 3:1, não contra o de texto — e nunca
-informam sozinhas: há glifo e rótulo escrito ao lado.
+informam sozinhas: há glifo e rótulo escrito ao lado. Os quatro estão no `palette:check`: cada um
+contra `background` e `surface`, e os seis pares entre si em CIEDE2000. **O pior par é
+teal × azul, a ΔE 33,5** — mais que o dobro do piso; o anel mais próximo do fundo é o magenta, a
+6,51:1 sobre `surface`, contra um piso de 3:1. As tabelas abaixo trazem os catorze números.
 
 São quatro e não seis por medição herdada: coral fica a **ΔE 11,9** do âmbar e violeta a
-**ΔE 12,4** do azul (OKLab, validador de dataviz). Dois anéis que se confundem não acrescentam
-nada. O verde ficou de fora por ser cor semântica reservada — ação e conquista —, e cor reservada
-não vira "categoria 5".
+**ΔE 12,4** do azul (OKLab, validador de dataviz, na paleta clara). Dois anéis que se confundem
+não acrescentam nada. O verde ficou de fora por ser cor semântica reservada — ação e conquista —,
+e cor reservada não vira "categoria 5".
 
-### A paleta AINDA NÃO foi medida
+### A paleta é medida, e a medição é um gate
 
-Este é o débito conhecido da ADR 0015, e ele está declarado aqui porque escondê-lo inverteria o
-princípio do projeto.
+As três tabelas abaixo são a **saída literal** de `node scripts/paleta-check.mjs --tabela`.
+Ninguém as digita: `npm run palette:check` lê os hex de `src/theme/theme.ts`, mede os pares
+declarados em `scripts/paleta-check.mjs` e sai com código 1 se algum par sem exceção cair abaixo
+do piso. Quando um valor muda aqui, o gate cai — que é exatamente o que **não** aconteceu quando
+o validador vivia fora do repositório e virar o tema apagou três tabelas em silêncio (ADR 0018).
 
-A paleta anterior tinha **todo** par texto/fundo medido em WCAG 2.1 (piso 4,5:1), **todo** anel de
-categoria medido como objeto gráfico (piso 3:1) e **toda** dupla de semânticas adjacentes medida
-em CIEDE2000 (piso ΔE 15). A tabela inteira vivia aqui, e a medição chegou a derrubar seis
-escolhas que pareciam óbvias — o registro está nas ADR 0010 e 0011.
+A lista de pares é **declarada**, não varrida: cada linha é uma adjacência que existe numa tela.
+Uma varredura de todas as combinações mediria pares que nunca se encostam, e o ruído
+transformaria o gate em algo que se aprende a ignorar. **Combinação nova entra na lista no mesmo
+commit em que aparece na tela** — a regra sobreviveu à troca de paleta; agora a tabela também.
 
-**Virar o tema de claro para escuro invalidou as três tabelas.** Nenhum dos valores atuais foi
-medido; eles foram escolhidos por leitura de tela, que é exatamente o método que este documento
-proíbe.
+`excecao` não isenta de medir, isenta de reprovar: o número continua na tabela, e a
+justificativa fica ao lado dele. As exceções vigentes estão registradas na ADR 0018.
 
-Portanto:
+**Texto** — WCAG 2.1, piso 4,5:1
 
-- **Remedir é item de pré-lançamento**, não polimento. Contraste é acessibilidade, e este público
-  lê no ônibus, com a tela no sol, muitas vezes em aparelho de entrada com a brilho baixo para
-  poupar bateria.
-- Os pares que mais preocupam, por serem os que a paleta clara passava com pouca folga:
-  `inkSoft` sobre as três superfícies, `warning` e `debt` sobre `surface`, e a separação ΔE entre
-  `warning` e `debt` — âmbar e vermelho adjacentes num mesmo card de dívida.
-- **Combinação nova exige medir, não estimar.** A regra sobreviveu à troca de paleta; só a tabela
-  morreu.
+| Frente | Fundo | Contraste | Piso | Resultado |
+|---|---|---|---|---|
+| `ink` `#F2F2ED` | `background` `#101216` | 16,69:1 | 4,5:1 | passa |
+| `ink` `#F2F2ED` | `surface` `#181B21` | 15,36:1 | 4,5:1 | passa |
+| `ink` `#F2F2ED` | `neutralSurface` `#1F232B` <br><sub>bolha do assistente</sub> | 14,02:1 | 4,5:1 | passa |
+| `ink` `#F2F2ED` | `primarySurface` `#12251B` <br><sub>bolha do usuário</sub> | 14,32:1 | 4,5:1 | passa |
+| `inkSoft` `#8A8F98` | `background` `#101216` | 5,77:1 | 4,5:1 | passa |
+| `inkSoft` `#8A8F98` | `surface` `#181B21` | 5,31:1 | 4,5:1 | passa |
+| `inkSoft` `#8A8F98` | `neutralSurface` `#1F232B` | 4,85:1 | 4,5:1 | passa |
+| `primary` `#1FC16B` | `background` `#101216` <br><sub>link, aba ativa na fase verde</sub> | 7,94:1 | 4,5:1 | passa |
+| `primary` `#1FC16B` | `surface` `#181B21` <br><sub>rótulo do Button secondary</sub> | 7,31:1 | 4,5:1 | passa |
+| `onPrimary` `#08120C` | `primary` `#1FC16B` <br><sub>rótulo do Button primary</sub> | 8,07:1 | 4,5:1 | passa |
+| `primaryDeep` `#7CE8AF` | `primarySurface` `#12251B` <br><sub>Badge primario</sub> | 10,73:1 | 4,5:1 | passa |
+| `accent` `#3FDC8A` | `background` `#101216` | 10,55:1 | 4,5:1 | passa |
+| `accent` `#3FDC8A` | `surface` `#181B21` | 9,70:1 | 4,5:1 | passa |
+| `accent` `#3FDC8A` | `accentSurface` `#132A1F` <br><sub>Badge progresso, Feedback success</sub> | 8,57:1 | 4,5:1 | passa |
+| `warning` `#F0A31C` | `background` `#101216` | 8,89:1 | 4,5:1 | passa |
+| `warning` `#F0A31C` | `surface` `#181B21` | 8,18:1 | 4,5:1 | passa |
+| `warning` `#F0A31C` | `neutralSurface` `#1F232B` | 7,47:1 | 4,5:1 | passa |
+| `warning` `#F0A31C` | `warningSurface` `#2A2010` <br><sub>Badge atencao, Feedback warning</sub> | 7,59:1 | 4,5:1 | passa |
+| `debtText` `#EC6C65` | `background` `#101216` <br><sub>saldo devedor em body/numeric</sub> | 6,16:1 | 4,5:1 | passa |
+| `debtText` `#EC6C65` | `surface` `#181B21` <br><sub>rótulo da aba ativa, sobre a barra</sub> | 5,67:1 | 4,5:1 | passa |
+| `debtText` `#EC6C65` | `neutralSurface` `#1F232B` <br><sub>valor em área recuada</sub> | 5,17:1 | 4,5:1 | passa |
+| `debtText` `#EC6C65` | `debtSurface` `#2A1412` <br><sub>rótulo da aba ativa, sobre a pílula</sub> | 5,72:1 | 4,5:1 | passa |
+| `dangerText` `#EC6C65` | `background` `#101216` <br><sub>erro do chat</sub> | 6,16:1 | 4,5:1 | passa |
+| `dangerText` `#EC6C65` | `surface` `#181B21` <br><sub>caption de erro de campo, rótulo do Button danger</sub> | 5,67:1 | 4,5:1 | passa |
+| `dangerText` `#EC6C65` | `dangerSurface` `#2A1412` <br><sub>Feedback error, Badge alto</sub> | 5,72:1 | 4,5:1 | passa |
+
+**Objeto gráfico e texto grande** — WCAG 2.1, piso 3:1
+
+| Frente | Fundo | Contraste | Piso | Resultado |
+|---|---|---|---|---|
+| `debt` `#E5352B` | `background` `#101216` <br><sub>ponto do wordmark, halo da splash, e o saldo devedor em display/displaySm — texto grande (≥26px), que a WCAG mede por este mesmo piso</sub> | 4,35:1 | 3,0:1 | passa |
+| `debt` `#E5352B` | `surface` `#181B21` <br><sub>ponto na TabBar e no PageHeader; saldo devedor grande dentro de card</sub> | 4,00:1 | 3,0:1 | passa |
+| `debt` `#E5352B` | `neutralSurface` `#1F232B` <br><sub>barra e borda de estado de erro</sub> | 3,66:1 | 3,0:1 | passa |
+| `debt` `#E5352B` | `debtSurface` `#2A1412` <br><sub>pílula da aba ativa</sub> | 4,04:1 | 3,0:1 | passa |
+| `primaryBright` `#3FDC8A` | `background` `#101216` <br><sub>LinhaEvolucao</sub> | 10,55:1 | 3,0:1 | passa |
+| `primaryBright` `#3FDC8A` | `surface` `#181B21` <br><sub>barra do Meter</sub> | 9,70:1 | 3,0:1 | passa |
+| `teal` `#2DD4BF` | `background` `#101216` <br><sub>anel do CategoriaIcon</sub> | 10,07:1 | 3,0:1 | passa |
+| `teal` `#2DD4BF` | `surface` `#181B21` | 9,27:1 | 3,0:1 | passa |
+| `azul` `#60A5FA` | `background` `#101216` | 7,37:1 | 3,0:1 | passa |
+| `azul` `#60A5FA` | `surface` `#181B21` | 6,78:1 | 3,0:1 | passa |
+| `magenta` `#F472B6` | `background` `#101216` | 7,08:1 | 3,0:1 | passa |
+| `magenta` `#F472B6` | `surface` `#181B21` | 6,51:1 | 3,0:1 | passa |
+| `ambar` `#FBBF24` | `background` `#101216` | 11,23:1 | 3,0:1 | passa |
+| `ambar` `#FBBF24` | `surface` `#181B21` | 10,33:1 | 3,0:1 | passa |
+| `border` `#262A31` | `background` `#101216` | 1,30:1 | 3,0:1 | **exceção** — divisor decorativo, nunca portador de informação |
+| `border` `#262A31` | `surface` `#181B21` | 1,20:1 | 3,0:1 | **exceção** — divisor decorativo, nunca portador de informação |
+| `warningBorder` `#4A3612` | `warningSurface` `#2A2010` | 1,39:1 | 3,0:1 | **exceção** — contorno de banner; quem carrega o sentido é o texto dentro dele |
+| `dangerBorder` `#4A1B17` | `dangerSurface` `#2A1412` | 1,21:1 | 3,0:1 | **exceção** — contorno de banner; quem carrega o sentido é o texto dentro dele |
+| `debtBorder` `#5C201B` | `surface` `#181B21` | 1,38:1 | 3,0:1 | **exceção** — contorno do card de dívida crítica; o Badge ao lado nomeia a criticidade |
+
+**Duplas semânticas** — CIEDE2000, piso ΔE 15
+
+| Par | ΔE | Piso | Resultado |
+|---|---|---|---|
+| `debt` `#E5352B` × `warning` `#F0A31C` <br><sub>ponto: dívida × negociando</sub> | ΔE 35,4 | ΔE 15 | passa |
+| `warning` `#F0A31C` × `primary` `#1FC16B` <br><sub>ponto: negociando × devo nada</sub> | ΔE 43,3 | ΔE 15 | passa |
+| `debt` `#E5352B` × `primary` `#1FC16B` <br><sub>ponto: dívida × devo nada</sub> | ΔE 74,1 | ΔE 15 | passa |
+| `primary` `#1FC16B` × `accent` `#3FDC8A` <br><sub>conquista × ação; e o texto do Meter × a barra do Meter</sub> | ΔE 7,1 | ΔE 15 | **exceção** — proximidade é o desenho — a conquista é o MESMO verde um passo mais claro, e os dois nunca precisam ser distinguidos um do outro: onde aparecem juntos há rótulo, e onde há só um a semântica vem do lugar, não do matiz |
+| `teal` `#2DD4BF` × `azul` `#60A5FA` | ΔE 33,5 | ΔE 15 | passa |
+| `teal` `#2DD4BF` × `magenta` `#F472B6` | ΔE 58,3 | ΔE 15 | passa |
+| `teal` `#2DD4BF` × `ambar` `#FBBF24` | ΔE 41,8 | ΔE 15 | passa |
+| `azul` `#60A5FA` × `magenta` `#F472B6` | ΔE 40,4 | ΔE 15 | passa |
+| `azul` `#60A5FA` × `ambar` `#FBBF24` | ΔE 55,5 | ΔE 15 | passa |
+| `magenta` `#F472B6` × `ambar` `#FBBF24` | ΔE 57,7 | ΔE 15 | passa |
+
+O que essas tabelas **não** provam: que a tela está legível em aparelho de entrada, com brilho
+baixo, no sol. Contraste medido é piso, não garantia — e a validação em device continua
+pendente, como em todo o M1.5–M9.
 
 ---
 
@@ -474,11 +558,14 @@ os tons; o dot ainda não existe.
 > Esta seção existe porque a proposta óbvia **falhou numa validação executada**, não porque
 > alguém achou feio. Rodar o validador é obrigatório antes de definir qualquer paleta de gráfico.
 
-> **ATENÇÃO — o que está medido aqui é a paleta CLARA.** Esta seção dizia ter sido reexecutada
-> contra a paleta escura, e não tinha: os hex que ela citava (`#0D9488`, `#2563EB`, `#BE185D`,
-> `#D97706`) são os da ADR 0011, não os de `theme.ts`. A afirmação foi removida em vez de
-> corrigida no número, porque documentação que alega uma medição inexistente é pior que
-> documentação que declara a lacuna. Vale aqui o mesmo que na seção 1: **remedir, não estimar.**
+> **A medição da paleta escura existe agora, e é a da seção 1.** Esta seção chegou a alegar ter
+> sido reexecutada contra o tema escuro citando os hex da paleta clara (`#0D9488`, `#2563EB`,
+> `#BE185D`, `#D97706`, da ADR 0011); a alegação foi removida em vez de ter o número corrigido,
+> porque documentação que inventa medição é pior que documentação que declara a lacuna. O
+> `npm run palette:check` fechou a lacuna: os quatro anéis de categoria e a marca de gráfico
+> estão medidos contra `background` e `surface` no piso de 3:1, e os seis pares de categoria em
+> CIEDE2000 — a tabela está na seção 1. **O que continua herdado da paleta clara, e está dito
+> como herança, é o argumento sobre coral e violeta**, que não são tokens deste tema.
 
 A pergunta se repõe a cada troca de paleta, e a resposta mudou de motivo — o que vale registrar.
 
@@ -497,8 +584,15 @@ Duas coisas que a validação da paleta clara ensinou e que valem para a próxim
 A marca de gráfico é `primaryBright`, e a de ação é `primary`. São duas cores para o mesmo verde,
 com trabalhos diferentes — na paleta clara, `primary` numa linha de 2px ficava abaixo do piso de
 croma e lia como cinza, e é por isso que o `Meter` usa uma para o texto da porcentagem e outra
-para a barra. **Se a separação continua valendo sobre o grafite, é medição pendente**, não
-conclusão herdada.
+para a barra.
+
+**Sobre o grafite, os dois passam sozinhos e não se separam um do outro.** `primaryBright` mede
+10,55:1 sobre `background` e 9,70:1 sobre `surface` — folga larga no piso de 3:1 de série —, e
+`primary` mede 7,94:1 e 7,31:1 como texto. Mas `primary × primaryBright` dá **ΔE 7,1**, abaixo do
+piso de 15, e essa é uma das duas exceções declaradas do `palette:check` (ADR 0018). Ela vale
+porque a proximidade é o desenho: os dois nunca precisam ser distinguidos **um do outro** — no
+`Meter` a porcentagem é texto e a barra é barra, e é a forma que os separa, não o matiz.
+`accent` é o mesmo hex de `primaryBright`, então a linha da tabela responde às duas perguntas.
 
 ### Regras
 
@@ -551,8 +645,13 @@ enviou — mesma natureza de `formatBRL`.
 - **Alvo de toque mínimo 48pt** em qualquer elemento tocável. Vale para ícone, chip e link.
 - **`accessibilityLabel` obrigatório** em todo controle sem texto visível.
   `accessibilityRole` correto em botão, link e cabeçalho.
-- **Contraste mínimo 4.5:1** para texto de corpo. **A tabela de medições caiu com a ADR 0015 e
-  ainda não foi refeita** (seção 1) — até lá, toda combinação exige medir, não estimar.
+- **Contraste mínimo 4.5:1** para texto de corpo, 3:1 para objeto gráfico e texto grande, ΔE 15
+  entre semânticas adjacentes. A tabela vigente está na seção 1 e é gerada por
+  `npm run palette:check` — **o quinto gate**. Combinação nova entra na lista de
+  `scripts/paleta-check.mjs` no mesmo commit em que aparece na tela: medir, não estimar.
+- **Vermelho em texto usa `debtText`/`dangerText`, não `debt`/`danger`.** O hex da marca reprova
+  4,5:1 (seção 1). Isso vale para caption, rótulo e valor em `body`/`numeric`; o número
+  protagonista em `display`/`displaySm` fica no vermelho da marca.
 - **Nada de animação de urgência.** Sem pulsar, sem contagem regressiva, sem shake. Transições são
   suaves e curtas (150–250ms); respeite `AccessibilityInfo.isReduceMotionEnabled`.
   - **A exceção é a transição de status vermelho → verde: 1,2s.** É a animação-assinatura do
@@ -578,6 +677,8 @@ Antes de aprovar qualquer tela nova:
 3. O número protagonista está em Archivo Black e a coluna de valores em Inter?
 4. O texto fala como buddy — ativo, concreto, sem culpa?
 5. Se algo foi quitado ou melhorou, o verde aparece? A vitória está visível?
+6. A tela encostou duas cores que ainda não estavam na lista de `scripts/paleta-check.mjs`? Se
+   sim, o par entra lá **neste commit** — e `npm run palette:check` passa.
 
 ---
 

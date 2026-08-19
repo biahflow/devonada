@@ -44,6 +44,9 @@ Ler `docs/backend.md` antes de tocar em `backend/`. Mudança de contrato atualiz
   coordenação clara de arquivos.
 - Rode `npm run typecheck` antes de encerrar. Se houver lint e testes configurados, rode-os
   também (ver `docs/engineering-conventions.md`).
+- Tocou em cor — token de `src/theme/theme.ts` ou combinação nova numa tela? Rode
+  `npm run palette:check` e declare o par novo em `scripts/paleta-check.mjs` no mesmo commit.
+  Número de contraste em documentação sai da saída do script, nunca da sua estimativa (ADR 0018).
 - Antes de encerrar, informe arquivos alterados, validações executadas e pendências.
 - Documentação desatualizada é fonte de alucinação. Mudou a estrutura de pastas, um token de
   design ou o contrato de um endpoint? Atualize o doc correspondente **no mesmo commit**.

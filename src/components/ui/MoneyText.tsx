@@ -31,12 +31,43 @@ const tones: Record<Tone, string> = {
   // `warning`, nunca `danger`: quem chega nesse número já está com medo, e o
   // vermelho de alarme é o que os apps tradicionais fazem (guardrail 4).
   warning: colors.warning,
-  // SALDO DEVEDOR, e só ele. É o vermelho da marca, o mesmo do ponto do
-  // wordmark — o número que a jornada do produto existe para fazer sumir
-  // (ADR 0015). Não use em erro: erro é `danger`, e a tela precisa saber dizer
-  // qual dos dois quis dizer.
-  debt: colors.debt,
+  // SALDO DEVEDOR, e só ele — o número que a jornada do produto existe para
+  // fazer sumir (ADR 0015). Não use em erro: erro é `danger`, e a tela precisa
+  // saber dizer qual dos dois quis dizer.
+  //
+  // O VALOR AQUI É O DO CORPO DE TEXTO; o tamanho grande usa o outro. Ver
+  // `corDoTom` abaixo.
+  debt: colors.debtText,
 };
+
+/**
+ * O `debt` é o único tom que muda de valor com o TAMANHO, e a razão é a WCAG,
+ * não estética: `#E5352B` mede 4,35:1 sobre `background` — reprova o piso de
+ * 4,5 de texto de corpo e passa o de 3:1, que a WCAG aplica a texto grande.
+ *
+ * Então `display` e `displaySm` — o número protagonista, 36px e 26px em Archivo
+ * Black — ficam no vermelho DA MARCA, o mesmo do ponto do wordmark. `body` e
+ * `numeric` (16px e 18px, a coluna de valores) ficam em `debtText`, o mesmo
+ * matiz clareado até passar 4,5:1.
+ *
+ * O efeito é o que a marca quer: o saldo devedor grande, que é a coisa que tem
+ * de sumir da tela, é exatamente o vermelho do ponto.
+ *
+ * A tabela coincide com `simboloRecuado` hoje, e mesmo assim são duas: uma é
+ * "onde a WCAG deixa de exigir 4,5", a outra é "onde o R$ recuado fica bonito".
+ * Unificá-las amarraria contraste a decisão tipográfica.
+ */
+const tamanhoGrande: Record<Size, boolean> = {
+  body: false,
+  numeric: false,
+  displaySm: true,
+  display: true,
+};
+
+function corDoTom(tone: Tone, size: Size): string {
+  if (tone === 'debt' && tamanhoGrande[size]) return colors.debt;
+  return tones[tone];
+}
 
 /** Só os tamanhos grandes recuam o símbolo; em corpo de texto ficaria ruidoso. */
 const simboloRecuado: Record<Size, boolean> = {
@@ -69,7 +100,7 @@ export function MoneyText({
   const texto = formatBRL(centavos);
   const corpo = [
     sizes[size],
-    { color: tones[tone] },
+    { color: corDoTom(tone, size) },
     strikethrough && styles.strike,
     style,
   ];

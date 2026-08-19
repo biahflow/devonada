@@ -34,7 +34,9 @@ arquitetura, contrato de API ou Definition of Done mudar, atualize somente
 
 ## Antes de abrir pull request
 
-- Os quatro gates passam: `typecheck`, `lint`, `test` e `bundle:check`.
+- Os cinco gates passam: `typecheck`, `lint`, `test`, `bundle:check` e `palette:check`.
+- Mexeu em cor? O par novo está declarado em `scripts/paleta-check.mjs`, e todo número de
+  contraste que foi parar em documentação saiu da saída do script (ADR 0018).
 - Nenhuma verificação de qualidade foi desativada para concluir a tarefa.
 - Doc afetado foi atualizado no mesmo commit.
 - O template `.github/pull_request_template.md` está preenchido.
@@ -48,6 +50,7 @@ npm run typecheck    # tsc --noEmit
 npm run lint         # eslint
 npm test             # jest — inclui os testes de tela
 npm run bundle:check # expo export: prova que o grafo inteiro compila
+npm run palette:check # WCAG 2.1 e CIEDE2000 dos pares declarados de src/theme/theme.ts
 ```
 
 Nenhum desses gates prova que a tela está legível ou cabe no aparelho. Isso exige validação

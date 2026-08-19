@@ -8,12 +8,12 @@
  * que celebra, e é também a cor da ação: toda ação neste app é um passo para
  * fora da dívida. Ver ADR 0015.
  *
- * ATENÇÃO — os contrastes desta paleta AINDA NÃO FORAM MEDIDOS. A paleta
- * anterior (ADR 0011) tinha todo par texto/fundo medido em WCAG 2.1 e toda
- * dupla semântica em CIEDE2000; virar o tema de claro para escuro invalida
- * cada uma dessas medições. Medir de novo é item de pré-lançamento, não
- * opcional: contraste é acessibilidade, e o público deste app inclui gente
- * lendo no ônibus com a tela no sol.
+ * CONTRASTE — `npm run palette:check` mede os pares declarados em
+ * `scripts/paleta-check.mjs` contra ESTE arquivo, em WCAG 2.1 e CIEDE2000, e
+ * reprova o commit se algum par sem exceção cair abaixo do piso. Trocar um hex
+ * aqui sem rodar o gate é o caminho conhecido para a medição envelhecer em
+ * silêncio — foi o que aconteceu quando o validador vivia fora do repositório
+ * (ADR 0018). A tabela vigente está em docs/design-system.md, seção 1.
  *
  * Os nomes dos tokens são os mesmos da paleta anterior de propósito: 75
  * arquivos os consomem e nenhum define cor própria (zero hex fora deste
@@ -59,10 +59,19 @@ export const colors = {
    * `danger` (erro, ação destrutiva) e `debt` (status de dívida) — ver o par
    * abaixo. Regra dura: no máximo ~10% de qualquer tela, NUNCA como fundo de
    * tela, seção ou botão.
+   *
+   * REGRA DE USO, e ela é única para os dois nomes: `danger`/`debt` é o
+   * vermelho de OBJETO GRÁFICO — ponto da marca, pill, barra, borda, número
+   * protagonista em `display`/`displaySm`. Para TEXTO de corpo, legenda e
+   * rótulo, use `dangerText`/`debtText`. O motivo está medido: `#E5352B` dá
+   * 4,35 / 4,00 / 3,66 sobre `background` / `surface` / `neutralSurface`, e
+   * o piso de texto é 4,5 (ADR 0018).
    */
   danger: '#E5352B',
   dangerSurface: '#2A1412',
   dangerBorder: '#4A1B17',
+  /** Erro como TEXTO. Mesmo matiz e saturação de `danger`; ver `debtText`. */
+  dangerText: '#EC6C65',
 
   /**
    * Status de dívida — o nome semântico que código novo deve usar. Aponta para
@@ -74,6 +83,18 @@ export const colors = {
   debt: '#E5352B',
   debtSurface: '#2A1412',
   debtBorder: '#5C201B', // borda do card de dívida crítica
+  /**
+   * Dívida como TEXTO. NÃO é um vermelho novo da marca: é `#E5352B` clareado
+   * só até passar 4,5:1 com folga sobre as três superfícies, preservando matiz
+   * e saturação até onde 8 bits permitem — H 3,23° → 3,11°, S 78,15% → 78,03%,
+   * L 53,33% → 66,08%. Clarear foi a saída porque a alternativa — mudar o hex
+   * de `debt` — mudaria o ponto do wordmark, que é a marca (ADR 0018).
+   *
+   * `dangerText` aponta para o mesmo valor pela mesma razão que `danger` e
+   * `debt` apontam: um vermelho só. Existem os dois nomes para a tela dizer
+   * qual dos dois quis dizer, e para que um possa mudar sem arrastar o outro.
+   */
+  debtText: '#EC6C65',
 
   /** Botão circular de enviar do chat. No escuro, quem se destaca é o verde. */
   inkFill: '#1FC16B',
@@ -88,8 +109,9 @@ export const colors = {
  * conquista), e cor reservada não vira "categoria 5". Mesma razão pela qual o
  * violeta ficava de fora na paleta anterior.
  *
- * PENDENTE: a separação CIEDE2000 destes quatro matizes sobre o novo fundo não
- * foi remedida. Ver o aviso no topo do arquivo.
+ * Os quatro estão no `npm run palette:check`: cada um contra `background` e
+ * `surface` no piso de 3:1, e os seis pares entre si em CIEDE2000. Foi essa
+ * medição, na paleta clara, que derrubou coral e violeta.
  */
 export const categoria = {
   teal: '#2DD4BF',

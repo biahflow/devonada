@@ -42,8 +42,17 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   // inteira vira verde junto com o ponto do wordmark — o app muda de fase com
   // ela, sem ninguém precisar avisar. É o mesmo resumo que a Rota já buscou:
   // esta leitura não dispara requisição, sai do cache (ADR 0002).
+  //
+  // `debtText` e não `debt`: esta cor pinta o ÍCONE e o RÓTULO, e o rótulo é
+  // texto de 12px — `#E5352B` dá 4,00:1 sobre `surface`, abaixo do piso de 4,5.
+  // Os dois recebem o mesmo tom de propósito, em vez de o ícone ficar no
+  // vermelho da marca e o rótulo no clareado: ícone e rótulo ficam a 2px um do
+  // outro dentro da mesma pílula, e dois vermelhos quase iguais ali leem como
+  // defeito de renderização, não como hierarquia. `debtText` passa folgado o
+  // piso de 3:1 do ícone (5,67:1 sobre `surface`), então nada se perde — e o
+  // vermelho da marca continua intacto onde ele é a marca: o ponto do wordmark.
   const estado = useEstadoDaRota();
-  const corAtiva = estado === 'quitado' ? colors.primary : colors.debt;
+  const corAtiva = estado === 'quitado' ? colors.primary : colors.debtText;
   const corDaPilula = estado === 'quitado' ? colors.primarySurface : colors.debtSurface;
 
   useEffect(() => {

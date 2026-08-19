@@ -52,6 +52,7 @@ npm run typecheck           # tsc --noEmit
 npm run lint
 npm test -- --watchman=false
 npm run bundle:check
+npm run palette:check       # contraste WCAG 2.1 e CIEDE2000 dos tokens de cor
 ```
 
 Para o backend, siga [docs/backend.md](docs/backend.md). Não aplique migrações, altere produção ou
@@ -67,6 +68,7 @@ src/
   components/                UI, chat, rota, dívidas, caixa, metas e onboarding
   screens/                   composição de telas
 backend/                      FastAPI, Postgres, domínio, routers e migrations
+scripts/                      ferramentas de linha de comando (node puro) — o gate de paleta
 docs/                         documentos canônicos e FDDs
 ```
 

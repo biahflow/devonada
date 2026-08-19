@@ -6,12 +6,18 @@ documentos canônicos, os princípios inegociáveis e a Definition of Done.
 Convenções de código, nomenclatura e commits estão em `docs/engineering-conventions.md`.
 Regras de produto e segurança que nenhuma conveniência supera estão em `docs/guardrails.md`.
 
-Antes de abrir pull request, os quatro gates precisam passar: `npm run typecheck`,
-`npm run lint`, `npm test` e `npm run bundle:check`. Não desative verificação de qualidade para
-concluir uma tarefa.
+Antes de abrir pull request, os cinco gates precisam passar: `npm run typecheck`,
+`npm run lint`, `npm test`, `npm run bundle:check` e `npm run palette:check`. Não desative
+verificação de qualidade para concluir uma tarefa.
 
-Eles provam que o código compila, tipa e que as telas renderizam e reagem. **Não** provam que a
-interface está legível ou cabe no aparelho — isso continua exigindo abrir o app num device.
+`palette:check` mede os pares de cor declarados em `scripts/paleta-check.mjs` contra
+`src/theme/theme.ts`, em WCAG 2.1 e CIEDE2000, e é ele que impede a medição de envelhecer em
+silêncio quando um hex muda (ADR 0018). Combinação de cor nova entra na lista **no mesmo commit**
+em que aparece na tela.
+
+Eles provam que o código compila, tipa, que as telas renderizam e reagem e que as cores passam o
+piso de contraste. **Não** provam que a interface está legível ou cabe no aparelho — isso
+continua exigindo abrir o app num device.
 Mudança de estrutura, token de design ou contrato de API atualiza o documento correspondente
 **no mesmo commit**.
 
