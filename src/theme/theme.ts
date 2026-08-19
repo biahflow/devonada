@@ -137,15 +137,31 @@ export const radius = { sm: 8, md: 14, lg: 16, xl: 24, pill: 999 } as const;
  * monetário sempre em Archivo Black": `numeric` é o número que aparece em
  * COLUNA — parcelas, lista de gastos, extrato. A paleta anterior escolheu
  * Nunito Sans por uma razão medida, não estética: os dígitos dela são de
- * largura fixa, e por isso uma coluna de reais não dança. Ao trocar a fonte
- * essa garantia se perdeu, e ela precisa ser reconquistada por medição, não por
- * suposição. Até lá, `display` e `displaySm` (o número único e grande de cada
- * tela, onde não há coluna com que se alinhar) usam Archivo Black, e a coluna
- * fica em Inter.
+ * largura fixa, e por isso uma coluna de reais não dança. `display` e
+ * `displaySm` (o número único e grande de cada tela, onde não há coluna com que
+ * se alinhar) usam Archivo Black; a coluna fica em Inter.
  *
- * ITEM DE VALIDAÇÃO EM APARELHO: medir a largura de "0" e "1" em
- * Inter_700Bold. Se divergirem, `numeric` precisa de `fontVariant:
- * ['tabular-nums']` ou de uma família tabular dedicada.
+ * MEDIDO EM 19/08/2026, `npm run digits:check` — e o resultado derrubou a
+ * suposição de que isto era item de validação em aparelho. A largura de avanço
+ * de um glifo está na tabela `hmtx` do TTF: é fato do arquivo, igual em todo
+ * aparelho, e se lê sem device nenhum.
+ *
+ * Inter_700Bold, em 2048 unidades por em: o "1" avança 883 e o "4" avança
+ * 1385 — amplitude de 502 unidades, 0,245 em, quase um quarto de quadratim.
+ * O par que mais aparece junto é "0" (1381) contra "1" (883), 498 de diferença.
+ * Numa coluna de reais a 18px isso são ~4,4px de dança por dígito "1" que entra
+ * ou sai, e o extrato inteiro escorrega quando um valor vira R$ 1.000,00. Os dez
+ * dígitos divergem entre si, e nenhum peso da Inter é tabular por padrão:
+ * Regular, SemiBold e Bold têm amplitude 490, 498 e 502 respectivamente.
+ *
+ * ArchivoBlack_400Regular, por outro lado, JÁ é tabular: os dez dígitos avançam
+ * 667 de 1000, amplitude zero. `display` e `displaySm` não precisam de nada.
+ *
+ * A correção está em `typography.numeric`, abaixo, e existe porque a Inter
+ * DECLARA a feature `tnum` na `GSUB` — verificado na mesma leitura, junto de
+ * `pnum` e `zero`. Pedir um recurso OpenType que a família não declara é o
+ * caminho conhecido para o texto cair em fonte de sistema no Android; aqui não
+ * é o caso, e é a medição que autoriza o pedido.
  */
 export const fontFamily = {
   regular: 'Inter_400Regular',
@@ -154,6 +170,14 @@ export const fontFamily = {
   /** Wordmark e número protagonista. Nunca em texto corrido. */
   display: 'ArchivoBlack_400Regular',
 } as const;
+
+/**
+ * Declarado fora do `as const` de propósito: dentro dele o array viraria
+ * `readonly ['tabular-nums']`, e `TextStyle.fontVariant` do React Native pede
+ * um array mutável. Fixar o tipo aqui resolve sem `any` e sem afrouxar o
+ * `as const` do resto da escala.
+ */
+const digitosTabulares: 'tabular-nums'[] = ['tabular-nums'];
 
 /**
  * Escala do devo.nada: o dinheiro é o protagonista visual, então o número
@@ -165,8 +189,19 @@ export const typography = {
   bodyStrong: { fontSize: 16, lineHeight: 24, fontFamily: fontFamily.medium },
   title: { fontSize: 20, lineHeight: 26, fontFamily: fontFamily.bold, letterSpacing: -0.2 },
   caption: { fontSize: 13, lineHeight: 18, fontFamily: fontFamily.regular },
-  /** Número em COLUNA. Inter de propósito — ver a nota em `fontFamily`. */
-  numeric: { fontSize: 18, lineHeight: 24, fontFamily: fontFamily.bold },
+  /**
+   * Número em COLUNA. Inter de propósito — ver a nota em `fontFamily`.
+   *
+   * `fontVariant` aqui não é preferência tipográfica: sem `tnum`, "1" avança
+   * 883 e "0" avança 1381 na Inter_700Bold, e a coluna de reais escorrega a
+   * cada dígito que troca. Com a feature, os dez passam a avançar igual.
+   */
+  numeric: {
+    fontSize: 18,
+    lineHeight: 24,
+    fontFamily: fontFamily.bold,
+    fontVariant: digitosTabulares,
+  },
   /** Número protagonista de uma tela. Saldo devedor, valor justo, economia. */
   display: { fontSize: 36, lineHeight: 42, fontFamily: fontFamily.display, letterSpacing: -1 },
   /** Número de destaque dentro de card menor, e título de tela. */

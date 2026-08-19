@@ -84,11 +84,19 @@ const simboloRecuado: Record<Size, boolean> = {
  * Nos tamanhos grandes o "R$" sai menor que os dígitos, como no reference: o
  * símbolo é constante em todas as linhas e não precisa competir com o número.
  *
- * **Não há `fontVariant: ['tabular-nums']` aqui de propósito.** A garantia de
- * dígito tabular vem da FONTE — Nunito Sans tem largura fixa por padrão (ver
- * `theme.ts`) — e pedir um recurso OpenType que a família não declara é um
- * caminho conhecido para o texto cair em fonte de sistema no Android. Trocar a
- * fonte por uma proporcional quebra as colunas de valor: meça antes.
+ * **A garantia de dígito tabular não mora aqui, e sim na escala.** Ela vem da
+ * FONTE, e a medição está em `theme.ts`: a Archivo Black de `display` e
+ * `displaySm` já é tabular (os dez dígitos avançam 667 de 1000), e a Inter de
+ * `numeric` não é (1381 contra 883 entre "0" e "1"), por isso `numeric` pede
+ * `fontVariant: ['tabular-nums']` — que a Inter atende porque declara `tnum`.
+ * Pedir um recurso OpenType que a família NÃO declara é caminho conhecido para
+ * o texto cair em fonte de sistema no Android; é por isso que o pedido depende
+ * de medição, e é `npm run digits:check` que a refaz.
+ *
+ * `size="body"` continua sem tabular: ele usa `typography.body`, que é texto
+ * corrido, e figura tabular em meio a frase é justamente o que `tnum` não é
+ * para fazer. Onde `body` aparece em COLUNA — lista de parcelas, de gastos, de
+ * provisões — o alinhamento ainda depende do layout, não da fonte.
  */
 export function MoneyText({
   centavos,

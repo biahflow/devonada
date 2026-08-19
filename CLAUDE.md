@@ -47,6 +47,9 @@ Ler `docs/backend.md` antes de tocar em `backend/`. Mudança de contrato atualiz
 - Tocou em cor — token de `src/theme/theme.ts` ou combinação nova numa tela? Rode
   `npm run palette:check` e declare o par novo em `scripts/paleta-check.mjs` no mesmo commit.
   Número de contraste em documentação sai da saída do script, nunca da sua estimativa (ADR 0018).
+- Tocou em fonte — família nova, ou `typography.numeric` apontando para outro peso? Rode
+  `npm run digits:check`. Largura de dígito é fato do arquivo da fonte, não item de validação em
+  aparelho: meça, não opine.
 - Antes de encerrar, informe arquivos alterados, validações executadas e pendências.
 - Documentação desatualizada é fonte de alucinação. Mudou a estrutura de pastas, um token de
   design ou o contrato de um endpoint? Atualize o doc correspondente **no mesmo commit**.

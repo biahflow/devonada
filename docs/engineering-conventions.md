@@ -151,6 +151,7 @@ npm run lint
 npm test
 npm run bundle:check
 npm run palette:check
+npm run digits:check
 ```
 
 `bundle:check` roda `expo export` e produz o bundle de produção do grafo inteiro. É o que pega
@@ -170,6 +171,25 @@ Duas regras que vêm com ele:
   declarada de propósito — varrer todas as combinações produziria ruído que se aprende a ignorar.
 - **Número de contraste em documentação sai de `node scripts/paleta-check.mjs --tabela`**, nunca
   digitado. As três tabelas da seção 1 do `design-system.md` são a saída literal do script.
+
+`digits:check` roda `scripts/digitos-check.mjs`: lê os TTF das quatro famílias que
+`app/_layout.tsx` carrega, parseia `head`, `hhea`, `maxp`, `cmap`, `hmtx` e `GSUB` em node puro, e
+imprime a largura de avanço dos dez dígitos de cada uma. Depois confere o `typography.numeric` de
+`src/theme/theme.ts` contra essa medição e sai com código 1 se a escala do número em coluna
+depender de uma família de dígitos proporcionais sem pedir `fontVariant: ['tabular-nums']`.
+
+É o segundo lado que faz dele um gate: medir os arquivos sozinho nunca reprovaria — a Inter declara
+`tnum` e a Archivo Black já é tabular —, e gate que não pode falhar é decoração. O que pode
+regredir é o `theme.ts`.
+
+Duas regras que vêm com ele:
+
+- **Família de fonte nova entra em `FONTES_DO_APP` no mesmo commit em que entra no `useFonts`.**
+  Se `typography.numeric` apontar para uma família que o comando não mede, ele reprova em vez de
+  aprovar por omissão.
+- **Largura de dígito não é item de validação em aparelho.** Ela está gravada no TTF e é idêntica
+  em todo device. Foi classificada assim uma vez e ficou meses parada; medir custa um
+  `readFileSync`.
 
 Nenhuma verificação é desativada para concluir uma tarefa. Regra de lint que atrapalha se
 discute e se muda com justificativa — não se silencia com comentário pontual.

@@ -142,6 +142,7 @@ npm run lint         # eslint
 npm test             # jest — inclui os testes de tela
 npm run bundle:check # expo export: prova que o grafo inteiro compila
 npm run palette:check # WCAG 2.1 e CIEDE2000 dos pares declarados de src/theme/theme.ts
+npm run digits:check  # largura de dígito lida da tabela hmtx dos TTF das fontes do app
 ```
 
 ### O que cada gate pega — e o que nenhum deles pega
@@ -153,14 +154,22 @@ npm run palette:check # WCAG 2.1 e CIEDE2000 dos pares declarados de src/theme/t
 | `test` | **lógica e comportamento de tela**: ordenação errada, estado não tratado, copy que sumiu |
 | `bundle:check` | import quebrado, módulo que não resolve em arquivo que nenhum teste importa |
 | `palette:check` | par de cor abaixo do piso de contraste, e token de cor renomeado sem a lista de pares acompanhar |
+| `digits:check` | escala de número em coluna apontando para fonte de dígito proporcional sem pedir `tabular-nums` |
 
 As duas primeiras categorias se sobrepõem menos do que parece: renomear prop é `typecheck`;
 inverter uma ordem de prioridade passa por ele intacto e só o teste de tela vê.
 
 > **Nenhum gate prova que a tela está legível, bonita ou que cabe no aparelho.** Eles provam que
-> ela renderiza, reage e que as cores passam o piso de contraste — que é piso, não legibilidade. Layout, contraste percebido, comportamento de teclado e safe area em
+> ela renderiza, reage, que as cores passam o piso de contraste — que é piso, não legibilidade — e
+> que a escala do número em coluna pede o dígito tabular que a fonte é capaz de dar. Layout,
+> contraste percebido, comportamento de teclado e safe area em
 > aparelho com notch **exigem validação humana em device** — um agente não consegue fazer isso e
 > não deve afirmar que fez.
+
+Nem tudo que soa como "validação em aparelho" é. Largura de dígito parecia ser, e não era: está
+gravada na tabela `hmtx` do TTF, idêntica em todo aparelho, e ficou meses adiada por ter sido
+classificada errado. Antes de anotar algo como pendente de device, pergunte se o dado não está num
+arquivo que dá para ler daqui.
 
 Backend (rodado pelo dono do repositório, a partir de `backend/` com o venv ativo):
 
@@ -186,7 +195,8 @@ Uma tarefa só entra em execução quando:
 
 ## Definition of Done
 
-- [ ] Os cinco gates passam: `typecheck`, `lint`, `test`, `bundle:check` e `palette:check`.
+- [ ] Os seis gates passam: `typecheck`, `lint`, `test`, `bundle:check`, `palette:check` e
+      `digits:check`.
 - [ ] Nenhuma verificação foi desativada para concluir a tarefa.
 - [ ] Tela nova tem teste em `src/test/screens/` cobrindo os quatro estados.
 - [ ] O que **não** foi validado em device está dito explicitamente no relato.

@@ -263,29 +263,69 @@ fontFamily = {
 **Archivo Black nunca em texto corrido.** É display: máximo duas linhas, e em tela pequena mais do
 que isso fica ilegível.
 
-### O dígito tabular era medido, e a medição caiu junto com a fonte
+### O dígito tabular é medido, e a medição é um gate
 
-Este é o segundo débito da ADR 0015, e ele é sutil o bastante para merecer parágrafo próprio.
+Este era o segundo débito da ADR 0015. Ele está fechado, e a forma como fechou importa mais que o
+resultado.
 
-Nunito Sans não foi escolhida por desenho — foi escolhida por **medição no arquivo da fonte**:
-largura de dígito fixa, variação de 0,00px entre 0 e 9. Por isso `fontVariant: ['tabular-nums']`
-foi removido de todos os componentes: pedir recurso OpenType que a família não declara é caminho
-conhecido para o texto cair em fonte de sistema no Android. Figtree, a escolha estética mais
-próxima na época, foi descartada exatamente aqui — o "1" mede 16,5px onde o "0" mede 25,6px, e
-uma coluna de reais dançaria a cada linha.
+Nunito Sans não tinha sido escolhida por desenho — foi escolhida por **medição no arquivo da
+fonte**: largura de dígito fixa. Trocar por Inter descartou essa garantia, e o débito ficou
+anotado como **"item de validação em aparelho"**. Não era. A largura de avanço de um glifo está na
+tabela `hmtx` do TTF: é fato do arquivo, idêntico em todo aparelho que renderize aquela família, e
+se lê sem device nenhum. Chamar de "validação em aparelho" o que se responde com um `readFileSync`
+adia por meses uma medição de dez minutos — e foi o que aconteceu aqui.
 
-**Inter não foi medida.** Enquanto não for, a regra é:
+`npm run digits:check` lê os TTF direto de `node_modules/@expo-google-fonts/`, parseia `head`,
+`hhea`, `maxp`, `cmap`, `hmtx` e `GSUB` em node puro e imprime a tabela abaixo. Medido em
+**19/08/2026**:
 
-- `numeric` — o número que aparece em **coluna** (parcelas, gastos, extrato) — fica em **Inter**,
-  onde o risco é conhecido e reversível.
-- `display` e `displaySm` — o número **único e grande** de cada tela, que não se alinha com nada —
-  usam **Archivo Black**. É onde a marca pede "dinheiro é o protagonista visual", e onde o
-  desalinhamento de dígito não tem com o que desalinhar.
+| Família | unitsPerEm | "0" | "1" | Amplitude dos dez | `tnum` na GSUB | Veredito |
+|---|---|---|---|---|---|---|
+| `Inter_400Regular` | 2048 | 1292 | 833 | 490 (0,239 em) | sim | proporcional |
+| `Inter_600SemiBold` | 2048 | 1351 | 866 | 498 (0,243 em) | sim | proporcional |
+| `Inter_700Bold` | 2048 | 1381 | 883 | 502 (0,245 em) | sim | proporcional |
+| `ArchivoBlack_400Regular` | 1000 | 667 | 667 | 0 | não | **já tabular** |
 
-> **Item de validação em aparelho:** medir a largura de "0" e "1" em `Inter_700Bold`. Se
-> divergirem, `numeric` precisa de `tabular-nums` ou de uma família tabular dedicada. Até a
-> medição existir, **não promova `numeric` a Archivo Black** por estética — é assim que a coluna
-> de valores começa a dançar.
+A coluna de amplitude **não é a subtração das duas anteriores**: ela é a distância entre o dígito
+mais largo e o mais estreito dos dez, e nem sempre o mais largo é o "0". Em `Inter_700Bold` o
+extremo superior é o "4", com 1385 — por isso a amplitude é 502 e não os 498 que separam "0" de
+"1". As colunas "0" e "1" estão ali por serem o par que mais aparece lado a lado num valor.
+
+**Inter é proporcional nos três pesos.** Em `Inter_700Bold` o "1" avança 883 onde o "0" avança
+1381. Numa coluna de reais a 18px isso é cerca de 4,4px de deslocamento por dígito "1" que entra
+ou sai da linha, e o extrato inteiro escorrega quando um valor cruza R$ 1.000,00. Os dez dígitos
+divergem entre si, não só o "1".
+
+**Archivo Black já é tabular**: os dez avançam 667 de 1000, amplitude zero. `display` e
+`displaySm` não precisam pedir nada — o que é bom, porque ela também **não** declara `tnum`, e
+pedir a uma família um recurso OpenType que ela não tem é caminho conhecido para o texto cair em
+fonte de sistema no Android.
+
+A correção, então, é uma linha só, em `typography.numeric`:
+
+```ts
+numeric: { fontSize: 18, lineHeight: 24, fontFamily: fontFamily.bold, fontVariant: ['tabular-nums'] }
+```
+
+Ela é legítima porque a **Inter declara `tnum`** na `GSUB` — verificado na mesma leitura, ao lado
+de `pnum` e `zero`. É a medição que autoriza o pedido; sem ela seria exatamente o chute que
+derrubou Figtree na paleta anterior.
+
+Segue valendo, e agora por medição e não por precaução: **não promova `numeric` a Archivo Black**
+por estética. Ela é display, ilegível em texto corrido e em tela pequena.
+
+> **O que a medição NÃO prova.** Que o `tnum` chegou à tela. O gate lê o arquivo da fonte e lê o
+> `theme.ts`; ele não renderiza nada. Que a coluna de fato para de dançar em aparelho — e que a
+> família chegou a carregar antes de o app desenhar — continua sendo **validação humana em
+> device**, como em todo o M1.5–M9.
+
+O gate tem dois lados, e é o segundo que o faz poder reprovar. Medir os TTF sozinho nunca falharia
+(a Inter tem `tnum`, a Archivo Black já é tabular), e gate que não pode falhar é decoração. Então
+ele também confere o `typography.numeric` do `theme.ts` contra a medição: se a escala da coluna de
+reais usar uma família de dígitos proporcionais **e** não pedir `tabular-nums`, ele sai 1. É a
+regressão que de fato pode acontecer — alguém remove o `fontVariant`, ou aponta `numeric` para
+outra família — e é o mesmo erro que a ADR 0010 cometeu ao deixar o validador de paleta fora do
+repositório: medição sem comando que quebre é medição que morre em silêncio (ADR 0018).
 
 ### Escala
 
@@ -297,7 +337,7 @@ humanista, e apertar o espacejamento dela desfaz o ar que é a característica d
 | `display` | Archivo Black | 36 / 42 | −1,0 | número protagonista de uma tela |
 | `displaySm` | Archivo Black | 26 / 32 | −0,6 | número de destaque em card |
 | `title` | Inter 700 | 20 / 26 | −0,2 | título de tela, seção e estado vazio |
-| `numeric` | Inter 700 | 18 / 24 | — | valor monetário **em coluna** |
+| `numeric` | Inter 700 | 18 / 24 | — | valor monetário **em coluna** — único com `tabular-nums` |
 | `body` / `bodyStrong` | Inter 400 / 600 | 16 / 24 | — | corpo |
 | `caption` | Inter 400 | 13 / 18 | — | legenda, unidade, contexto |
 | `eyebrow` | Inter 700 | 11 / 14 | +1,6 | rótulo acima do título, em maiúsculas |
@@ -460,8 +500,9 @@ jamais sugere que o usuário errou ao contrair a dívida.
 **`MoneyText`** — exibe centavos via `formatBRL`. Props `size`
 (`body | numeric | displaySm | display`) e `tone`
 (`ink | inkSoft | accent | onPrimary | warning | debt`). Nos dois tamanhos grandes o `R$` sai a
-62% do corpo dos dígitos. **Não aplica `fontVariant`** — ver o débito de dígito tabular na
-seção 3.
+62% do corpo dos dígitos. **Não aplica `fontVariant` por conta própria**: o dígito tabular vem da
+escala, não do componente — `typography.numeric` pede `tabular-nums` e `display`/`displaySm` não
+precisam, porque a Archivo Black já é tabular. Ver seção 3.
 
 ---
 

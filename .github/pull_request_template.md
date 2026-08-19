@@ -37,6 +37,7 @@ O que muda, do ponto de vista do usuário.
 - [ ] `npm run bundle:check`
 - [ ] `npm run palette:check` — e toda combinação de cor nova entrou na lista de
       `scripts/paleta-check.mjs`
+- [ ] `npm run digits:check` — e família de fonte nova entrou em `scripts/digitos-check.mjs`
 - [ ] Tela nova tem teste em `src/test/screens/` cobrindo os quatro estados
 
 Validação humana — os gates acima **não** substituem isto:
