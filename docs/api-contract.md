@@ -324,6 +324,8 @@ Response `200`:
     "totalQuitadoNoAno": 320000,
     "quantidadeDividas": 7,
     "custoMedioJurosMensal": 380,
+    "custoDiarioJuros": 4100,
+    "quantidadeDividasSemTaxa": 2,
     "rendaMensal": 550000,
     "comprometimentoRenda": 2200,
     "minimoExistencial": 180000,
@@ -349,20 +351,50 @@ Unidades, sem exceção:
 | Campo | Unidade |
 |---|---|
 | `totalDevido`, `totalQuitadoNoAno`, `rendaMensal`, `minimoExistencial`, `margemDisponivel`, `total`, `valor`, `saldo` | centavos |
+| `custoDiarioJuros` | centavos **por dia** (`4100` = R$ 41,00/dia) |
 | `custoMedioJurosMensal`, `comprometimentoRenda` | basis points (`2200` = 22,00%) |
-| `quantidadeDividas`, `quantidade` | contagem |
+| `quantidadeDividas`, `quantidade`, `quantidadeDividasSemTaxa` | contagem |
 
 `rendaMensal`, `comprometimentoRenda`, `minimoExistencial` e `margemDisponivel` são opcionais —
 se o usuário ainda não informou a renda, vêm ausentes e o painel exibe um convite a preencher,
 não um zero.
 
-> **Campo pedido e ainda não existente: `custoDiarioJuros`** (centavos, opcional). O card do buddy
-> na Rota quer dizer "essa dívida cresce R$ 41 por dia" — é a frase mais concreta que a tela
-> poderia ter, e concretude é o que o `guardrails.md`, seção 4, pede da copy. Mas o número é
-> `saldo × taxa ÷ 30`: valor derivado, e o guardrail 1.2 proíbe o cliente produzi-lo. Enquanto o
-> campo não existir, **o card simplesmente não diz a frase** — `src/util/proximaAcao.ts` registra
-> a ausência no docstring em vez de improvisar a conta. Ausente quando a dívida não tem taxa
-> informada, pela mesma disciplina de `valorCorrigido`.
+> **`custoDiarioJuros` e `quantidadeDividasSemTaxa` andam JUNTOS** (M10). O card do buddy na Rota
+> diz "essa dívida cresce R$ 41 por dia" — a frase mais concreta que a tela poderia ter, e
+> concretude é o que o `guardrails.md`, seção 4, pede da copy. O número é valor derivado, e o
+> guardrail 1.2 proíbe o cliente produzi-lo: quem calcula é
+> `backend/domain/resumo.py::custo_diario_juros`, e o docstring de lá é a fonte de verdade sobre
+> o método.
+>
+> | | |
+> |---|---|
+> | **Fórmula** | Σ (`saldo` × `taxaJurosMensal`) ÷ **30**, sobre as dívidas ATIVAS com taxa conhecida |
+> | **Unidade** | centavos por dia, inteiro, `ROUND_HALF_UP` aplicado **uma vez** sobre a soma |
+> | **Ausente (`null`)** | nenhuma dívida ativa tem taxa informada — não há o que calcular |
+> | **Zero** | a conta deu zero: taxa 0% informada, ou juros abaixo de um centavo ao dia. **Não** é o mesmo que ausente |
+>
+> **Três escolhas de MÉTODO, nossas, não do contrato do usuário e não da lei** — nenhuma lei fixa
+> custo diário, e é por isso que elas ficam declaradas em vez de passarem por regra financeira dele:
+>
+> 1. **Divisor 30 (mês comercial) e divisão simples.** O contrato fixa juro mensal; decompô-lo é
+>    aritmética, mas 31, 28 ou 30,44 dariam outro número, e a taxa diária equivalente composta
+>    daria um número menor. O resultado é **ordem de grandeza**, não valor exigível — não é o que
+>    o credor cobra por um dia de atraso.
+> 2. **Base = o mesmo `saldo` de `custoMedioJurosMensal`**, que a rota preenche com `valorCobrado`.
+>    Bases diferentes fariam o mesmo payload carregar dois números de juros que não fecham.
+> 3. **Agregado, não por dívida.** Soma as ativas com taxa; dívida sem taxa é ignorada, **nunca
+>    tratada como 0%** — tratá-la como zero afirmaria que ela não cresce.
+>
+> **A consequência da escolha 3 é que o agregado SUBESTIMA**, e ela não passa em silêncio:
+> `quantidadeDividasSemTaxa` conta quantas ficaram de fora e viaja no mesmo payload. Maior que
+> zero ⇒ o número é **piso**, e a tela diz "cresce pelo menos R$ 41,00 por dia — 2 dívidas ainda
+> estão sem a taxa cadastrada". É a mesma disciplina de `dividasSemTaxa` na simulação (M4), que
+> nomeia o que ficou de fora em vez de esconder que o prazo saiu otimista.
+>
+> **O cliente exige os DOIS campos para dizer a frase.** Sem a contagem não dá para saber se o
+> número é total ou piso, e piso anunciado como total é a subestimação silenciosa que este par
+> existe para impedir. Sem `custoDiarioJuros`, ou com ele em zero, o card diz o que já dizia —
+> nunca "R$ 0,00 por dia". Ver `src/util/proximaAcao.ts`.
 
 > **De onde sai a renda deste resumo** (M7.2). O caixa é a fonte; o perfil é fallback — o mesmo
 > caminho de `POST /v1/dividas/simulacoes`. `rendaMensal` é a renda **líquida** da cascata do

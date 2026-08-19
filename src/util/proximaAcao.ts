@@ -1,4 +1,5 @@
 import type { CriticidadeTipo, ResumoDividas } from '../api/types';
+import { formatBRL } from './money';
 
 export interface ProximaAcao {
   texto: string;
@@ -16,12 +17,13 @@ export interface ProximaAcao {
  * modelo, não há conta e não há número novo: só escolha de qual fato, dentre os
  * que o backend já mandou, merece a atenção de hoje.
  *
- * O QUE ESTA FUNÇÃO NÃO FAZ, e a ausência é o ponto: ela não diz "essa dívida
- * cresce R$ 41 por dia". Esse número é `saldo × taxa ÷ 30` — valor derivado, e
- * o guardrail 1.2 proíbe o cliente produzi-lo. Ele é a frase mais forte que o
- * card poderia ter, e por isso está anotado em `docs/api-contract.md` como
- * campo a pedir ao backend (`custoDiarioJuros` no resumo), não improvisado
- * aqui.
+ * O QUE ESTA FUNÇÃO CONTINUA NÃO FAZENDO, e é o ponto: ela não CALCULA "essa
+ * dívida cresce R$ 41 por dia". Esse número é `saldo × taxa ÷ 30` — valor
+ * derivado, e o guardrail 1.2 proíbe o cliente produzi-lo. O que mudou no M10
+ * foi só a origem: o campo passou a existir no servidor
+ * (`custoDiarioJuros`, em `backend/domain/resumo.py`, com as três escolhas de
+ * método declaradas lá), e aqui ele é lido, formatado e dito. Se um dia o campo
+ * sumir do payload, a frase some junto — nunca é reconstruída daqui.
  *
  * A ordem de prioridade segue a de ataque (`src/util/dividas.ts`) com uma
  * exceção: atraso vem antes de tudo. Uma parcela vencida tem consequência de
@@ -29,6 +31,53 @@ export interface ProximaAcao {
  * a criticidade descreve um custo que corre todo mês.
  */
 export function proximaAcao(resumo: ResumoDividas): ProximaAcao {
+  const acao = acaoSugerida(resumo);
+  const crescimento = fraseDoCrescimento(resumo);
+  return crescimento ? { ...acao, texto: `${crescimento} ${acao.texto}` } : acao;
+}
+
+/**
+ * A frase concreta do custo diário — ou `null`, que é a resposta sempre que o
+ * servidor não mandou os dois campos de que ela depende.
+ *
+ * DOIS CAMPOS, não um. `custoDiarioJuros` soma só as dívidas COM taxa
+ * conhecida; `quantidadeDividasSemTaxa` diz quantas ficaram de fora. Com a
+ * contagem em zero o número é o total e a frase o afirma; com a contagem
+ * positiva ele é um PISO e a frase diz "pelo menos", nomeando o que falta. Sem
+ * a contagem não dá para saber qual dos dois é — e piso anunciado como total é
+ * exatamente a subestimação silenciosa que este par existe para impedir.
+ *
+ * `typeof !== 'number'` em vez de `!== undefined` porque ausência trafega como
+ * `null` no JSON, e `null !== undefined` é verdadeiro: passar `null` adiante
+ * faria `formatBRL` imprimir "R$ 0,00 por dia", que é a afirmação falsa mais
+ * cara que este card poderia fazer.
+ *
+ * Zero também não vira frase. O servidor manda zero quando a taxa informada é
+ * zero ou quando os juros não chegam a um centavo ao dia; nos dois casos
+ * "cresce R$ 0,00 por dia" não é a frase mais forte do card — é ruído, e no
+ * segundo caso é falso.
+ *
+ * A copy descreve a DÍVIDA, nunca a pessoa. Ela cresce porque juro é juro, não
+ * porque alguém foi descuidado, e o card existe para levar à ação seguinte —
+ * não para cobrar o passado (guardrail 4).
+ */
+function fraseDoCrescimento(resumo: ResumoDividas): string | null {
+  const centavos = resumo.custoDiarioJuros;
+  const semTaxa = resumo.quantidadeDividasSemTaxa;
+  if (typeof centavos !== 'number' || typeof semTaxa !== 'number') return null;
+  if (centavos <= 0) return null;
+
+  if (semTaxa === 0) {
+    return `Hoje, sua dívida cresce ${formatBRL(centavos)} por dia.`;
+  }
+
+  const faltando =
+    semTaxa === 1 ? '1 dívida ainda está' : `${semTaxa} dívidas ainda estão`;
+  return `Hoje, sua dívida cresce pelo menos ${formatBRL(centavos)} por dia — ${faltando} sem a taxa cadastrada.`;
+}
+
+/** A ação em si, escolhida entre os fatos que o backend já mandou. */
+function acaoSugerida(resumo: ResumoDividas): ProximaAcao {
   const atrasada = resumo.proximosVencimentos.find((v) => v.situacao === 'atrasada');
   if (atrasada) {
     return {

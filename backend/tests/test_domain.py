@@ -9,7 +9,9 @@ from domain.resumo import (
     ParcelaEstimada,
     comprometimento_mensal,
     comprometimento_renda_bps,
+    custo_diario_juros,
     custo_medio_juros_mensal,
+    dividas_sem_taxa,
 )
 
 
@@ -114,6 +116,74 @@ class TestCustoMedioJuros:
 
     def test_lista_vazia(self):
         assert custo_medio_juros_mensal([]) is None
+
+
+class TestCustoDiarioJuros:
+    def test_divide_os_juros_do_mes_pelo_mes_comercial(self):
+        # R$ 1.000,00 a 3% a.m. = R$ 30,00 de juros no mês; ÷ 30 = R$ 1,00 ao dia.
+        assert custo_diario_juros([ParcelaEstimada(100000, None, 300, 100000)]) == 100
+
+    def test_soma_as_ativas_com_taxa(self):
+        itens = [
+            ParcelaEstimada(100000, None, 300, 100000),  # R$ 1,00/dia
+            ParcelaEstimada(200000, None, 150, 200000),  # R$ 1,00/dia
+        ]
+        assert custo_diario_juros(itens) == 200
+
+    def test_ignora_divida_sem_taxa_em_vez_de_tratar_como_zero(self):
+        # Tratar a sem taxa como 0% afirmaria que ela não cresce. Ela sai da
+        # conta e é CONTADA em `dividas_sem_taxa`, que viaja no mesmo payload.
+        itens = [
+            ParcelaEstimada(100000, None, 300, 100000),
+            ParcelaEstimada(9000000, None, None, 9000000),
+        ]
+        assert custo_diario_juros(itens) == 100
+        assert dividas_sem_taxa(itens) == 1
+
+    def test_sem_nenhuma_taxa_devolve_none(self):
+        # None é "não há taxa para calcular". Zero aqui seria a afirmação falsa
+        # de que a dívida não cresce — o mesmo erro do `valorCobrado * 1.1`,
+        # invertido de sinal.
+        assert custo_diario_juros([ParcelaEstimada(1000000, None, None, 1000000)]) is None
+
+    def test_lista_vazia(self):
+        assert custo_diario_juros([]) is None
+
+    def test_taxa_zero_informada_devolve_zero_e_nao_none(self):
+        # Taxa 0% INFORMADA é dado, não ausência: a dívida de fato não cresce.
+        assert custo_diario_juros([ParcelaEstimada(100000, None, 0, 100000)]) == 0
+
+    def test_arredonda_meio_para_cima_como_o_resto_do_dominio(self):
+        # R$ 15,00 a 1% a.m. = R$ 0,15 no mês; ÷ 30 = meio centavo ao dia.
+        assert custo_diario_juros([ParcelaEstimada(1500, None, 100, 1500)]) == 1
+
+    def test_arredonda_a_soma_e_nao_divida_a_divida(self):
+        # Cada uma cresce 0,4 centavo ao dia. Arredondar antes de somar daria
+        # zero três vezes e apagaria 1,2 centavo — o erro que se acumula quando
+        # a carteira é grande.
+        itens = [ParcelaEstimada(1200, None, 100, 1200) for _ in range(3)]
+        assert custo_diario_juros(itens) == 1
+
+
+class TestDividasSemTaxa:
+    def test_conta_as_sem_taxa(self):
+        itens = [
+            ParcelaEstimada(100000, None, 300, 100000),
+            ParcelaEstimada(100000, None, None, 100000),
+            ParcelaEstimada(100000, None, None, 100000),
+        ]
+        assert dividas_sem_taxa(itens) == 2
+
+    def test_todas_com_taxa_devolve_zero(self):
+        # Zero é o que autoriza a tela a dizer o número como TOTAL, e não como
+        # piso. Se esta contagem mentir, a frase do card mente junto.
+        assert dividas_sem_taxa([ParcelaEstimada(100000, None, 300, 100000)]) == 0
+
+    def test_taxa_zero_nao_conta_como_sem_taxa(self):
+        assert dividas_sem_taxa([ParcelaEstimada(100000, None, 0, 100000)]) == 0
+
+    def test_lista_vazia(self):
+        assert dividas_sem_taxa([]) == 0
 
 
 class TestComprometimento:

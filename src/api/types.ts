@@ -208,6 +208,27 @@ export interface ResumoDividas {
   /** basis points (380 = 3,80% a.m.) */
   custoMedioJurosMensal?: number;
 
+  /**
+   * Em centavos POR DIA — quanto o endividamento cresce em um dia.
+   *
+   * Calculado em `backend/domain/resumo.py`, que declara no docstring as três
+   * escolhas de método por trás dele (divisor 30, base do saldo, agregado). O
+   * app NÃO deriva este número, nem parcialmente: `saldo × taxa ÷ 30` é valor
+   * derivado e o guardrail 1.2 proíbe o cliente produzi-lo.
+   *
+   * Ausente = nenhuma dívida ativa tem taxa informada, e o card não diz a frase.
+   */
+  custoDiarioJuros?: number;
+  /**
+   * Contagem — quantas ativas estão sem taxa conhecida.
+   *
+   * Maior que zero ⇒ `custoDiarioJuros` é PISO, não total, porque as sem taxa
+   * ficam de fora da soma. Os dois campos andam juntos: sem esta contagem, a
+   * tela não sabe se pode dizer o número como total, e um piso anunciado como
+   * total é subestimação silenciosa.
+   */
+  quantidadeDividasSemTaxa?: number;
+
   rendaMensal?: number;
   /** basis points (2200 = 22,00% da renda) */
   comprometimentoRenda?: number;
