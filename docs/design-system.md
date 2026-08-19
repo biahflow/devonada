@@ -97,8 +97,32 @@ usuário:
 | dívida | `debt` | há saldo devedor |
 | negociando | `warning` | a última dívida está em acordo |
 | devo nada | `primary` | acabou |
+| **neutro** | `inkSoft` | **conta nova, nenhuma dívida cadastrada** |
+
+**São quatro, e o brand board fala em três.** `neutro` é o que o código acrescentou, e a razão é
+que sem ele o ponto NASCE VERDE: quem acabou de criar a conta não tem dívida, `totalDevido` é
+zero, e a regra "zero ⇒ quitado" daria os parabéns por uma corrida que a pessoa nem começou. Verde
+é conquista — só aparece para quem teve dívida e zerou. Ver `src/util/estadoDaRota.ts`.
+
+`negociando` **ainda não é produzido**: `SituacaoDivida` é `ativa | quitada | renegociada`, e
+nenhum desses significa "há acordo em andamento". Entra com o registro de resultado de negociação,
+no M12. A ausência está declarada no código em vez de inferida de `renegociada`, que afirmaria um
+fato que o banco não tem.
 
 O ícone do app pode refletir isso via ícone alternativo — nice-to-have pós-MVP, não requisito.
+
+### Área de respiro
+
+**A margem mínima ao redor do wordmark é a altura da letra "d"** — regra do [brand board](marca/brand-board-v1.html), e ela
+virou número por medição: **737 de 1000 unidades de em** em `ArchivoBlack_400Regular`, lido da
+tabela `glyf` por `medirGlifo` (`scripts/fonte.js`). Não foi estimado pelo `fontSize`.
+
+O `Brand` carrega esse respiro como padding próprio, então a regra vale por construção — quem
+monta a tela não precisa lembrar dela. O `marginLeft` negativo que acompanha o padding separa as
+duas coisas que a regra mistura: **área de proteção é restrição sobre os vizinhos, não
+deslocamento do logo.** Sem ele o wordmark recua para dentro e perde o prumo com o título da tela;
+com ele, a borda esquerda do texto volta à coluna e a zona morta à esquerda cai sobre a margem da
+tela, que já é vazia. Em cima, embaixo e à direita ela vale de verdade.
 
 ### Cor de categoria
 
@@ -257,6 +281,19 @@ fontFamily = {
 
 **Archivo Black nunca em texto corrido.** É display: máximo duas linhas, e em tela pequena mais do
 que isso fica ilegível.
+
+**"Números · Archivo Black", do brand board, vale para o número PROTAGONISTA — não para número em
+coluna.** O board não faz essa distinção porque os exemplos dele são todos de destaque ("R$ 12.480
+quitados este mês"); o app faz, e a razão está medida logo abaixo:
+
+| Onde | Escala | Família | Por quê |
+|---|---|---|---|
+| Número protagonista de uma tela — saldo devedor, valor justo, economia | `display` · `displaySm` | Archivo Black | é o número da marca, e a fonte já é tabular por natureza (amplitude zero) |
+| Número em COLUNA — parcelas, extrato, lista de gastos | `numeric` | Inter Bold + `tabular-nums` | precisa alinhar linha a linha, e Inter só fica tabular quando se pede |
+
+Se um dia a coluna migrar para Archivo Black, ela ganha o dígito tabular de graça — mas perde a
+legibilidade em 18px, que é o tamanho de `numeric`. A escolha atual é essa troca, feita com o
+número na mão e não por gosto.
 
 ### O dígito tabular é medido, e a medição é um gate
 

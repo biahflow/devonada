@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>devo.nada — brand board v1</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&display=swap');
+
+:root{
+  --grafite:#101216;
+  --grafite-2:#181B21;
+  --papel:#F2F2ED;
+  --vermelho:#E5352B;
+  --ambar:#F0A31C;
+  --verde:#1FC16B;
+  --cinza:#8A8F98;
+  --linha:#262A31;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+body{
+  background:var(--grafite);
+  color:var(--papel);
+  font-family:'Inter',system-ui,sans-serif;
+  line-height:1.6;
+}
+.wrap{max-width:960px;margin:0 auto;padding:0 24px}
+section{padding:72px 0;border-bottom:1px solid var(--linha)}
+.eyebrow{
+  font-size:12px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--cinza);font-weight:600;margin-bottom:20px;
+}
+h2{font-family:'Archivo Black',sans-serif;font-size:clamp(24px,4vw,34px);margin-bottom:12px;font-weight:400}
+.lead{color:var(--cinza);max-width:60ch;margin-bottom:32px}
+.lead strong{color:var(--papel)}
+
+/* ---------- HERO ---------- */
+.hero{padding:110px 0 90px;text-align:left;border-bottom:1px solid var(--linha)}
+.wordmark{
+  font-family:'Archivo Black',sans-serif;
+  font-size:clamp(52px,11vw,116px);
+  letter-spacing:-0.03em;
+  line-height:1;
+}
+.dot{color:var(--vermelho);transition:color 1.2s ease}
+body.quitado .dot{color:var(--verde)}
+.hero .tag{margin-top:28px;font-size:17px;color:var(--cinza);max-width:52ch}
+.hero .tag em{color:var(--papel);font-style:normal;font-weight:600}
+
+/* ---------- LOGO VARIATIONS ---------- */
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.card{
+  background:var(--grafite-2);border:1px solid var(--linha);
+  border-radius:14px;padding:36px 28px;display:flex;
+  flex-direction:column;align-items:center;justify-content:center;
+  min-height:190px;gap:14px;
+}
+.card .label{font-size:12px;color:var(--cinza);letter-spacing:.1em;text-transform:uppercase;font-weight:600}
+.lg{font-family:'Archivo Black',sans-serif;letter-spacing:-0.03em}
+.lg-primary{font-size:42px}
+.lg-stack{font-size:38px;line-height:1.05;text-align:center}
+.card.on-paper{background:var(--papel)}
+.card.on-paper .lg{color:var(--grafite)}
+.app-icon{
+  width:96px;height:96px;border-radius:24px;background:var(--grafite);
+  border:1px solid var(--linha);
+  display:flex;align-items:center;justify-content:center;
+}
+.app-icon .big-dot{
+  width:34px;height:34px;border-radius:50%;background:var(--vermelho);
+  transition:background 1.2s ease;
+}
+body.quitado .app-icon .big-dot{background:var(--verde)}
+.dots-row{display:flex;gap:26px;align-items:center}
+.state{display:flex;flex-direction:column;align-items:center;gap:8px;font-size:12px;color:var(--cinza)}
+.state span.d{width:22px;height:22px;border-radius:50%;display:block}
+
+/* ---------- PALETTE ---------- */
+.swatches{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px}
+.sw{border-radius:14px;overflow:hidden;border:1px solid var(--linha)}
+.sw .color{height:96px}
+.sw .info{background:var(--grafite-2);padding:12px 14px}
+.sw .name{font-weight:600;font-size:14px}
+.sw .hex{font-size:12px;color:var(--cinza);font-family:ui-monospace,monospace}
+.sw .use{font-size:12px;color:var(--cinza);margin-top:4px}
+
+/* ---------- TYPE ---------- */
+.spec{border-left:2px solid var(--linha);padding-left:22px;margin-bottom:30px}
+.spec .who{font-size:12px;color:var(--cinza);letter-spacing:.1em;text-transform:uppercase;font-weight:600;margin-bottom:8px}
+.t-display{font-family:'Archivo Black',sans-serif;font-size:clamp(30px,5vw,44px);letter-spacing:-0.02em;line-height:1.1}
+.t-body{font-size:17px;max-width:56ch}
+.t-num{font-family:'Archivo Black',sans-serif;font-size:34px;letter-spacing:-0.02em}
+.t-num small{font-family:'Inter';font-size:13px;color:var(--cinza);font-weight:500;letter-spacing:0}
+
+/* ---------- APP DEMO ---------- */
+.demo-wrap{display:flex;flex-wrap:wrap;gap:36px;align-items:flex-start}
+.phone{
+  width:290px;background:var(--grafite-2);border:1px solid var(--linha);
+  border-radius:28px;padding:22px 18px;flex-shrink:0;
+}
+.phone .ph-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.phone .ph-logo{font-family:'Archivo Black',sans-serif;font-size:17px;letter-spacing:-0.02em}
+.balance small{display:block;font-size:11px;color:var(--cinza);letter-spacing:.1em;text-transform:uppercase;font-weight:600}
+.balance .val{
+  font-family:'Archivo Black',sans-serif;font-size:32px;letter-spacing:-0.02em;
+  color:var(--vermelho);transition:color 1.2s ease;
+}
+body.quitado .balance .val{color:var(--verde)}
+.debt{
+  background:var(--grafite);border:1px solid var(--linha);border-radius:14px;
+  padding:14px;margin-top:12px;
+}
+.debt .d-top{display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px}
+.debt .d-top b{font-weight:600}
+.debt .d-top span{color:var(--cinza)}
+.bar{height:7px;background:#22262D;border-radius:99px;overflow:hidden}
+.bar i{
+  display:block;height:100%;border-radius:99px;
+  background:var(--vermelho);
+  transition:width 1.2s ease,background 1.2s ease;
+}
+body.quitado .bar i{width:100%!important;background:var(--verde)}
+.d-status{font-size:11px;margin-top:8px;color:var(--vermelho);font-weight:600;transition:color 1.2s ease}
+body.quitado .d-status{color:var(--verde)}
+body.quitado .d-status::after{content:" · quitada ✓"}
+.demo-note{flex:1;min-width:260px}
+.toggle{
+  margin-top:22px;display:inline-flex;align-items:center;gap:12px;
+  background:var(--grafite-2);border:1px solid var(--linha);
+  border-radius:99px;padding:10px 20px;cursor:pointer;
+  font-family:'Inter';font-weight:600;font-size:14px;color:var(--papel);
+}
+.toggle:hover{border-color:var(--cinza)}
+.toggle:focus-visible{outline:2px solid var(--verde);outline-offset:2px}
+.toggle .knob{
+  width:16px;height:16px;border-radius:50%;background:var(--vermelho);
+  transition:background 1.2s ease;
+}
+body.quitado .toggle .knob{background:var(--verde)}
+
+/* ---------- DO / DON'T ---------- */
+.dd{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.dd .box{border-radius:14px;padding:22px;border:1px solid var(--linha)}
+.dd .bad{background:var(--vermelho);color:#fff}
+.dd .good{background:var(--grafite-2)}
+.dd .verdict{font-weight:700;font-size:13px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px;display:block}
+.dd .bad .verdict{color:#fff}
+.dd .good .verdict{color:var(--verde)}
+.dd p{font-size:14px}
+.dd .bad p{color:rgba(255,255,255,.9)}
+.dd .good p{color:var(--cinza)}
+
+/* ---------- SPECS ---------- */
+.specs{background:var(--grafite-2);border:1px solid var(--linha);border-radius:14px;padding:26px;font-size:14px}
+.specs h3{font-size:14px;letter-spacing:.1em;text-transform:uppercase;color:var(--cinza);margin-bottom:14px}
+.specs ul{list-style:none}
+.specs li{padding:9px 0;border-bottom:1px solid var(--linha);display:flex;gap:14px}
+.specs li:last-child{border:none}
+.specs li b{min-width:150px;font-weight:600;flex-shrink:0}
+.specs li span{color:var(--cinza)}
+.prompt{
+  margin-top:18px;background:var(--grafite);border:1px dashed var(--linha);
+  border-radius:12px;padding:18px;font-family:ui-monospace,monospace;
+  font-size:13px;color:var(--cinza);line-height:1.7;
+}
+footer{padding:48px 0;color:var(--cinza);font-size:13px}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Brand board · v1 · agosto 2026</div>
+    <div class="wordmark">devo<span class="dot">.</span>nada</div>
+    <p class="tag">O ponto divide o nome em duas frases: <em>"Devo. Nada."</em> — pergunta e resposta. É a declaração de vitória do usuário, e o único lugar da marca onde a cor de status aparece.</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <div class="eyebrow">01 · Logo</div>
+    <h2>O ponto é a marca</h2>
+    <p class="lead">Wordmark sempre em caixa baixa, sem espaços. O ponto muda de cor conforme o estado financeiro — <strong>vermelho enquanto há dívida, verde quando zera</strong>. Nenhum outro elemento do logo muda nunca.</p>
+    <div class="grid g2">
+      <div class="card">
+        <div class="lg lg-primary">devo<span class="dot">.</span>nada</div>
+        <div class="label">Principal · fundo grafite</div>
+      </div>
+      <div class="card on-paper">
+        <div class="lg lg-primary">devo<span class="dot">.</span>nada</div>
+        <div class="label" style="color:#6B6F76">Invertida · fundo papel</div>
+      </div>
+      <div class="card">
+        <div class="lg lg-stack">devo<span class="dot">.</span><br>nada</div>
+        <div class="label">Empilhada · formatos quadrados</div>
+      </div>
+      <div class="card">
+        <div class="app-icon"><div class="big-dot"></div></div>
+        <div class="label">Ícone do app · só o ponto</div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <div class="dots-row">
+        <div class="state"><span class="d" style="background:var(--vermelho)"></span>com dívida</div>
+        <div class="state"><span class="d" style="background:var(--ambar)"></span>negociando</div>
+        <div class="state"><span class="d" style="background:var(--verde)"></span>devo nada</div>
+      </div>
+      <div class="label">Os três estados do ponto</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="eyebrow">02 · Paleta</div>
+    <h2>Vermelho é status, nunca cenário</h2>
+    <p class="lead">A base é grafite (app) e papel (marketing). As cores de status ocupam no máximo <strong>10% de qualquer tela</strong> — e a jornada do usuário é literalmente ver o vermelho desaparecer da interface.</p>
+    <div class="swatches">
+      <div class="sw"><div class="color" style="background:#101216"></div><div class="info"><div class="name">Grafite</div><div class="hex">#101216</div><div class="use">Fundo do app</div></div></div>
+      <div class="sw"><div class="color" style="background:#F2F2ED"></div><div class="info"><div class="name">Papel</div><div class="hex">#F2F2ED</div><div class="use">Fundo claro / social</div></div></div>
+      <div class="sw"><div class="color" style="background:#E5352B"></div><div class="info"><div class="name">Vermelho dívida</div><div class="hex">#E5352B</div><div class="use">Só status. Nunca fundo</div></div></div>
+      <div class="sw"><div class="color" style="background:#F0A31C"></div><div class="info"><div class="name">Âmbar negociação</div><div class="hex">#F0A31C</div><div class="use">Acordo em andamento</div></div></div>
+      <div class="sw"><div class="color" style="background:#1FC16B"></div><div class="info"><div class="name">Verde quitado</div><div class="hex">#1FC16B</div><div class="use">Vitória, progresso, CTA</div></div></div>
+      <div class="sw"><div class="color" style="background:#8A8F98"></div><div class="info"><div class="name">Cinza apoio</div><div class="hex">#8A8F98</div><div class="use">Texto secundário</div></div></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="eyebrow">03 · Tipografia</div>
+    <h2>Grossa no título, limpa no resto</h2>
+    <div class="spec">
+      <div class="who">Display · Archivo Black</div>
+      <div class="t-display">Saí de R$ 42 mil<br>pra devo nada.</div>
+    </div>
+    <div class="spec">
+      <div class="who">Corpo e interface · Inter</div>
+      <p class="t-body">Ligou pro banco com o script pronto e fechou 68% de desconto no rotativo. Próxima da fila: o consignado. Frases curtas, voz ativa, sem juridiquês — a marca fala como um amigo que entende de dinheiro.</p>
+    </div>
+    <div class="spec">
+      <div class="who">Números · Archivo Black</div>
+      <div class="t-num">R$ 12.480 <small>quitados este mês</small></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="eyebrow">04 · O princípio na prática</div>
+    <h2>A tela nunca é vermelha</h2>
+    <div class="demo-wrap">
+      <div class="phone">
+        <div class="ph-head">
+          <div class="ph-logo">devo<span class="dot">.</span>nada</div>
+        </div>
+        <div class="balance">
+          <small>Falta quitar</small>
+          <div class="val" id="bal">R$ 18.340</div>
+        </div>
+        <div class="debt">
+          <div class="d-top"><b>Cartão rotativo</b><span>Banco X</span></div>
+          <div class="bar"><i style="width:62%"></i></div>
+          <div class="d-status">62% quitado</div>
+        </div>
+        <div class="debt">
+          <div class="d-top"><b>Empréstimo pessoal</b><span>Fintech Y</span></div>
+          <div class="bar"><i style="width:31%"></i></div>
+          <div class="d-status">31% quitado</div>
+        </div>
+      </div>
+      <div class="demo-note">
+        <p class="lead" style="margin-bottom:0">O fundo grafite é calmo — quem abre o app já está ansioso, a interface não pode gritar. O vermelho aparece só no saldo e nas barras. Conforme a pessoa quita, <strong>a cor vai virando verde na frente dela</strong>. Aperta pra ver:</p>
+        <button class="toggle" id="btn" type="button">
+          <span class="knob"></span>
+          <span id="btn-txt">Simular quitação total</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="eyebrow">05 · Regras rápidas</div>
+    <h2>Faça / não faça</h2>
+    <div class="dd">
+      <div class="box bad">
+        <span class="verdict">✕ Nunca</span>
+        <p>Tela ou post com fundo vermelho. Isto aqui é o que o usuário sente quando o banco liga. A marca existe pra ser o oposto disso.</p>
+      </div>
+      <div class="box good">
+        <span class="verdict">✓ Sempre</span>
+        <p>Base neutra, vermelho em dose pequena e com propósito (é dívida, e só dívida). Verde é a única cor que pode celebrar.</p>
+      </div>
+      <div class="box good">
+        <span class="verdict">✓ Sempre</span>
+        <p>Wordmark em caixa baixa. Não separar "devo nada" com espaço na marca — o ponto é obrigatório.</p>
+      </div>
+      <div class="box good">
+        <span class="verdict">✓ Sempre</span>
+        <p>Voz em primeira pessoa nas campanhas: "devo nada" é fala do usuário, não slogan da empresa.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="eyebrow">06 · Para o designer / IA de imagem</div>
+    <h2>Specs de entrega</h2>
+    <div class="specs">
+      <h3>Resumo técnico</h3>
+      <ul>
+        <li><b>Display</b><span>Archivo Black (Google Fonts, grátis). Alternativas: General Sans Bold, Clash Display</span></li>
+        <li><b>Corpo / UI</b><span>Inter 400–700</span></li>
+        <li><b>Tracking do logo</b><span>-3% (apertado, sólido)</span></li>
+        <li><b>Raio de borda</b><span>14px cards · 24px ícone do app · 99px pills</span></li>
+        <li><b>Área de respiro</b><span>Margem mínima ao redor do logo = altura da letra "d"</span></li>
+        <li><b>Entregáveis</b><span>Wordmark SVG (grafite/papel), empilhada, ícone 1024px, ponto nos 3 estados</span></li>
+      </ul>
+      <div class="prompt">Prompt pra testar em IA de imagem:<br><br>"minimal wordmark logo for a Brazilian fintech app called 'devo.nada', all lowercase, ultra-bold geometric sans-serif similar to Archivo Black, tight letter spacing, the dot between the words is bright red (#E5352B), text in off-white (#F2F2ED) on dark graphite background (#101216), flat design, no gradients, no icons, no illustrations, brand identity presentation"</div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">devo.nada · brand board v1 · feito pra levar pro designer ou refinar em IA de imagem</div>
+</footer>
+
+<script>
+const btn = document.getElementById('btn');
+const txt = document.getElementById('btn-txt');
+const bal = document.getElementById('bal');
+let on = false;
+btn.addEventListener('click', () => {
+  on = !on;
+  document.body.classList.toggle('quitado', on);
+  txt.textContent = on ? 'Voltar ao estado com dívida' : 'Simular quitação total';
+  bal.textContent = on ? 'R$ 0' : 'R$ 18.340';
+});
+</script>
+</body>
+</html>

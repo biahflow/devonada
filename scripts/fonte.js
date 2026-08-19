@@ -433,6 +433,71 @@ function extrairTipografiaNumeric(fonte) {
   return { fontFamily, temTabularNums };
 }
 
+/**
+ * Deslocamento do glifo dentro de `glyf`, lido da tabela `loca`.
+ *
+ * `indexToLocFormat` de `head` decide o formato: 0 guarda offsets pela METADE
+ * (u16 que vale o dobro), 1 guarda u32 direto. Ler no formato errado devolve
+ * offset plausível e bounding box lixo — por isso o formato vem de `head`, e não
+ * de tentativa.
+ */
+function faixaDoGlifo(buf, tabelas, glyphId, indexToLocFormat, numGlyphs) {
+  if (glyphId >= numGlyphs) {
+    throw new Error(`glyphId ${glyphId} fora de numGlyphs (${numGlyphs})`);
+  }
+  const { offset: loca } = exigirTabela(tabelas, 'loca');
+  const curto = indexToLocFormat === 0;
+  const ler = (i) =>
+    curto ? u16(buf, loca + i * 2, 'loca[i]') * 2 : u32(buf, loca + i * 4, 'loca[i]');
+  return { inicio: ler(glyphId), fim: ler(glyphId + 1) };
+}
+
+/**
+ * A caixa delimitadora de um caractere, em unidades de em.
+ *
+ * Serve para a ÁREA DE RESPIRO da marca, que o brand board define como "a altura
+ * da letra d" — uma regra que só vira número depois de alguém medir o 'd' da
+ * fonte de verdade, e não de estimar pelo `fontSize`.
+ *
+ * Glifo sem contorno (espaço) tem `loca[i] === loca[i+1]` e NÃO tem caixa: o
+ * formato não reserva bytes para ela. Devolver zero ali seria inventar uma
+ * altura; a função recusa.
+ */
+function medirGlifo(buf, caractere) {
+  const tabelas = lerTabelas(buf);
+  const { unitsPerEm, indexToLocFormat } = lerHead(buf, tabelas);
+  const { numGlyphs } = lerMaxp(buf, tabelas);
+  const subtabela = escolherSubtabelaCmap(buf, tabelas);
+
+  const codePoint = caractere.codePointAt(0);
+  const glyphId = glifoDoCodePoint(buf, subtabela, codePoint);
+  if (glyphId === 0) {
+    throw new Error(`a fonte não tem glifo para ${JSON.stringify(caractere)}`);
+  }
+
+  const { inicio, fim } = faixaDoGlifo(buf, tabelas, glyphId, indexToLocFormat, numGlyphs);
+  if (fim <= inicio) {
+    throw new Error(
+      `${JSON.stringify(caractere)} é glifo sem contorno (glyphId ${glyphId}): não tem caixa a medir.`,
+    );
+  }
+
+  const { offset: glyf } = exigirTabela(tabelas, 'glyf');
+  const base = glyf + inicio;
+  const yMin = i16(buf, base + 4, 'yMin');
+  const yMax = i16(buf, base + 8, 'yMax');
+
+  return {
+    caractere,
+    glyphId,
+    unitsPerEm,
+    yMin,
+    yMax,
+    /** Altura em unidades de em: multiplique pelo fontSize para ter pixels. */
+    alturaEm: (yMax - yMin) / unitsPerEm,
+  };
+}
+
 module.exports = {
   extrairTipografiaNumeric,
   lerTabelas,
@@ -444,6 +509,7 @@ module.exports = {
   advanceWidth,
   featuresGSUB,
   medirDigitos,
+  medirGlifo,
   tabelaDigitos,
   DIGITOS,
 };
