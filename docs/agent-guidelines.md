@@ -6,6 +6,37 @@ respectivas ferramentas e apontar para este documento.
 
 ---
 
+## Engineering OS e ciclo de trabalho
+
+O contexto global da Engineering OS está em
+`/Users/danielcampos/workspace/engineeringOS/`. Ele define princípios, guardrails, Definition of
+Done, contratos de agente e o ciclo `roadmap → Feature Contract → plano → tarefas → evidência →
+gate humano`. Os documentos deste repositório definem o produto e não duplicam a regra global.
+O resultado vigente da adoção está em [engineering-os-adoption.md](engineering-os-adoption.md).
+
+As fontes de trabalho deste projeto são deliberadamente separadas:
+
+- `roadmap.md` é o **roadmap canônico** do produto e do front. Para itens sem FDD, seu estado é a
+  fonte canônica de pré-especificação.
+- `docs/api-contract.md`, seção 4, é a **fila canônica do backend**. Ela não deve ser copiada
+  para o roadmap.
+- `docs/features/` guarda os **Feature Contracts** (FDDs). Um item só fica
+  `READY_FOR_PLANNING` quando seu contrato é suficiente; o plano de execução e a evidência são
+  artefatos distintos, nunca seções improvisadas do roadmap.
+- `docs/inventario.md` é uma visão **derivada e datada**. Ela não decide prioridade nem estado;
+  em divergência, atualize primeiro a fonte canônica e depois o inventário.
+
+Não há CI versionado neste repositório nem evidência de CI externo. Até uma decisão humana mudar
+isso, a política é executar e registrar os gates locais no PR; a ausência de CI não autoriza pular
+validação.
+
+M0–M9 preservam os FDDs históricos existentes. Não há obrigação de retropreenchê-los para a
+adoção. Para novo trabalho, use o próximo identificador sequencial em `docs/features/`, partindo
+do [template de FDD](feature-template.md) e do template global de Feature Contract em
+`/Users/danielcampos/workspace/engineeringOS/templates/feature.md`.
+
+---
+
 ## Ordem de precedência e leitura
 
 Em caso de conflito, prevalecem, nesta ordem:
@@ -31,7 +62,7 @@ nunca se sobrepõem aos documentos canônicos.
 
 ## Contexto e estrutura
 
-**Buddy Financeiro** é um app Expo / React Native / TypeScript de assistência financeira pessoal,
+**devo.nada** é um app Expo / React Native / TypeScript de assistência financeira pessoal,
 com foco inicial na vertical de **dívidas**. O cliente é deliberadamente "burro": renderiza chat,
 telas e cards; toda a inteligência (cálculo determinístico, LLM, base do CDC) vive no backend
 FastAPI em `backend/`.

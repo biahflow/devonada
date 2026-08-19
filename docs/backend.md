@@ -17,7 +17,7 @@ docker compose up -d                      # Postgres na 5433
 python3 -m venv venv && ./venv/bin/pip install -r requirements.txt
 ./venv/bin/alembic upgrade head
 ./venv/bin/uvicorn main:app --host 0.0.0.0 --port 8001 --reload
-./venv/bin/pytest                          # 452 testes
+./venv/bin/pytest
 ```
 
 **Três ajustes no `.env` recém-copiado**, e só o primeiro é obrigatório:
@@ -346,7 +346,9 @@ Recurso de outro tenant devolve **404, nunca 403**: um 403 confirmaria que o id 
 > DEVONADA_TEST_DATABASE_URL=postgresql+psycopg://devonada:devonada@localhost:5433/devonada_test pytest
 > ```
 >
-> Os 420 testes passam nos dois. **A fixture `engine` precisa de `eng.dispose()` no `finally`**:
+> Em 17/08/2026, a execução local registrou 480 testes passando em SQLite; a mesma suíte precisa
+> ser reexecutada em Postgres antes de cada release. **A fixture `engine` precisa de
+> `eng.dispose()` no `finally`**:
 > sem ele, um engine por teste esgota o `max_connections` do Postgres ("sorry, too many clients
 > already"). Em SQLite em memória isso passava despercebido, e a suíte só quebrou quando cresceu
 > o bastante para estourar o limite — no M6. É exatamente o tipo de divergência que rodar só em

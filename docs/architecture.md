@@ -1,4 +1,4 @@
-# Arquitetura — front do Buddy Financeiro
+# Arquitetura — front do devo.nada
 
 > Documento vivo. Decisões duradouras viram ADR em `docs/adr/` (ver seção final).
 > Escopo: **o cliente Expo / React Native**. O backend FastAPI em `backend/` faz parte do mesmo

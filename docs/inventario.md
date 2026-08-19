@@ -1,7 +1,7 @@
-# Inventário do Buddy Financeiro
+# Inventário do devo.nada
 
-> **Documento derivado e datado.** Levantado em **07/08/2026**, sobre o fim do **M9**
-> (assinatura in-app).
+> **Documento derivado e datado.** Atualizado em **17/08/2026**, depois da entrega parcial do
+> **M13** (entrada pelo alívio).
 > Ele **descreve**, não decide: em qualquer divergência, quem manda é o documento canônico
 > apontado em cada seção (`docs/agent-guidelines.md`, seção "Ordem de precedência").
 > Não faz parte da ordem de precedência e não deve ser citado como fonte de regra.
@@ -48,8 +48,8 @@ distinção é do `roadmap.md` e este documento não a apaga.
 | M8 | Conta de usuário: cadastro, login, sessão revogável, recuperação de senha e exclusão de conta | Entregue; **falta device** |
 | M9 | Assinatura in-app: 7 dias de teste, somente leitura depois, validação direta com as duas lojas | Entregue; **falta device e conta de loja** |
 | M10 | Fork e marca devo.nada: paleta escura, wordmark, splash, ícone (ADR 0014 e 0015) | Entregue; **falta device** |
-| M12 | Metas nomeadas e a aba da fase verde: `/v1/metas`, cards da tela 09, troca de aba (ADR 0017) | Entregue; **falta device** |
-| M13 | Entrada pelo alívio: onboarding em 3 passos, escolha **múltipla** de dívida e fila de cadastro (ADR 0016) | Entregue; **falta device** |
+| M12 | Metas nomeadas e a aba da fase verde: `/v1/metas`, cards da tela 09, troca de aba (ADR 0017) | Entregue; **falta device**. Renda tipada e negociação por canal continuam pendentes no M12. |
+| M13 | Entrada pelo alívio: onboarding em 3 passos, escolha **múltipla** de dívida e fila de cadastro (ADR 0016) | **Parcialmente entregue**: fluxo central entregue; data de origem, documento na fila e demais itens do milestone continuam pendentes. **Falta device**. |
 | — | Navegação: seta de voltar em toda tela empilhada (ADR 0016) | Entregue; **falta device** |
 
 ## Stack, em uma tabela
@@ -299,8 +299,8 @@ Deep link sempre por campo tipado, nunca por id extraído de texto.
 
 | Suíte | Números |
 |---|---|
-| Jest | **242 testes em 26 suítes**, verdes (rodados em 07/08/2026) |
-| pytest | **342 testes**, verdes em SQLite **e** em Postgres, sem tocar a rede |
+| Jest | **328 testes em 35 suítes**, verdes em 17/08/2026. O ambiente exigiu `--watchman=false`; há avisos de `act(...)` e de handle aberto a investigar. |
+| pytest | **480 testes**, verdes em SQLite em 17/08/2026; 14 avisos de depreciação/chave curta. A execução contra Postgres continua obrigatória antes de release. |
 
 Gates locais: `npm run typecheck`, `npm run lint`, `npm test`, `npm run bundle:check`, `pytest`.
 
@@ -311,7 +311,7 @@ alguém rodá-los.
 cobre o campo, que a notificação toca na hora certa e que a permissão de câmera se comporta.
 Isso é o "falta device" que aparece em quase todos os milestones.
 
-## 8. Decisões arquiteturais — 9 ADRs
+## 8. Decisões arquiteturais — 17 ADRs
 
 | # | Decisão |
 |---|---|
@@ -327,6 +327,11 @@ Isso é o "falta device" que aparece em quase todos os milestones.
 | 0010 | Paleta derivada de Pierre e Budgi (superseded pela 0011) |
 | 0011 | A forma vem das telas do produto, não do CSS da landing |
 | 0012 | Conta de usuário: JWT curto, refresh rotacionado e a sessão como único estado global |
+| 0013 | Assinatura in-app: teste de 7 dias, somente leitura depois, e validação no servidor |
+| 0014 | devo.nada nasce como fork, não como projeto novo |
+| 0015 | Vermelho é status de dívida, e a interface é escura |
+| 0016 | Toda tela empilhada tem volta, e o onboarding aceita mais de uma dívida |
+| 0017 | `Meta` é entidade nova, e a fase verde troca a aba sem esconder as dívidas |
 
 ADR aceita nunca é reescrita — decisão que muda vira ADR nova.
 

@@ -1,8 +1,12 @@
-# Buddy Financeiro — app (Expo / React Native / TypeScript)
+# devo.nada — app Expo / React Native / TypeScript
 
-Esqueleto do front da **Fase 0**. Cliente mobile "burro": renderiza o chat +
-cards de ação e conversa **só** com o seu backend FastAPI. Toda a inteligência
-(cálculo determinístico, LLM, base do CDC) vive no servidor.
+O **devo.nada** é um assistente financeiro pessoal para dívidas. O cliente mobile renderiza
+telas, chat e cards; o backend FastAPI é a fonte de verdade para cálculos, regras determinísticas,
+LLM e dados do usuário.
+
+O produto está além do esqueleto inicial: M0–M10 foram entregues, M12 tem metas nomeadas
+entregues e M13 tem o fluxo central de entrada pelo alívio entregue. Os itens ainda pendentes e a
+sequência de produto estão no [roadmap.md](roadmap.md).
 
 ## Documentação
 
@@ -15,11 +19,14 @@ cards de ação e conversa **só** com o seu backend FastAPI. Toda a inteligênc
 | `docs/domain.md` | Linguagem ubíqua. |
 | `docs/design-system.md` | Tokens e componentes. |
 | `docs/engineering-conventions.md` | Como se escreve o código. |
-| `roadmap.md` | Sequência de construção (M0–M5). |
+| `roadmap.md` | Fonte canônica da sequência do produto e do front (M0–M14). |
+| `docs/api-contract.md`, seção 4 | Fila canônica de trabalho do backend. |
+| `docs/features/` | Feature Contracts (FDDs) históricos e em preparação. |
 | `docs/adr/` | Decisões técnicas duradouras. |
 | `docs/inventario.md` | Retrato datado do que existe: stack, versões, endpoints, telas, limitações. **Derivado** — não é fonte de regra. |
+| `/Users/danielcampos/workspace/engineeringOS/` | Contexto global, gates humanos e lifecycle de trabalho. |
 
-## Princípios que o esqueleto já impõe
+## Princípios do produto
 
 - **Nenhuma chave de LLM no app.** O cliente só fala com a sua API autenticada
   (`src/api/client.ts`). `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` ficam no backend.
@@ -37,70 +44,37 @@ cards de ação e conversa **só** com o seu backend FastAPI. Toda a inteligênc
 
 ## Rodar
 
-> As versões em `package.json` são indicativas. Gere o shell com o Expo atual e
-> alinhe as libs nativas com `expo install` em vez de fixar na mão.
-
 ```bash
-cd buddy-financeiro-app
 npm install
-npx expo install expo-clipboard expo-secure-store expo-status-bar   # alinha ao SDK atual
-cp .env.example .env        # ajuste EXPO_PUBLIC_API_BASE_URL para o seu FastAPI
+cp .env.example .env        # ajuste EXPO_PUBLIC_API_BASE_URL para o backend FastAPI
 npm start                   # abre o Expo; leia o QR no Expo Go ou rode em simulador
 npm run typecheck           # tsc --noEmit
+npm run lint
+npm test -- --watchman=false
+npm run bundle:check
 ```
 
-Sem backend de pé ainda? O chat sobe e mostra a saudação; ao enviar, cai no erro
-tratado de conexão (`ApiError`) — o que já valida a UI de erro.
+Para o backend, siga [docs/backend.md](docs/backend.md). Não aplique migrações, altere produção ou
+declare validação em device sem a aprovação humana aplicável.
 
 ## Estrutura
 
 ```
-App.tsx                      entrada — SafeAreaView + ChatScreen
+app/                          rotas Expo Router: autenticação, onboarding e abas
 src/
-  config/env.ts              lê EXPO_PUBLIC_API_BASE_URL (seam de config)
-  theme/theme.ts             tokens: cores calmas, espaçamento, tipografia
-  util/money.ts              formatação BRL a partir de centavos
-  api/
-    types.ts                 domínio compartilhado com o backend
-    client.ts                fetch tipado: token, JSON, ApiError (único egress)
-    chat.ts                  POST /v1/chat/messages
-    debts.ts                 GET/POST /v1/dividas (Fase 1)
-  hooks/useChat.ts           estado do chat em memória (fonte da verdade: backend)
-  components/
-    ui/Button.tsx
-    chat/                    MessageBubble · MessageList · ChatComposer
-    cards/                   ActionCard (dispatcher) · ValorJustoCard · InfoCard
-  screens/ChatScreen.tsx     compõe lista + composer
+  api/                       único egress de rede e tipos de contrato
+  hooks/                     estado de tela e wrappers de query
+  components/                UI, chat, rota, dívidas, caixa, metas e onboarding
+  screens/                   composição de telas
+backend/                      FastAPI, Postgres, domínio, routers e migrations
+docs/                         documentos canônicos e FDDs
 ```
 
-## Contrato esperado do backend (Fase 0/1)
+## Trabalho e aprovação
 
-- `POST /v1/chat/messages` → `{ message: ChatMessage }`
-  A mensagem do assistente pode trazer `cards: ActionCardData[]`. É assim que o
-  card de valor justo (com o script pronto) chega embutido na conversa.
-- `GET /v1/dividas` → `{ dividas: Divida[] }`
-- `POST /v1/dividas` → `{ divida: Divida }`
+Antes de executar uma feature, leia `docs/agent-guidelines.md`: o roadmap identifica o trabalho,
+o Feature Contract fixa o comportamento e a aprovação humana continua obrigatória para produção,
+migrações destrutivas, exceções de segurança e decisões arquiteturais consequentes.
 
-Auth por `Authorization: Bearer <token>` — token guardado no `SecureStore`.
-
-## Onde cada fase pluga
-
-> **Superseded por `roadmap.md`.** A numeração de fases abaixo é histórica e ficou defasada;
-> a sequência canônica de construção do front é a de milestones M0–M5 em `roadmap.md`.
-
-- **Fase 1 (raio-x das dívidas):** telas de cadastro/lista usando `api/debts.ts`;
-  card de triagem por criticidade + calculadora de mínimo existencial.
-- **Fase 2 (IA):** já suportada pelo fluxo de chat — o extrator e o gerador de
-  script são do backend; o app só renderiza `cards`.
-- **Fase 3 (estado de negociação):** novos `kind` de card + telas de acompanhamento.
-- **Fase 5 (SaaS):** signup/billing/onboarding entram aqui; o cliente já está
-  multi-tenant, então não há retrofit de isolamento.
-
-## Notas / próximos passos
-
-- Navegação: single-screen de propósito. Quando crescer, `expo-router` (file-based)
-  é o caminho — a estrutura `src/` continua válida.
-- `SafeAreaView` do `react-native` serve no MVP; troque por
-  `react-native-safe-area-context` quando quiser controle fino de notch.
-- Camada de dados: `useState`/hooks bastam no MVP. Se o cache server-state pesar,
-  TanStack Query encaixa sem mexer no `api/`.
+As descrições do esqueleto da Fase 0 foram substituídas por este contexto atual. A evolução e as
+decisões que as motivaram estão preservadas no histórico Git, no roadmap e nos ADRs.

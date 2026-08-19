@@ -2,6 +2,13 @@
 
 Instruções específicas para o Codex e demais agentes de código neste repositório.
 
+## Engineering OS
+
+Este repositório adota a Engineering OS. Antes de qualquer trabalho, carregue o contexto global
+em `/Users/danielcampos/workspace/engineeringOS/`: `README.md`, princípios, guardrails,
+Definition of Done e o contrato de agente aplicável. A Engineering OS define os gates humanos e
+o ciclo de vida; este repositório define seus documentos canônicos, arquitetura e comandos.
+
 ## Leitura obrigatória
 
 Antes de planejar, revisar ou alterar código, leia integralmente `docs/agent-guidelines.md`.

@@ -24,7 +24,7 @@ O que muda, do ponto de vista do usuário.
 - [ ] Nenhum `fetch` fora de `src/api/client.ts`
 - [ ] Nenhum segredo novo com prefixo `EXPO_PUBLIC_`
 - [ ] Nenhum dado financeiro ou pessoal em log, analytics ou mensagem de erro
-- [ ] Vermelho usado só para erro ou ação destrutiva
+- [ ] Vermelho é status de dívida, nunca cenário — e não há botão vermelho, nem para destruição
 - [ ] Escrita disparada pelo chat pede confirmação explícita
 
 ## Validação

@@ -473,20 +473,20 @@ os tons; o dot ainda não existe.
 
 > Esta seção existe porque a proposta óbvia **falhou numa validação executada**, não porque
 > alguém achou feio. Rodar o validador é obrigatório antes de definir qualquer paleta de gráfico.
-> Ela foi **reexecutada contra a paleta nova** — herdar a conclusão anterior não valeria, porque
-> os matizes mudaram.
+
+> **ATENÇÃO — o que está medido aqui é a paleta CLARA.** Esta seção dizia ter sido reexecutada
+> contra a paleta escura, e não tinha: os hex que ela citava (`#0D9488`, `#2563EB`, `#BE185D`,
+> `#D97706`) são os da ADR 0011, não os de `theme.ts`. A afirmação foi removida em vez de
+> corrigida no número, porque documentação que alega uma medição inexistente é pior que
+> documentação que declara a lacuna. Vale aqui o mesmo que na seção 1: **remedir, não estimar.**
 
 A pergunta se repõe a cada troca de paleta, e a resposta mudou de motivo — o que vale registrar.
-
-Com a paleta de categoria atual (`#0D9488`, `#2563EB`, `#BE185D`, `#D97706`), quatro séries
-categóricas **passam** no validador: pior par adjacente ΔE 17,9 em deuteranopia e 21,9 em visão
-normal. O contraste deixou de ser o impedimento.
 
 **As barras continuam num tom só assim mesmo**, pelo outro argumento: o `CriticidadeBadge` ao
 lado já nomeia a categoria, e quatro matizes ali seriam redundantes com o rótulo, não informação
 nova. É uma decisão de economia de sinal, não de acessibilidade.
 
-Duas coisas que a validação ensinou e que valem para a próxima paleta:
+Duas coisas que a validação da paleta clara ensinou e que valem para a próxima:
 
 - **Coral e violeta não entram em conjunto categórico** com âmbar e azul: ΔE 11,9 e 12,4, abaixo
   do piso de 15. Foi por isso que o conjunto de categoria tem quatro matizes, não seis.
@@ -494,10 +494,11 @@ Duas coisas que a validação ensinou e que valem para a próxima paleta:
   reprovou em OKLab com simulação de deuteranopia. Quando as duas divergem, vale a que simula
   visão de cores.
 
-A marca de gráfico é `primaryBright` `#029488`, e ela **passa os cinco testes**. A cor de ação
-`primary` `#017A70` **não** serve: numa linha de 2px ela fica abaixo do piso de croma e lê como
-cinza. São duas cores para o mesmo teal, com trabalhos diferentes — e é por isso que o `Meter`
-usa uma para o texto da porcentagem e outra para a barra.
+A marca de gráfico é `primaryBright`, e a de ação é `primary`. São duas cores para o mesmo verde,
+com trabalhos diferentes — na paleta clara, `primary` numa linha de 2px ficava abaixo do piso de
+croma e lia como cinza, e é por isso que o `Meter` usa uma para o texto da porcentagem e outra
+para a barra. **Se a separação continua valendo sobre o grafite, é medição pendente**, não
+conclusão herdada.
 
 ### Regras
 
@@ -506,8 +507,9 @@ usa uma para o texto da porcentagem e outra para a barra.
 - **Categoria vem do rótulo, não do matiz.** As barras de `porCriticidade` usam um tom só; a
   identidade vem do `CriticidadeBadge` ao lado, onde a cor semântica já funciona em escala de
   badge e já passa no contraste.
-- **Vermelho não entra em gráfico.** `danger` é erro e ação destrutiva. Saldo alto é `ink`,
-  atraso é `warning` — sempre com ícone e texto junto, nunca cor sozinha.
+- **Vermelho não entra em gráfico.** Ele é status de dívida (ADR 0015), e status pertence ao
+  badge e ao número, onde há rótulo junto. Numa série ele viraria decoração alarmante. Saldo alto
+  é `ink`, atraso é `warning` — sempre com ícone e texto junto, nunca cor sozinha.
 - **Nunca dois eixos Y.** Duas medidas de escalas diferentes viram dois gráficos.
 - **Eixo começa na base.** Truncar o eixo para dramatizar variação é manipulação — e este
   produto existe para reduzir ansiedade, não fabricá-la.
@@ -527,13 +529,12 @@ explicativa; estar endividado não é erro nem ação destrutiva.
 
 **`LinhaEvolucao`** (`charts/`) — série única em `primaryBright`, SVG puro sobre `react-native-svg`.
 
-**`MessageBubble`** (`chat/`) — as duas bolhas são **claras**: assistente em `neutralSurface`,
-usuário em `primarySurface`, raio `lg` uniforme. Quem identifica o assistente é a marca ao lado
-da bolha, não a cor de fundo dela.
+**`MessageBubble`** (`chat/`) — as duas bolhas se distinguem por **superfície, não por matiz**:
+assistente em `neutralSurface`, usuário em `primarySurface`, raio `lg` uniforme. Quem identifica o
+assistente é a marca ao lado da bolha, não a cor de fundo dela.
 
 **`ChatComposer`** (`chat/`) — campo em pílula flutuante e botão circular `inkFill` com o ícone
-de enviar. É o único elemento escuro do app, e o botão sem texto visível carrega
-`accessibilityLabel` obrigatório.
+de enviar. O botão sem texto visível carrega `accessibilityLabel` obrigatório.
 
 **`BarrasCriticidade`** (`charts/`) — barras horizontais em um tom, rotuladas por badge.
 

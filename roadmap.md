@@ -620,10 +620,18 @@ escura).
 - [ ] `custoDiarioJuros` no resumo. É a frase mais forte que o card do buddy poderia ter — "essa
       dívida cresce R$ 41 por dia" — e ela é conta, então é do servidor (guardrail 1.2). Enquanto
       não existir, o card não a diz.
-- [ ] Varrer a documentação herdada: `architecture.md`, `agent-guidelines.md`, `inventario.md` e
-      `README.md` ainda falam da marca anterior.
+- [x] **Documentação herdada varrida.** `README.md`, `architecture.md`, `agent-guidelines.md`,
+      `inventario.md` e `backend.md` deixaram de falar da marca anterior. A varredura achou mais
+      do que o nome: o template de PR ainda proibia vermelho fora de erro e destruição — o
+      oposto da ADR 0015 —, e a seção 4b do `design-system.md` **alegava** ter reexecutado o
+      validador contra a paleta escura enquanto citava os hex da clara. A alegação saiu; a
+      medição de verdade é o item acima.
 
 ## M11 — Respiro — a intervenção anti-desistência
+
+**Feature Contract:** [F-010 — Respiro](docs/features/010-respiro.md) · `SPEC_IN_PROGRESS`.
+O escopo está aceito no roadmap; endpoints, modelo de persistência e regra de valor ainda precisam
+de especificação e gate humano antes de planejamento ou código.
 
 O item mais valioso que a concepção trouxe, e o único que nenhum concorrente tem. A justificativa
 inteira está em `domain.md` (verbete `respiro`) e as regras de copy em `guardrails.md`, 4.1.
