@@ -660,13 +660,13 @@ declarando. O que sobrou de aberto aqui é o mesmo que sobra em M1.5–M9: devic
       validador contra a paleta escura enquanto citava os hex da clara. A alegação saiu; a
       medição de verdade é o item acima.
 
-## M11 — Respiro — a intervenção anti-desistência
+## M11 — Respiro — entregue, aguardando validação em device
 
-**Feature Contract:** [F-010 — Respiro](docs/features/F-010-respiro/feature.md) · `READY_FOR_BUILD`.
+**Feature Contract:** [F-010 — Respiro](docs/features/F-010-respiro/feature.md) · `READY_FOR_HUMAN_REVIEW`.
 **Plano de execução:** [plan.md](docs/features/F-010-respiro/plan.md) — oito tarefas, `PLAN_VALID`,
-congelado em 19/08/2026. Os três gates de planejamento estão satisfeitos: PF-1 (a destinação só
-debita e grava o lançamento), PF-2 (`caixa_snapshot` ganha a coluna `respiro`, aditiva e `nullable`)
-e a aprovação do plano.
+congelado em 19/08/2026, executado em sequência entre 19 e 20/08/2026 com **três
+`PLAN_DEVIATION` ratificadas** (PD-1, PD-2, PD-3, registradas no próprio plano).
+**Evidência:** [evidence.md](docs/features/F-010-respiro/evidence.md).
 **Decisões:** ADR 0019 · **Contrato:** `api-contract.md`, Bloco 13.
 
 O item mais valioso que a concepção trouxe, e o único que nenhum concorrente tem. A justificativa
@@ -689,32 +689,78 @@ As três decisões que destravaram o gate humano (ADR 0019):
 - **Respiro não usado acumula em silêncio.** Destinar a aporte extra é botão, nunca pergunta
   mensal — perguntar todo mês transformaria o respiro em prestação de contas.
 
-- [ ] `respiro` entra na **cascata de `domain/caixa.py`** como linha de primeira classe, subtraída
-      **antes de `capacidade_maxima`** — é essa posição que a torna imune ao aperto.
-- [ ] Validação de piso: `422` quando o respiro declarado faz
-      `renda_liquida − essenciais − respiro` cair abaixo do mínimo existencial.
-- [ ] Tabelas `respiro`, `respiro_uso` e `respiro_destinacao`. Gasto de respiro **não** entra em
-      nenhum cálculo de alerta.
-- [ ] `marco` como **evento persistido**: primeira negociação fechada, primeira dívida quitada,
-      25/50/75% da rota. Os cinco gatilhos já têm dado — `renegociacao` e `situacao = 'quitada'`
-      existem desde M3 e M1, e nenhum depende do M12.
-- [ ] **Defeito a corrigir junto:** `src/components/rota/CardSaldo.tsx` calcula a porcentagem da
-      rota no cliente, sobre uma linha de base móvel (`evolucaoSaldo[0]`, recortada pelo mês
-      selecionado). Como largura de barra passou; como gatilho de marco, não — cadastrar dívida
-      nova faz a porcentagem andar para trás, e um marco recalculado se **desfaria**. Vira
-      `rotaPercorridaBps` no servidor, com o maior saldo já registrado como base.
-- [ ] `RespiroCard` e `MarcoScreen` (spec em `design-system.md`, 4c — "Ainda só especificação").
-- [ ] Teste de copy gêmeo dos do M4/M6/M7, quebrando em "você já gastou", "você mereceu", "se você
-      economizar", "desvio" e "extrapolou".
-- [ ] O piso legal continua acima: respiro sai da capacidade, e a capacidade nunca invade o mínimo
+- [x] `respiro` entra na **cascata de `domain/caixa.py`** como linha de primeira classe, subtraída
+      **antes de `capacidade_maxima`** — é essa posição que a torna imune ao aperto. `None` é
+      "nunca declarou" e nunca vira zero na saída: o `or 0` mora só na aritmética, e há teste que
+      prova que cortar todo o não essencial **não** zera o respiro. Migração `f3a92c47b8d1`, com
+      round-trip verificado contra o Postgres local.
+- [x] Validação de piso: `422` quando o respiro declarado faz
+      `renda_liquida − essenciais − respiro` cair abaixo do mínimo existencial. A regra é
+      `domain/caixa.respiro_invade_o_piso`, com FONTE no docstring — Decreto 11.150/2022 na
+      redação do 11.567/2023 —, e o HTTP segue o padrão de `_validar_aporte`: mensagem em pt-BR
+      **sem valor no corpo**, porque renda não vaza em mensagem de erro (guardrail 5).
+- [x] Tabelas `respiro`, `respiro_uso` e `respiro_destinacao`, mais `marco`. Gasto de respiro
+      **não** entra em nenhum cálculo de alerta. As quatro entram sozinhas na exclusão de conta,
+      porque `tabelas_do_tenant()` é derivada do metadata — e há teste que prova a varredura
+      alcançá-las, em vez de assumir.
+      **O desfazer de um uso destruía saldo real**, e a revisão pegou: a coluna passou a guardar
+      só os meses fechados, e o excesso do mês virou derivado na leitura. Derivado, o desfazer é
+      exato por construção — não há nada a desfazer.
+- [x] `marco` como **evento persistido**: primeira negociação fechada, primeira dívida quitada,
+      25/50/75% da rota. Os cinco gatilhos já tinham dado — `renegociacao` e `situacao = 'quitada'`
+      existem desde M3 e M1, e nenhum dependeu do M12. Um marco atingido **não se desfaz** quando
+      o usuário cadastra dívida nova, e há teste que cadastra a dívida e verifica.
+      **A unicidade desceu para o banco** depois da revisão (`UNIQUE (tenant_id, tipo)`, migração
+      `116f2181bdda`) — e precisou de `SAVEPOINT` junto: `registrar_marcos` grava na mesma
+      transação da mutação que o produziu, e a constraint sozinha faria uma corrida abortar a
+      quitação da dívida que gerou o marco. Segunda migração do milestone, fora de T1: `PD-3`.
+- [x] **Defeito corrigido junto:** `src/components/rota/CardSaldo.tsx` calculava a porcentagem da
+      rota no cliente, sobre uma linha de base móvel. Virou `saldoInicialDaRota` e
+      `rotaPercorridaBps` no servidor, sobre o **maior saldo já registrado**. A revisão achou um
+      defeito que os quatro critérios não pegavam — a segunda leitura do mês devolvia `0` a quem
+      acabara de chegar, porque o mês corrente é reescrito a cada leitura —, e a régua virou "mês
+      anterior". Limitação que fica declarada: a base ainda pode encolher **dentro** do primeiro
+      mês (`PF-3` do plano); a mitigação é o marco ser evento que não se desfaz.
+- [x] `RespiroCard`, a tela de declaração e `MarcoScreen` (verbetes em `design-system.md`, seção 4c).
+      O card tem dois estados, e o vazio é o que faz a feature existir para quem mais precisa dela:
+      sem respiro declarado ele **convida**, sem sugerir valor, faixa ou percentual. `Meter` não foi
+      usado de propósito — ele vira `warning` acima de um limiar, e aqui não existe limite a
+      ultrapassar. A `MarcoScreen` ficou **fora do grupo de abas**, com atualização otimista para
+      que um `402` não tranque ninguém na tela de celebração.
+- [x] Teste de copy gêmeo dos do M4/M6/M7, quebrando em "você já gastou", "você mereceu", "se você
+      economizar", "desvio" e "extrapolou" — `src/test/screens/respiro-copy.test.tsx`, 36 casos
+      varrendo as três superfícies, incluindo os cinco marcos × cinco estados de saldo. Provado
+      por injeção: com um termo proibido plantado em cada superfície, ele **falha** nas três.
+- [x] **O teste cruzado**, que é o item que o milestone mais precisava: respiro declarado derruba o
+      teto do simulador, e o teto desce **exatamente** o valor declarado. Os três consumidores de
+      `leitura.capacidade_atual` são cobertos, porque mudam de número sem que nenhum dos três
+      arquivos seja tocado — e ação a distância não aparece em diff.
+- [x] O piso legal continua acima: respiro sai da capacidade, e a capacidade nunca invade o mínimo
       existencial.
+- [ ] **Validação em device de `RespiroCard`, da tela de declaração e da `MarcoScreen`** — leitura,
+      safe area, teclado e acessibilidade. É o gate humano que fecha o milestone. Nenhum agente o
+      declara satisfeito, e nenhum gate deste repositório o substitui: contraste medido é **piso**,
+      não legibilidade.
 
-**Sai com:** um teto de pagamento que assume que a pessoa continua viva — e uma conquista que não
+**Saiu com:** um teto de pagamento que assume que a pessoa continua viva — e uma conquista que não
 se desfaz quando ela é honesta sobre uma dívida nova.
 
-**Mudança de comportamento a declarar:** `aporte_maximo` cai para quem declarar respiro, e três
-telas mudam de número sem serem tocadas (simulador, painel, card `plano_sugerido`). `nao_fecha`
-passa a disparar mais, e está correto: o plano de fato não fecha se a pessoa precisa viver.
+**Gates verdes no fechamento**, medidos em 20/08/2026: **539 Jest em 45 suítes** e **620 pytest**,
+mais `typecheck`, `lint`, `bundle:check`, `palette:check` (56 pares, 0 reprovam) e `digits:check`.
+Baseline de entrada do milestone: 472 Jest em 42 suítes e 497 pytest — o M11 acrescentou 3 suítes,
+67 testes Jest e 123 pytest.
+
+**Mudança de comportamento a declarar:** `aporte_maximo` cai para quem declarar respiro, porque
+`capacidade_maxima` passou a ser calculada com a linha nova subtraída. Com isso, **três
+consumidores mudam de número sem que nenhum deles tenha sido tocado neste milestone** — o
+simulador (`routers/simulacoes._validar_aporte`), o painel (`margemDisponivel` em
+`GET /v1/dividas/resumo`) e o card `plano_sugerido` do chat, que usa a capacidade real como aporte
+default. Os três leem `leitura.capacidade_atual`, e é por isso que a mudança não aparece no diff
+de nenhum dos três arquivos; `TestRespiroNosTresConsumidores`, em
+`backend/tests/test_caixa_integracao.py`, é o teste que a torna visível.
+`nao_fecha` (`comprometido_dividas > capacidade_maxima`) passa a disparar mais, e **está correto**:
+o plano de fato não fecha se a pessoa precisa viver. Quem nunca declarou respiro tem a cascata e os
+três números idênticos aos de antes do M11, e há teste de regressão dos dois lados.
 
 ## M12 — Renda tipada, negociação por canal e a Rota de Chegada
 
@@ -924,7 +970,7 @@ curso.
 | Quando | O quê |
 |---|---|
 | **Ago, sem. 1** | M10 fechado: fork, marca, gates verdes. *(feito em 10/08)* |
-| **Ago–Set** | M11 (Respiro) e M12 (renda tipada + script por canal) |
+| **Ago–Set** | M11 (Respiro) — *código fechado em 20/08, aguardando device* — e M12 (renda tipada + script por canal) |
 | **Set–Out** | M13 (entrada pelo alívio) e M14 (Lei do Superendividamento) |
 | **Fim de Out** | **Feature freeze.** Daqui em diante só bugfix, polimento e device |
 | **Nov, sem. 1–2** | Submissão nas lojas |

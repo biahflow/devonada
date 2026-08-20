@@ -275,3 +275,135 @@ class TestRespiroNoSimulador:
         # A tela grava sem preço em vez de exibir palpite.
         _caixa(client, auth, renda=1000000, essenciais=400000)
         assert self._declarar(client, auth, 100000).json()["custoEmMeses"] is None
+
+
+class TestRespiroNosTresConsumidores:
+    """
+    O TESTE CRUZADO DO M11 (T8).
+
+    Gêmeo do teste de M7.2 que ligou fonte de renda a painel preenchido — e que
+    faltava justamente quando um defeito atravessou quatro gates verdes.
+
+    `TestRespiroNoSimulador` (T2) já prova que um aporte que passava deixa de
+    passar. O que ele NÃO prova é o outro lado nem os outros dois consumidores:
+
+    1. o teto não desabou, ele desceu EXATAMENTE o valor declarado — um teto que
+       cai demais recusaria plano sustentável e passaria por este gate igual;
+    2. simulador, painel e card `plano_sugerido` do chat leem o mesmo
+       `aporte_maximo` por `leitura.capacidade_atual`. Os três mudam de número
+       neste milestone sem que nenhum dos três arquivos tenha sido tocado, e é
+       essa ação a distância que precisa de teste — ela não aparece em diff.
+    """
+
+    RESPIRO = 100000
+
+    def _declarar(self, client, auth, valor):
+        r = client.put(
+            "/v1/caixa/respiro",
+            json={"valorMensal": valor, "ativo": True},
+            headers=auth,
+        )
+        assert r.status_code == 200
+        return r
+
+    def _aporte_maximo(self, client, auth):
+        return client.get("/v1/caixa", headers=auth).json()["caixa"]["aporteMaximo"]
+
+    def _margem_do_painel(self, client, auth):
+        r = client.get("/v1/dividas/resumo", headers=auth)
+        return r.json()["resumo"]["margemDisponivel"]
+
+    def _card_de_plano(self, client, auth):
+        r = client.post(
+            "/v1/chat/messages",
+            json={"content": "quero um plano para quitar"},
+            headers=auth,
+        )
+        cards = r.json()["message"]["cards"]
+        return next(c for c in cards if c["kind"] == "plano_sugerido")
+
+    def test_o_teto_do_simulador_desce_exatamente_o_respiro_declarado(self, client, auth):
+        """
+        Os DOIS lados, com e sem respiro, e nos dois o limite exato.
+
+        O teto é lido de `GET /v1/caixa` em vez de escrito à mão: assim o teste
+        prova o ACOPLAMENTO entre a cascata e o simulador, e não uma aritmética
+        decorada que passaria a mentir junto com ela.
+        """
+        _caixa(client, auth, renda=1000000, essenciais=400000)
+        _divida(client, auth)
+
+        teto_sem = self._aporte_maximo(client, auth)
+        assert _simular(client, auth, teto_sem).status_code == 200
+        assert _simular(client, auth, teto_sem + 1).status_code == 422
+
+        self._declarar(client, auth, self.RESPIRO)
+
+        teto_com = self._aporte_maximo(client, auth)
+        # Desceu o respiro inteiro, nem um centavo a mais.
+        assert teto_com == teto_sem - self.RESPIRO
+        assert _simular(client, auth, teto_com).status_code == 200
+        assert _simular(client, auth, teto_com + 1).status_code == 422
+        # E o aporte que passava antes é o que agora não cabe.
+        assert _simular(client, auth, teto_sem).status_code == 422
+
+    def test_o_painel_nao_anuncia_a_sobra_que_o_simulador_recusa(self, client, auth):
+        """
+        `margemDisponivel` do painel é o mesmo `aporte_maximo` do simulador.
+
+        Se um dia o respiro entrar num e não no outro, o painel volta a prometer
+        uma sobra que o simulador recusa — o defeito que o M7 fechou, voltando
+        pela porta do M11.
+        """
+        _caixa(client, auth, renda=1000000, essenciais=400000)
+        _divida(client, auth)
+
+        margem_sem = self._margem_do_painel(client, auth)
+        assert margem_sem == self._aporte_maximo(client, auth)
+
+        self._declarar(client, auth, self.RESPIRO)
+
+        margem_com = self._margem_do_painel(client, auth)
+        assert margem_com == margem_sem - self.RESPIRO
+        assert margem_com == self._aporte_maximo(client, auth)
+        assert _simular(client, auth, margem_com).status_code == 200
+        assert _simular(client, auth, margem_sem).status_code == 422
+
+    def test_o_card_de_plano_do_chat_planeja_com_o_respiro_ja_descontado(self, client, auth):
+        """
+        Uma pergunta, um número — agora com respiro no meio.
+
+        O card usa a capacidade real como aporte default (M7). Com respiro
+        declarado, ele passa a propor um plano que a pessoa consegue sustentar
+        sem parar de viver, e continua batendo com o simulador.
+        """
+        _caixa(client, auth, renda=1000000, essenciais=400000)
+        _divida(client, auth)
+
+        card_sem = self._card_de_plano(client, auth)
+        assert card_sem["aporteExtraMensal"] == self._aporte_maximo(client, auth)
+
+        self._declarar(client, auth, self.RESPIRO)
+
+        card_com = self._card_de_plano(client, auth)
+        assert card_com["aporteExtraMensal"] == card_sem["aporteExtraMensal"] - self.RESPIRO
+
+        simulado = _simular(client, auth, card_com["aporteExtraMensal"]).json()["simulacoes"][0]
+        assert card_com["mesesAteQuitacao"] == simulado["mesesAteQuitacao"]
+        assert card_com["dataLiberdade"] == simulado["dataLiberdade"]
+
+    def test_quem_nao_declarou_respiro_tem_os_tres_numeros_de_antes(self, client, auth):
+        """
+        A regressão do outro lado: sem declaração não há respiro, e nenhum dos
+        três consumidores muda de número. É o que impede a linha nova de vazar
+        para quem não pediu por ela.
+        """
+        _caixa(client, auth, renda=1000000, essenciais=400000)
+        _divida(client, auth)
+
+        caixa = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        # `None`, nunca `0`: não declarar é diferente de declarar zero.
+        assert caixa["respiro"] is None
+        assert caixa["aporteMaximo"] == caixa["capacidadeMaxima"] - caixa["comprometidoDividas"]
+        assert self._margem_do_painel(client, auth) == caixa["aporteMaximo"]
+        assert self._card_de_plano(client, auth)["aporteExtraMensal"] == caixa["aporteMaximo"]

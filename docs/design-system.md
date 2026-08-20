@@ -612,22 +612,7 @@ declarou aporte) e barra que **enche** rumo ao objetivo. `aporte_baixo` é **âm
 o vermelho é status de dívida (ADR 0015). Sem prazo ou sem aporte declarado, **não há selo** — ver
 ADR 0017.
 
-### Ainda só especificação
-
-> Estes vieram da concepção (`docs/concepcao/`) e **não existem em `src/`**. Dependem de domínio
-> que o M11/M12 ainda vai trazer. Quando virarem código, sobem para a seção acima.
-
-**`ScriptCard`** — a fala de negociação com a base legal à vista. Fala entre aspas; abaixo, o
-bloco "Por que você pode falar isso", com borda esquerda verde de 2px e a citação em `caption`.
-**Todo script exibe sua fonte** — é o diferencial de confiança do produto, e é também o que o
-mantém do lado certo da fronteira jurídica.
-
-Seletor de **canal** no topo (`telefone · chat · e-mail`, ver `domain.md`). Na variante escrita,
-cada mensagem é um bloco com botão *copiar* próprio, o alerta de validação do número abre o card
-e a regra de pagamento (boleto ou Pix no CNPJ do credor) o fecha. CTA final: "colar print da
-resposta".
-
-**`RespiroCard`** — "Respiro deste mês: R$ 150 · usados R$ 80". A barra enche em **verde**: usar
+**`RespiroCard`** (`src/components/caixa/RespiroCard.tsx`, M11, T5) — "Respiro deste mês: R$ 150 · usados R$ 80". A barra enche em **verde**: usar
 respiro é positivo, e pintá-la de vermelho seria a contradição exata do que o Respiro existe para
 resolver. Copy sempre de permissão — "sobram R$ 70 pra usar sem culpa", nunca "você já gastou
 R$ 80". Ver `guardrails.md`, seção 4.1, e ADR 0019.
@@ -648,8 +633,16 @@ Saldo acumulado, quando maior que zero, é **linha discreta em `caption`** — "
 e não uma segunda barra. Duas barras no mesmo card leriam como progresso e meta, que é a semântica
 do `MetaCard`, não desta.
 
-**`MarcoScreen`** — tela cheia disparada em marco. Conquista em Archivo Black (`display`), respiro
-desbloqueado com valor concreto, e um CTA de permissão ("Aproveita. Tá no plano."). Sugestão
+`onDeclarar` leva à **tela de declaração** (`app/(tabs)/caixa/respiro.tsx`, M11, T5): campo em
+`CurrencyInput`, o preço em meses devolvido pelo servidor na confirmação, e a seção **"Cuidado com
+a dupla contagem"**, que lista os gastos não essenciais ativos e oferece desativá-los ali mesmo.
+Ela existe porque quem já lançou "lazer" como gasto e declara respiro vê a capacidade cair duas
+vezes sem entender por quê — o risco que a ADR 0019, item 7, assumiu de olhos abertos. Nomeá-lo na
+tela é mais barato que explicá-lo depois. `custoEmMeses` nulo grava **sem preço**, nunca palpite; e
+zero tem frase própria, porque "soma 0 meses" é verdade dita de um jeito que ninguém fala.
+
+**`MarcoScreen`** (`src/components/marco/MarcoScreen.tsx`, M11, T7) — tela cheia disparada em
+marco. Conquista em Archivo Black (`display`), respiro desbloqueado com valor concreto, e um CTA de permissão ("Aproveita. Tá no plano."). Sugestão
 contextual por tamanho do marco: sorvete/café → unha/cabelo/jantar → viagem rápida. Botão
 alternativo "guardar pro próximo marco". Glow verde, na intensidade menor da tela de vitória.
 
@@ -674,6 +667,27 @@ usuário sai do mesmo jeito.
 quando estiver decidido o que pode aparecer na imagem — valor absoluto de dívida é o dado mais
 sensível do produto e não deveria sair do aparelho por esse caminho sem decisão explícita
 (`docs/features/F-010-respiro/feature.md`, *Open questions*).
+
+**Nenhuma das três foi vista em aparelho.** Os gates provam que renderizam, que reagem, que a copy
+não escorrega para prestação de contas e que o par `accent`/`neutralSurface` passa o piso de
+contraste — **piso, não legibilidade**. Leitura, safe area, comportamento de teclado e
+acessibilidade em device são o gate humano que fecha o M11, e ele continua aberto.
+
+### Ainda só especificação
+
+> Estes vieram da concepção (`docs/concepcao/`) e **não existem em `src/`**. Dependem de domínio
+> que o M12 ainda vai trazer. Quando virarem código, sobem para a seção acima — foi o caminho que
+> `RespiroCard` e `MarcoScreen` fizeram no M11.
+
+**`ScriptCard`** — a fala de negociação com a base legal à vista. Fala entre aspas; abaixo, o
+bloco "Por que você pode falar isso", com borda esquerda verde de 2px e a citação em `caption`.
+**Todo script exibe sua fonte** — é o diferencial de confiança do produto, e é também o que o
+mantém do lado certo da fronteira jurídica.
+
+Seletor de **canal** no topo (`telefone · chat · e-mail`, ver `domain.md`). Na variante escrita,
+cada mensagem é um bloco com botão *copiar* próprio, o alerta de validação do número abre o card
+e a regra de pagamento (boleto ou Pix no CNPJ do credor) o fecha. CTA final: "colar print da
+resposta".
 
 **Pill de status** — fundo translúcido da cor, texto na cor, dot de 7px. Três variantes:
 `debt` (crítica), `warning` (negociando), `primary` (sob controle / quitada). O `Badge` atual cobre

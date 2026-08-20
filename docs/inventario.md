@@ -48,6 +48,7 @@ distinção é do `roadmap.md` e este documento não a apaga.
 | M8 | Conta de usuário: cadastro, login, sessão revogável, recuperação de senha e exclusão de conta | Entregue; **falta device** |
 | M9 | Assinatura in-app: 7 dias de teste, somente leitura depois, validação direta com as duas lojas | Entregue; **falta device e conta de loja** |
 | M10 | Fork e marca devo.nada: paleta escura, wordmark, splash, ícone (ADR 0014, 0015 e 0018) | Entregue, **sem débito aberto** desde 19/08/2026: contrastes remedidos e virados gate, dígito medido, ícone refeito, `custoDiarioJuros` no resumo. **Falta device.** |
+| M11 | Respiro: a fatia de viver entra na cascata antes do corte, e o marco vira evento que não se desfaz (ADR 0019) | Entregue em 20/08/2026; **falta device** — `RespiroCard`, a tela de declaração e a `MarcoScreen` não foram vistas em aparelho, e é o gate humano que fecha o milestone. |
 | M12 | Metas nomeadas e a aba da fase verde: `/v1/metas`, cards da tela 09, troca de aba (ADR 0017) | Entregue; **falta device**. Renda tipada e negociação por canal continuam pendentes no M12. |
 | M13 | Entrada pelo alívio: onboarding em 3 passos, escolha **múltipla** de dívida e fila de cadastro (ADR 0016) | **Parcialmente entregue**: fluxo central entregue; data de origem, documento na fila e demais itens do milestone continuam pendentes. **Falta device**. |
 | — | Navegação: seta de voltar em toda tela empilhada (ADR 0016) | Entregue; **falta device** |
@@ -299,16 +300,21 @@ Deep link sempre por campo tipado, nunca por id extraído de texto.
 
 | Suíte | Números |
 |---|---|
-| Jest | **472 testes em 42 suítes**, verdes em 19/08/2026 (remedido ao planejar o F-010; o 441 / 40 anterior era de antes dos últimos commits do M10). O ambiente exigiu `--watchman=false`; o processo **conclui a suíte e não encerra**, por handle aberto — a contagem sai antes disso. Há avisos de `act(...)` a investigar. |
-| pytest | **497 testes**, verdes em SQLite em 19/08/2026; 14 avisos de depreciação/chave curta. A execução contra Postgres continua obrigatória antes de release. |
+| Jest | **539 testes em 45 suítes**, verdes em 20/08/2026, no fechamento do M11 (era 472 / 42 na entrada dele). O ambiente exigiu `--watchman=false`; o processo **conclui a suíte e não encerra**, por handle aberto — a contagem sai antes disso, e `--forceExit` é o contorno. Há avisos de `act(...)` a investigar. |
+| pytest | **620 testes**, verdes em SQLite em 20/08/2026 (era 497 na entrada do M11); 23 avisos — `HTTP_422_UNPROCESSABLE_ENTITY` depreciado, Starlette/httpx e `InsecureKeyLength` do JWT de teste. A execução contra Postgres continua obrigatória antes de release. |
 
 Gates locais, **seis** desde 19/08/2026: `npm run typecheck`, `npm run lint`, `npm test`,
 `npm run bundle:check`, `npm run palette:check` e `npm run digits:check`, mais `pytest` no backend.
 
 Os dois últimos existem porque medição fora do repositório envelhece em silêncio — foi o que
-aconteceu com as tabelas de contraste quando o tema virou (ADR 0018). `palette:check` mede 54
-pares declarados em WCAG 2.1 e CIEDE2000; `digits:check` lê a largura de avanço dos dígitos
-direto do TTF.
+aconteceu com as tabelas de contraste quando o tema virou (ADR 0018). `palette:check` mede **56**
+pares declarados em WCAG 2.1 e CIEDE2000 (49 passam, 7 exceções declaradas, 0 reprovam);
+`digits:check` lê a largura de avanço dos dígitos direto do TTF.
+
+**Nenhum destes números vale como validação em aparelho.** Eles provam que o código compila,
+renderiza, reage e que os pares de cor passam o piso de contraste — piso, não legibilidade. As
+telas do M11 (`RespiroCard`, a tela de declaração e a `MarcoScreen`) continuam pendentes de device,
+como as de M1.5 a M10.
 
 **Não existe CI.** `.github/` contém apenas `pull_request_template.md`. Os gates dependem de
 alguém rodá-los.

@@ -1074,6 +1074,16 @@ capacidadeHoje   = capacidadeMaxima − naoEssenciais
 aporteMaximo     = capacidadeHoje − comprometidoDividas
 ```
 
+**`naoFecha` passa a disparar mais, e está correto.** Ele é `comprometidoDividas >
+capacidadeMaxima`, e `capacidadeMaxima` encolheu para quem declarou respiro: o plano de fato não
+fecha se a pessoa precisa viver. Continua sendo **fato aritmético, nunca diagnóstico** — quem o
+consome convida a investigar a repactuação e nunca afirma superendividamento.
+
+**Três consumidores mudam de número sem que nenhum deles seja tocado**, porque os três leem
+`leitura.capacidade_atual`: o teto do simulador (`routers/simulacoes._validar_aporte`), a
+`margemDisponivel` de `GET /v1/dividas/resumo` e o aporte default do card `plano_sugerido` do chat.
+Coberto por `tests/test_caixa_integracao.py::TestRespiroNosTresConsumidores`.
+
 | Campo | Ausente (`null`) quando |
 |---|---|
 | `respiro` | o usuário nunca declarou. **Nunca `0` por ausência** — zero declarado é uma escolha legítima e diferente de não ter escolhido |
@@ -1200,6 +1210,12 @@ pessoa perderia uma conquista por ter sido honesta sobre a própria situação.
 dois são separados para a tela não reaparecer a cada abertura do app, e para um marco atingido
 offline não se perder.
 
+**Uma linha por `(tenant_id, tipo)`, garantido no banco** por `UNIQUE`, e não só pelo SELECT que
+precede o INSERT: o boot do app dispara leituras concorrentes do resumo, que é onde o marco de rota
+nasce. A inserção roda dentro de um **`SAVEPOINT`** porque em três dos quatro gatilhos o marco é
+gravado na mesma transação da mutação que o produziu — sem ele, um `IntegrityError` de corrida
+abortaria a quitação da dívida que gerou a conquista. Ver `PD-3` no plano do F-010.
+
 Fontes dos gatilhos, todas já existentes: `renegociacao` para `primeira_negociacao`,
 `divida.situacao = 'quitada'` para `primeira_quitacao`, e `rotaPercorridaBps` cruzando `2500`,
 `5000` e `7500`.
@@ -1222,8 +1238,16 @@ série devolvida — e a série é recortada pelo mês selecionado. Passa a ser 
 registrado** em `saldo_snapshot`: linha de base que não encolhe, e porcentagem que nunca fica
 negativa.
 
-Os dois são `null` sem histórico — quem cadastrou hoje tem um ponto só, e "0% percorrido" no
-primeiro dia seria desanimador **e falso**: a pessoa não deixou de andar, ela acabou de chegar.
+Os dois são `null` sem histórico, e **a régua de "histórico" é MÊS ANTERIOR**, não "existe linha
+na tabela": `saldo_snapshot` tem PK `(tenant_id, mes)` e a foto do mês corrente é reescrita a cada
+leitura de `/resumo`, então tratá-la como histórico faria a **segunda** leitura do dia devolver
+`0%` a quem acabou de cadastrar a primeira dívida. "0% percorrido" no primeiro dia seria
+desanimador **e falso**: a pessoa não deixou de andar, ela acabou de chegar. (A régua nasceu
+grosseira — "existe snapshot" — e foi corrigida na revisão de T3.)
+
+Limitação conhecida e aceita (`PF-3` do plano F-010): **dentro** do mês corrente a base ainda pode
+encolher, porque a foto de hoje é reescrita. `MAX(saldo)` só é monotônico ENTRE meses. A proteção
+real contra o efeito cruel disso é o marco ser evento persistido, e não predicado recalculado.
 
 ---
 
@@ -1442,42 +1466,61 @@ e dois deles são código.*
 *Destrava: a intervenção anti-desistência. Sem ela, o teto que o produto propõe pressupõe que a
 pessoa parou de viver — e o mês 4 é onde ela desiste.*
 
-- [ ] `respiro` — tabela com `valor_mensal`, `ativo`, `saldo_acumulado`, `ultimo_mes_apurado`, uma
+> **Bloco fechado em 20/08/2026** (F-010, T1 a T8). `[x]` significa implementado, coberto por
+> teste e com o consumo pelo app escrito; `[~]`, o que depende de **ver no aparelho** para fechar.
+> Nenhum item aqui foi visto em device, e a linha `[~]` final é o gate humano que fecha o M11.
+
+- [x] `respiro` — tabela com `valor_mensal`, `ativo`, `saldo_acumulado`, `ultimo_mes_apurado`, uma
       linha por tenant. `saldo_acumulado` no molde de `provisao_anual`; `ultimo_mes_apurado` é o que
-      torna a rolagem da virada do mês idempotente sem job
-- [ ] `respiro_uso` e `respiro_destinacao` — lançamentos datados, com `tenant_id`. Entram sozinhas na
-      exclusão de conta por `tabelas_do_tenant()`
-- [ ] `marco` — evento persistido com `tipo`, `atingido_em`, `celebrado_em`. **Nunca um predicado
+      torna a rolagem da virada do mês idempotente sem job. Migração `f3a92c47b8d1` (T1), com
+      round-trip verificado contra o Postgres local
+- [x] `respiro_uso` e `respiro_destinacao` — lançamentos datados, com `tenant_id`. Entram sozinhas na
+      exclusão de conta por `tabelas_do_tenant()`, e há teste que prova a varredura alcançá-las (T1)
+- [x] `marco` — evento persistido com `tipo`, `atingido_em`, `celebrado_em`. **Nunca um predicado
       recalculado**: marco que se desfaz quando o usuário cadastra dívida nova é o modo de falha mais
-      cruel desta feature
-- [ ] `domain/caixa.py` — `respiro` em `EntradaCaixa` e em `Caixa`, subtraído **antes** de
-      `capacidade_maxima`. O docstring precisa declarar que o valor **não é regra financeira: é dado
-      do usuário** — é a distinção que autoriza o módulo a existir sem fonte legal
-- [~] Validação de piso: `422` quando `renda_liquida − essenciais − respiro < minimo_existencial`,
-      no registro de `_validar_aporte`. Implementado em `PUT /v1/caixa/respiro` (T2); sem caixa
-      preenchido a checagem não roda, pela mesma limitação declarada de `_validar_aporte`
-- [~] `PUT /v1/caixa/respiro` com `custoEmMeses` pela mesma `domain/simulacao.py` do M4 — nenhuma
+      cruel desta feature. `UNIQUE (tenant_id, tipo)` no banco mais `SAVEPOINT` na inserção
+      (migração `116f2181bdda`, T4 pós-revisão — ver `PD-3` no plano)
+- [x] `domain/caixa.py` — `respiro` em `EntradaCaixa` e em `Caixa`, subtraído **antes** de
+      `capacidade_maxima`. O docstring declara que o valor **não é regra financeira: é dado
+      do usuário** — é a distinção que autoriza o módulo a existir sem fonte legal. `EntradaCaixa`
+      ganhou um quarto campo, `respiro_ativo`, porque `Caixa.respiro_ativo` não era derivável dos
+      três previstos (`PD-2`)
+- [x] Validação de piso: `422` quando `renda_liquida − essenciais − respiro < minimo_existencial`,
+      no registro de `_validar_aporte`. Regra em `domain/caixa.respiro_invade_o_piso`, com FONTE
+      (Decreto 11.150/2022 na redação do 11.567/2023); HTTP em `PUT /v1/caixa/respiro` (T1 + T2).
+      Sem caixa preenchido a checagem não roda, pela mesma limitação declarada de `_validar_aporte`
+- [x] `PUT /v1/caixa/respiro` com `custoEmMeses` pela mesma `domain/simulacao.py` do M4 — nenhuma
       conta nova, a existente rodada duas vezes (`domain/simulacao.custo_em_meses`). Implementado e
-      coberto por teste (T2); falta ver no app
-- [~] `POST`/`DELETE /v1/caixa/respiro/uso` e `POST /v1/caixa/respiro/destinacao`, mais a rolagem
-      idempotente do saldo na virada do mês. Implementados e cobertos por teste (T2); falta ver no
-      app
-- [~] `GET /v1/marcos` e `POST /v1/marcos/{tipo}/celebracao`, mais a gravação do evento nos quatro
+      coberto por teste (T2); consumido pela tela de declaração (T5)
+- [x] `POST`/`DELETE /v1/caixa/respiro/uso` e `POST /v1/caixa/respiro/destinacao`, mais a rolagem
+      idempotente do saldo na virada do mês. Implementados e cobertos por teste (T2); consumidos
+      pelo `RespiroCard` (T5) e pela `MarcoScreen` (T7). **A revisão de T2 achou que o desfazer de
+      um uso destruía saldo real**: a coluna passou a guardar só os meses fechados, e o excesso do
+      mês virou derivado na leitura
+- [x] `GET /v1/marcos` e `POST /v1/marcos/{tipo}/celebracao`, mais a gravação do evento nos quatro
       gatilhos: renegociação, quitação pelos dois caminhos que a detectam, e a rota cruzando
-      2500/5000/7500 em `GET /v1/dividas/resumo`. Implementados e cobertos por teste (T4); a
-      `MarcoScreen` que consome é T7
-- [~] `saldoInicialDaRota` e `rotaPercorridaBps` em `GET /v1/dividas/resumo` — tira do
+      2500/5000/7500 em `GET /v1/dividas/resumo`. Implementados e cobertos por teste (T4);
+      consumidos pela `MarcoScreen` em `app/(marco)/[tipo].tsx` (T7)
+- [x] `saldoInicialDaRota` e `rotaPercorridaBps` em `GET /v1/dividas/resumo` — tira do
       `CardSaldo.tsx` a única conta derivada que o app ainda faz, e troca a linha de base móvel pelo
-      maior saldo já registrado. Implementado e coberto por teste (T3); o consumo pelo app
-      (`CardSaldo.tsx`) é T6 e ainda não foi exercitado em device
+      maior saldo já registrado. Implementado e coberto por teste (T3), consumido em T6. **A revisão
+      de T3 achou um defeito que os quatro critérios não pegavam** — a segunda leitura do mês
+      devolvia `0` a quem acabara de chegar —, e a régua de histórico virou "mês anterior"
 - [x] Teste que cruza respiro declarado × teto do simulador. É o gêmeo do teste de M7.2 que ligou
       fonte de renda a painel preenchido — e que faltava justamente quando o defeito passou por
-      quatro gates verdes. Em `tests/test_caixa_integracao.py::TestRespiroNoSimulador`, com
-      `custoEmMeses` conferido contra as duas simulações feitas pela rota pública
+      quatro gates verdes. Em `tests/test_caixa_integracao.py::TestRespiroNoSimulador` (T2), com
+      `custoEmMeses` conferido contra as duas simulações feitas pela rota pública, e em
+      `::TestRespiroNosTresConsumidores` (T8), que prova o teto descer **exatamente** o valor
+      declarado e estende a prova ao painel e ao card `plano_sugerido` do chat
 - [x] Teste que cadastra dívida nova depois de um marco e prova que o marco **não se desfaz**. Em
       `tests/test_marcos_api.py::TestMarcoNaoSeDesfaz`, com `rotaPercorridaBps` caindo de 3000 para
       0 na mesma leitura em que o marco continua atingido
-- [ ] Teste de regressão: tenant sem respiro declarado tem cascata byte a byte idêntica à de hoje
+- [x] Teste de regressão: tenant sem respiro declarado tem cascata idêntica à de antes do M11. Em
+      `tests/test_caixa.py::TestRegressaoSemRespiro` (T1), campo a campo, mais os cinco campos de
+      respiro ausentes e **nunca zero**
+- [~] **Ver no aparelho.** `RespiroCard`, a tela de declaração e a `MarcoScreen` renderizam, reagem
+      e passam os seis gates do front, e nada disso prova leitura, safe area, teclado ou
+      acessibilidade em device. É o gate humano que fecha o M11, e nenhum agente o declara
 
 ### Estado observado em device
 
@@ -1497,7 +1540,11 @@ pessoa parou de viver — e o mês 4 é onde ela desiste.*
 > exercitar fluxo**: nenhuma linha desta tabela mudou por causa dele, e nenhum `[~]` da fila virou
 > `[x]`. Ver a tela renderizar e ver o fluxo funcionar são afirmações diferentes.
 
-Suíte do backend: **370 testes**, verdes em SQLite e em Postgres, **sem tocar a rede**.
+Suíte do backend: **620 testes**, verdes, **sem tocar a rede** — medidos em 20/08/2026, no
+fechamento do M11; o `370` anterior estava defasado em seis milestones. A execução medida foi a
+padrão, em **SQLite em memória**; a suíte também roda contra Postgres por
+`DEVONADA_TEST_DATABASE_URL` (ver `tests/conftest.py`), e as migrações do M11 tiveram round-trip
+verificado lá, mas essa segunda execução **não** está incluída neste número.
 
 Nenhum endpoint da fila continua sem implementação. O que falta em todos é a mesma coisa:
 **ver funcionando no aplicativo, em aparelho**.
