@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!--
+    A tela de abertura nativa — fonte versionada do assets/splash.png. É o que o
+    sistema mostra ANTES do JS subir; assim que ele sobe, quem assume é
+    src/components/SplashDevoNada.tsx, com o wordmark inteiro e o halo pulsando.
+
+    Aqui é o ponto sozinho sobre o grafite, sem wordmark: a fonte Archivo Black
+    ainda não carregou nesse instante (app/_layout.tsx a carrega depois), e
+    desenhar a palavra em PNG produziria uma marca que troca de forma na hora em
+    que o React assume.
+
+    Geometria: r = 76,8 — diâmetro de 153,6, 15% da caixa. O número vem do app,
+    não de gosto. app.json declara resizeMode "contain", então numa tela em
+    retrato a imagem quadrada é escalada pela LARGURA: o ponto ocupa 15% da
+    largura da tela, o que dá ~62dp num aparelho de 411dp — exatamente o halo de
+    62dp que SplashDevoNada.tsx desenha atrás do ponto do wordmark. A troca entre
+    a splash nativa e a do JS acontece então sem salto de tamanho: o mesmo ponto
+    fica onde estava e a palavra nasce em volta dele.
+
+    O fundo é pintado aqui e é o mesmo hex do splash.backgroundColor de app.json,
+    que é o que preenche o resto da tela acima e abaixo do quadrado. Se os dois
+    divergirem, aparece uma faixa — é por isso que os dois saem do mesmo token.
+
+    Cores — de src/theme/theme.ts, conferidas por `npm run assets:build`:
+      #101216  colors.background  (o grafite)
+      #E5352B  colors.debt        (o ponto)
+  -->
+  <rect width="1024" height="1024" fill="#101216"/>
+  <circle cx="512" cy="512" r="76.8" fill="#E5352B"/>
+</svg>

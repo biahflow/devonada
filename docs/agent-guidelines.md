@@ -6,6 +6,37 @@ respectivas ferramentas e apontar para este documento.
 
 ---
 
+## Engineering OS e ciclo de trabalho
+
+O contexto global da Engineering OS está em
+`/Users/danielcampos/workspace/engineeringOS/`. Ele define princípios, guardrails, Definition of
+Done, contratos de agente e o ciclo `roadmap → Feature Contract → plano → tarefas → evidência →
+gate humano`. Os documentos deste repositório definem o produto e não duplicam a regra global.
+O resultado vigente da adoção está em [engineering-os-adoption.md](engineering-os-adoption.md).
+
+As fontes de trabalho deste projeto são deliberadamente separadas:
+
+- `roadmap.md` é o **roadmap canônico** do produto e do front. Para itens sem FDD, seu estado é a
+  fonte canônica de pré-especificação.
+- `docs/api-contract.md`, seção 4, é a **fila canônica do backend**. Ela não deve ser copiada
+  para o roadmap.
+- `docs/features/` guarda os **Feature Contracts** (FDDs). Um item só fica
+  `READY_FOR_PLANNING` quando seu contrato é suficiente; o plano de execução e a evidência são
+  artefatos distintos, nunca seções improvisadas do roadmap.
+- `docs/inventario.md` é uma visão **derivada e datada**. Ela não decide prioridade nem estado;
+  em divergência, atualize primeiro a fonte canônica e depois o inventário.
+
+Não há CI versionado neste repositório nem evidência de CI externo. Até uma decisão humana mudar
+isso, a política é executar e registrar os gates locais no PR; a ausência de CI não autoriza pular
+validação.
+
+M0–M9 preservam os FDDs históricos existentes. Não há obrigação de retropreenchê-los para a
+adoção. Para novo trabalho, use o próximo identificador sequencial em `docs/features/`, partindo
+do [template de FDD](feature-template.md) e do template global de Feature Contract em
+`/Users/danielcampos/workspace/engineeringOS/templates/feature.md`.
+
+---
+
 ## Ordem de precedência e leitura
 
 Em caso de conflito, prevalecem, nesta ordem:
@@ -31,7 +62,7 @@ nunca se sobrepõem aos documentos canônicos.
 
 ## Contexto e estrutura
 
-**Buddy Financeiro** é um app Expo / React Native / TypeScript de assistência financeira pessoal,
+**devo.nada** é um app Expo / React Native / TypeScript de assistência financeira pessoal,
 com foco inicial na vertical de **dívidas**. O cliente é deliberadamente "burro": renderiza chat,
 telas e cards; toda a inteligência (cálculo determinístico, LLM, base do CDC) vive no backend
 FastAPI em `backend/`.
@@ -47,6 +78,7 @@ src/
   components/                ui/ · chat/ · cards/
   screens/                   composição de tela
 backend/                     FastAPI — território do dono do repositório
+scripts/                     ferramentas de linha de comando em node puro (CommonJS)
 docs/                        documentos canônicos
 ```
 
@@ -109,6 +141,8 @@ npm run typecheck    # tsc --noEmit
 npm run lint         # eslint
 npm test             # jest — inclui os testes de tela
 npm run bundle:check # expo export: prova que o grafo inteiro compila
+npm run palette:check # WCAG 2.1 e CIEDE2000 dos pares declarados de src/theme/theme.ts
+npm run digits:check  # largura de dígito lida da tabela hmtx dos TTF das fontes do app
 ```
 
 ### O que cada gate pega — e o que nenhum deles pega
@@ -119,14 +153,23 @@ npm run bundle:check # expo export: prova que o grafo inteiro compila
 | `lint` | regra de hook violada, `any`, `setState` em efeito |
 | `test` | **lógica e comportamento de tela**: ordenação errada, estado não tratado, copy que sumiu |
 | `bundle:check` | import quebrado, módulo que não resolve em arquivo que nenhum teste importa |
+| `palette:check` | par de cor abaixo do piso de contraste, e token de cor renomeado sem a lista de pares acompanhar |
+| `digits:check` | escala de número em coluna apontando para fonte de dígito proporcional sem pedir `tabular-nums` |
 
 As duas primeiras categorias se sobrepõem menos do que parece: renomear prop é `typecheck`;
 inverter uma ordem de prioridade passa por ele intacto e só o teste de tela vê.
 
 > **Nenhum gate prova que a tela está legível, bonita ou que cabe no aparelho.** Eles provam que
-> ela renderiza e reage. Layout, contraste percebido, comportamento de teclado e safe area em
+> ela renderiza, reage, que as cores passam o piso de contraste — que é piso, não legibilidade — e
+> que a escala do número em coluna pede o dígito tabular que a fonte é capaz de dar. Layout,
+> contraste percebido, comportamento de teclado e safe area em
 > aparelho com notch **exigem validação humana em device** — um agente não consegue fazer isso e
 > não deve afirmar que fez.
+
+Nem tudo que soa como "validação em aparelho" é. Largura de dígito parecia ser, e não era: está
+gravada na tabela `hmtx` do TTF, idêntica em todo aparelho, e ficou meses adiada por ter sido
+classificada errado. Antes de anotar algo como pendente de device, pergunte se o dado não está num
+arquivo que dá para ler daqui.
 
 Backend (rodado pelo dono do repositório, a partir de `backend/` com o venv ativo):
 
@@ -152,7 +195,8 @@ Uma tarefa só entra em execução quando:
 
 ## Definition of Done
 
-- [ ] Os quatro gates passam: `typecheck`, `lint`, `test` e `bundle:check`.
+- [ ] Os seis gates passam: `typecheck`, `lint`, `test`, `bundle:check`, `palette:check` e
+      `digits:check`.
 - [ ] Nenhuma verificação foi desativada para concluir a tarefa.
 - [ ] Tela nova tem teste em `src/test/screens/` cobrindo os quatro estados.
 - [ ] O que **não** foi validado em device está dito explicitamente no relato.

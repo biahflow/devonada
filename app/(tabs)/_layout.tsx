@@ -1,16 +1,9 @@
 import { View } from 'react-native';
 import { Tabs } from 'expo-router';
-import Feather from '@expo/vector-icons/Feather';
 import { TabBar } from '../../src/components/ui/TabBar';
 import { AvisoSomenteLeitura } from '../../src/components/ui/AvisoSomenteLeitura';
-import { useEstadoDaRota } from '../../src/hooks/useEstadoDaRota';
 
 export default function TabsLayout() {
-  // A MESMA LEITURA QUE A BARRA JÁ FAZ para escolher entre vermelho e verde
-  // (src/components/ui/TabBar.tsx). Sai do cache do resumo, sem requisição nova
-  // (ADR 0002) — por isso dá para consultá-la aqui, no layout, sem custo.
-  const faseVerde = useEstadoDaRota() === 'quitado';
-
   return (
     <Tabs
       // A barra padrão só troca a cor do ícone — em aparelho ela lê como rodapé
@@ -35,7 +28,11 @@ export default function TabsLayout() {
         `painel`, `index` e `caixa` continuam sendo o que sempre foram na rota e
         no código — a linguagem ubíqua de docs/domain.md. Renomear a pasta
         quebraria deep link e teste sem entregar nada a quem usa o app. O que a
-        pessoa lê é Rota · Dívidas · Buddy · Extrato.
+        pessoa lê é Rota · Dívidas · Buddy · Caixa.
+
+        NÃO HÁ `tabBarIcon` AQUI: a barra não desenha ícone nenhum. O rótulo
+        escrito diz o que a aba é, e o elemento gráfico guarda a única coisa que
+        o texto não diz — onde estou e em que fase. Ver src/components/ui/TabBar.
 
         A Rota vem primeiro porque o produto é "o que eu faço agora", não
         "quanto eu devo": abrir no chat deixava a próxima ação a um toque de
@@ -45,51 +42,46 @@ export default function TabsLayout() {
         name="painel"
         options={{
           title: 'Rota',
-          tabBarIcon: ({ color, size }) => <Feather name="map" color={color} size={size} />,
         }}
       />
       {/*
-        A SEGUNDA ABA TROCA DE SENTIDO QUANDO A PESSOA ZERA. É a tela 09 da
-        concepção: pós-quitação, "Dívidas" vira "Metas" — mesma mecânica, a barra
-        crescendo em vez de encolhendo. Quem saiu da dívida não deveria abrir o
-        app numa lista vazia do que já resolveu.
+        DÍVIDAS E METAS CONVIVEM, as duas sempre na barra.
 
-        `href: null` TIRA DA BARRA SEM TIRAR DA ROTA, e essa distinção é o que
-        impede um beco sem saída: `/dividas` continua alcançável por `push` e por
-        deep link na fase verde, e a tela de Metas oferece o caminho
-        explicitamente. Esconder a rota faria quem quitou tudo e contraiu uma
-        dívida nova não ter como cadastrá-la. Ver ADR 0017.
+        A ADR 0017 previa que a segunda aba TROCASSE de sentido na fase verde:
+        "Dívidas" viraria "Metas", com `href: null` escondendo uma de cada vez. A
+        troca nunca chegou a acontecer em aparelho — a barra é desenhada por
+        `src/components/ui/TabBar.tsx`, que lia `state.routes` na mão e ignorava
+        o `href`, então as duas apareciam juntas desde o M12. O defeito foi
+        corrigido; a decisão de produto que ele escondia é que mudou de rumo.
+
+        Metas é destino, não prêmio de fim de jogo: quem está pagando dívida
+        também guarda para o IPVA de janeiro, e esconder a aba até a quitação
+        adiava a única tela que fala do depois. O custo aceito é a quinta aba na
+        barra — e é por isso que ela não tem ícone (ver TabBar): cinco rótulos
+        curtos cabem onde cinco pictogramas competiriam.
       */}
       <Tabs.Screen
         name="dividas"
         options={{
           title: 'Dívidas',
-          tabBarIcon: ({ color, size }) => <Feather name="file-text" color={color} size={size} />,
-          href: faseVerde ? null : undefined,
         }}
       />
       <Tabs.Screen
         name="metas"
         options={{
           title: 'Metas',
-          tabBarIcon: ({ color, size }) => <Feather name="target" color={color} size={size} />,
-          href: faseVerde ? undefined : null,
         }}
       />
       <Tabs.Screen
         name="index"
         options={{
           title: 'Buddy',
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="message-circle" color={color} size={size} />
-          ),
         }}
       />
       <Tabs.Screen
         name="caixa"
         options={{
-          title: 'Extrato',
-          tabBarIcon: ({ color, size }) => <Feather name="inbox" color={color} size={size} />,
+          title: 'Caixa',
         }}
       />
     </Tabs>

@@ -5,13 +5,17 @@ import { useEstadoDaRota } from '../../hooks/useEstadoDaRota';
 import { colors, radius, spacing, typography } from '../../theme/theme';
 
 /**
- * O topo da Rota: o wordmark com o ponto de status, e o atalho para as
+ * O topo de toda aba: o wordmark com o ponto de status, e o atalho para as
  * preferências.
  *
- * O PONTO É A RAZÃO DESTE COMPONENTE EXISTIR. Uma tela de painel não precisa
- * exibir o nome do próprio app — todo mundo sabe qual app abriu. Ele está aqui
- * porque o ponto reporta a rota da pessoa, e a Rota é onde ela olha todo dia:
- * é aqui que a mudança de vermelho para verde vai ser vista.
+ * O PONTO É A RAZÃO DESTE COMPONENTE EXISTIR. Ninguém precisa ser lembrado de
+ * qual app abriu; o que muda é o ponto, que reporta a rota da pessoa. Ele
+ * nasceu só na Rota, por ser a tela do dia a dia — e passou a viver nas quatro
+ * abas, porque a mudança de vermelho para verde é o acontecimento do produto e
+ * não deveria depender de a pessoa estar na aba certa para ser vista.
+ *
+ * Fica FORA da área que rola, em todas elas: um wordmark que sobe junto com o
+ * conteúdo leva embora o ponto justamente em lista longa e conversa longa.
  */
 export function TopbarMarca() {
   const router = useRouter();

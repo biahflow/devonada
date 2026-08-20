@@ -8,7 +8,9 @@ module.exports = [
   {
     // Setup e testes rodam em Node sob jest: globais de teste e require() são
     // o idioma correto ali, não uma exceção sendo aberta no código do app.
-    files: ['jest.setup.js', '**/*.test.ts', '**/*.test.tsx'],
+    // `**/*.test.js` cobre `scripts/`, que é ferramenta de linha de comando em
+    // node puro — fora do tsconfig e sem transpilador, por isso em JS.
+    files: ['jest.setup.js', '**/*.test.js', '**/*.test.ts', '**/*.test.tsx'],
     languageOptions: { globals: { jest: 'readonly', require: 'readonly' } },
     rules: {
       '@typescript-eslint/no-require-imports': 'off',

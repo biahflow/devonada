@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!--
+    A camada de frente do ícone adaptativo do Android — fonte versionada do
+    assets/adaptive-icon.png.
+
+    Existe separado de icon.svg porque a máscara do Android come mais borda que a
+    do iOS. A diferença entre os dois é o RAIO, e é ela que justifica dois
+    arquivos em vez de um SVG com parâmetro implícito — número de geometria
+    escondido em parâmetro é o que ninguém acha depois.
+
+    Geometria: r = 281,6, diâmetro de 563,2 = 55% da caixa.
+
+    A MEDIÇÃO QUE DECIDE ESTE NÚMERO. A camada do Android é de 108dp e a janela
+    garantida da máscara é a de 72dp — 66,7% da caixa, 682,67px aqui. É daí que
+    vem o "72" que design-system.md carregava escrito como "72%": eram 72dp, não
+    72 por cento. A 72% da caixa o disco passava 27,3px ALÉM da janela por lado, e
+    em launcher de máscara circular ele era recortado exatamente na borda — o
+    grafite sumia e o ícone virava um círculo vermelho cheio, indistinguível de
+    qualquer outro app de ícone vermelho.
+
+    A 55% o disco fica 59,7px dentro da janela por lado, então sobra anel de
+    grafite VISÍVEL mesmo no recorte circular, que é o mais agressivo. O ponto lê
+    como ponto nas duas plataformas, que é o que a marca pede — ver o comentário
+    equivalente em icon.svg.
+
+    Cores — as duas saem de src/theme/theme.ts, e `npm run assets:build` reprova
+    se algum hex daqui deixar de corresponder ao token:
+      #101216  colors.background  (o grafite; é também o android.adaptiveIcon
+                                   .backgroundColor de app.json, então a camada
+                                   de trás é a mesma cor desta e a pilha inteira
+                                   fica de uma cor só)
+      #E5352B  colors.debt        (o ponto)
+  -->
+  <rect width="1024" height="1024" fill="#101216"/>
+  <circle cx="512" cy="512" r="281.6" fill="#E5352B"/>
+</svg>

@@ -79,5 +79,5 @@ const styles = StyleSheet.create({
   chipLabel: { ...typography.body, color: colors.inkSoft },
   chipLabelAtivo: { ...typography.bodyStrong, color: colors.primaryDeep },
   description: { ...typography.caption, color: colors.inkSoft },
-  error: { ...typography.caption, color: colors.danger },
+  error: { ...typography.caption, color: colors.dangerText },
 });

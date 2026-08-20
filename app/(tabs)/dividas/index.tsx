@@ -3,6 +3,7 @@ import { ScrollView, RefreshControl, View, Pressable, Text, StyleSheet } from 'r
 import { useRouter } from 'expo-router';
 import { Screen } from '../../../src/components/ui/Screen';
 import { PageHeader } from '../../../src/components/ui/PageHeader';
+import { TopbarMarca } from '../../../src/components/rota/TopbarMarca';
 import { Button } from '../../../src/components/ui/Button';
 import { LoadingState } from '../../../src/components/ui/LoadingState';
 import { ErrorState } from '../../../src/components/ui/ErrorState';
@@ -21,18 +22,21 @@ export default function ListaDividas() {
   const { dividas, isPending, error, refetch, isRefetching } = useDividas(ordem);
 
   const cabecalho = (
-    <PageHeader
-      titleLead="Suas"
-      title="dívidas"
-      description="Um retrato honesto do que existe hoje, sem susto."
-      action={
-        <Button
-          label="Ler contrato"
-          onPress={() => router.push('/dividas/contrato')}
-          variant="secondary"
-        />
-      }
-    />
+    <>
+      <TopbarMarca />
+      <PageHeader
+        titleLead="Suas"
+        title="dívidas"
+        description="Um retrato honesto do que existe hoje, sem susto."
+        action={
+          <Button
+            label="Ler contrato"
+            onPress={() => router.push('/dividas/contrato')}
+            variant="secondary"
+          />
+        }
+      />
+    </>
   );
 
   if (isPending) {

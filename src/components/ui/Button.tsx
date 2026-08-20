@@ -37,7 +37,7 @@ const container: Record<Variant, ViewStyle> = {
 const labelColor: Record<Variant, string> = {
   primary: colors.onPrimary,
   secondary: colors.primary,
-  danger: colors.danger,
+  danger: colors.dangerText,
   ghost: colors.inkSoft,
 };
 

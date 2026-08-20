@@ -17,7 +17,7 @@ docker compose up -d                      # Postgres na 5433
 python3 -m venv venv && ./venv/bin/pip install -r requirements.txt
 ./venv/bin/alembic upgrade head
 ./venv/bin/uvicorn main:app --host 0.0.0.0 --port 8001 --reload
-./venv/bin/pytest                          # 452 testes
+./venv/bin/pytest
 ```
 
 **Três ajustes no `.env` recém-copiado**, e só o primeiro é obrigatório:
@@ -103,6 +103,7 @@ varre `app.openapi()` e falha se `LIVRES` crescer sem decisão explícita.
 | `valorCorrigido` | Juros compostos pela taxa **do próprio contrato** | O contrato do usuário | `domain/correcao.py` |
 | `minimoExistencial` | **R$ 600,00 fixos** (config datada, sem derivar do salário mínimo) | Decreto 11.150/2022, art. 3º, **na redação do Decreto 11.567/2023** | `domain/minimo_existencial.py` |
 | `custoMedioJurosMensal` | Média das taxas **ponderada pelo saldo** | — (escolha de método, documentada) | `domain/resumo.py` |
+| `custoDiarioJuros` | Juros do mês das ativas **com taxa**, ÷ **30** | — (três escolhas de método, declaradas no docstring) | `domain/resumo.py` |
 | Valor da parcela | Divisão inteira com a **sobra na última** | — (aritmética; a soma tem de fechar) | `domain/parcelas.py` |
 | `situacao` da parcela | Vencimento < hoje e não paga | — (derivada no servidor, nunca no cliente) | `domain/parcelas.py` |
 | Ordem da avalanche | Maior taxa primeiro; **sem taxa por último** | — (definição corrente da estratégia) | `domain/simulacao.py` |
@@ -200,6 +201,22 @@ Estão aqui porque escondê-las seria pior que tê-las.
     sem inventar dado. Um app instalado que não atualizou e tenha múltiplas fontes recebe esse
     erro ao salvar o perfil — é o preço de não sobrescrever renda em silêncio, e some quando o
     aparelho atualiza, porque a tela nova não envia mais o campo.
+16. **`custoDiarioJuros` SUBESTIMA quando falta taxa** (M10). Ele soma só as ativas com taxa
+    conhecida — tratar a sem taxa como 0% afirmaria que ela não cresce, que é a mesma classe de
+    erro do `* 1.1`, invertida de sinal. A escolha foi a mesma do M4, e não a alternativa de
+    suprimir o campo enquanto a carteira estivesse incompleta: suprimir esconde do usuário
+    justamente a lacuna que só ele pode fechar, e mataria a frase para o perfil mais comum do
+    app — quem cadastrou na mão e não sabia a taxa. Então o número não sai sozinho.
+    `quantidadeDividasSemTaxa` conta o que ficou de fora, e maior que zero a tela diz "cresce
+    **pelo menos** R$ 41,00 por dia — 2 dívidas ainda estão sem a taxa cadastrada". O cliente
+    exige os DOIS campos para dizer a frase; com um só, o card não diz nada, porque piso
+    anunciado como total é subestimação silenciosa.
+
+    **O divisor 30 não vem de lei nenhuma**, e o docstring diz isso com todas as letras: é mês
+    comercial, escolha de método, e o resultado é ordem de grandeza — não o que um credor cobra
+    por um dia de atraso, e não número para levar a uma negociação. Zero é resposta possível e
+    verdadeira (taxa 0% informada, ou juros abaixo de um centavo ao dia) e é diferente de
+    ausente, que continua significando "não há taxa para calcular".
 
 ### A simulação e o teto de 600 meses
 
@@ -346,7 +363,9 @@ Recurso de outro tenant devolve **404, nunca 403**: um 403 confirmaria que o id 
 > DEVONADA_TEST_DATABASE_URL=postgresql+psycopg://devonada:devonada@localhost:5433/devonada_test pytest
 > ```
 >
-> Os 420 testes passam nos dois. **A fixture `engine` precisa de `eng.dispose()` no `finally`**:
+> Em 17/08/2026, a execução local registrou 480 testes passando em SQLite; a mesma suíte precisa
+> ser reexecutada em Postgres antes de cada release. **A fixture `engine` precisa de
+> `eng.dispose()` no `finally`**:
 > sem ele, um engine por teste esgota o `max_connections` do Postgres ("sorry, too many clients
 > already"). Em SQLite em memória isso passava despercebido, e a suíte só quebrou quando cresceu
 > o bastante para estourar o limite — no M6. É exatamente o tipo de divergência que rodar só em

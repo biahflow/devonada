@@ -105,6 +105,14 @@ Jest + React Native Testing Library.
 |---|---|---|
 | Unidade | ao lado do código (`money.test.ts` junto de `money.ts`) | função pura e componente isolado |
 | Tela | `src/test/screens/` | a rota inteira: quatro estados, com a API mockada |
+| Ferramenta | ao lado do script (`scripts/contraste.test.js`) | a matemática dos gates, contra dado de referência publicado |
+
+> **`scripts/` é o único lugar do repo em CommonJS e com teste em `.js`.** São ferramentas de
+> linha de comando rodadas por `node` puro, fora do alcance do `tsconfig.json` e sem
+> transpilador; testar a mesma implementação que o gate executa exige falar a língua dela.
+> Fórmula de gate se confere contra **valor de referência publicado**, não contra a própria
+> saída: um CIEDE2000 com o termo de rotação errado aprova em silêncio, e viria com número e
+> tabela — pior que não medir.
 
 > **Teste de tela NÃO fica dentro de `app/`.** Todo arquivo ali é uma rota para o expo-router.
 > Os testes importam a rota por caminho relativo — parêntese em import é inofensivo.
@@ -142,11 +150,46 @@ npm run typecheck
 npm run lint
 npm test
 npm run bundle:check
+npm run palette:check
+npm run digits:check
 ```
 
 `bundle:check` roda `expo export` e produz o bundle de produção do grafo inteiro. É o que pega
 import quebrado e módulo que não resolve em arquivo que nenhum teste importa — a classe de erro
 que, sem ele, só aparece ao abrir o app.
+
+`palette:check` roda `scripts/paleta-check.mjs`: lê os hex de `src/theme/theme.ts`, mede a lista
+declarada de pares em WCAG 2.1 (piso 4,5:1 para texto, 3:1 para objeto gráfico e texto grande) e
+CIEDE2000 (piso ΔE 15 entre semânticas adjacentes), e sai com código 1 se algum par sem exceção
+reprovar. Ele existe porque a medição já morreu uma vez em silêncio: virar o tema de claro para
+escuro apagou três tabelas e nada falhou, porque o validador vivia fora do repositório
+(ADR 0018).
+
+Duas regras que vêm com ele:
+
+- **Combinação de cor nova entra na lista no mesmo commit em que aparece na tela.** A lista é
+  declarada de propósito — varrer todas as combinações produziria ruído que se aprende a ignorar.
+- **Número de contraste em documentação sai de `node scripts/paleta-check.mjs --tabela`**, nunca
+  digitado. As três tabelas da seção 1 do `design-system.md` são a saída literal do script.
+
+`digits:check` roda `scripts/digitos-check.mjs`: lê os TTF das quatro famílias que
+`app/_layout.tsx` carrega, parseia `head`, `hhea`, `maxp`, `cmap`, `hmtx` e `GSUB` em node puro, e
+imprime a largura de avanço dos dez dígitos de cada uma. Depois confere o `typography.numeric` de
+`src/theme/theme.ts` contra essa medição e sai com código 1 se a escala do número em coluna
+depender de uma família de dígitos proporcionais sem pedir `fontVariant: ['tabular-nums']`.
+
+É o segundo lado que faz dele um gate: medir os arquivos sozinho nunca reprovaria — a Inter declara
+`tnum` e a Archivo Black já é tabular —, e gate que não pode falhar é decoração. O que pode
+regredir é o `theme.ts`.
+
+Duas regras que vêm com ele:
+
+- **Família de fonte nova entra em `FONTES_DO_APP` no mesmo commit em que entra no `useFonts`.**
+  Se `typography.numeric` apontar para uma família que o comando não mede, ele reprova em vez de
+  aprovar por omissão.
+- **Largura de dígito não é item de validação em aparelho.** Ela está gravada no TTF e é idêntica
+  em todo device. Foi classificada assim uma vez e ficou meses parada; medir custa um
+  `readFileSync`.
 
 Nenhuma verificação é desativada para concluir uma tarefa. Regra de lint que atrapalha se
 discute e se muda com justificativa — não se silencia com comentário pontual.

@@ -24,7 +24,9 @@ O que muda, do ponto de vista do usuário.
 - [ ] Nenhum `fetch` fora de `src/api/client.ts`
 - [ ] Nenhum segredo novo com prefixo `EXPO_PUBLIC_`
 - [ ] Nenhum dado financeiro ou pessoal em log, analytics ou mensagem de erro
-- [ ] Vermelho usado só para erro ou ação destrutiva
+- [ ] Vermelho é status de dívida, nunca cenário — e não há botão vermelho, nem para destruição
+- [ ] Vermelho em texto usa `debtText`/`dangerText`; `debt`/`danger` só em objeto gráfico e no
+      número protagonista (ADR 0018)
 - [ ] Escrita disparada pelo chat pede confirmação explícita
 
 ## Validação
@@ -33,6 +35,9 @@ O que muda, do ponto de vista do usuário.
 - [ ] `npm run lint`
 - [ ] `npm test`
 - [ ] `npm run bundle:check`
+- [ ] `npm run palette:check` — e toda combinação de cor nova entrou na lista de
+      `scripts/paleta-check.mjs`
+- [ ] `npm run digits:check` — e família de fonte nova entrou em `scripts/digitos-check.mjs`
 - [ ] Tela nova tem teste em `src/test/screens/` cobrindo os quatro estados
 
 Validação humana — os gates acima **não** substituem isto:

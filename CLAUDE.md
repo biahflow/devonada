@@ -2,6 +2,13 @@
 
 Instruções específicas para o Claude Code neste repositório.
 
+## Engineering OS
+
+Este repositório adota a Engineering OS. Antes de qualquer trabalho, carregue o contexto global
+em `/Users/danielcampos/workspace/engineeringOS/`: `README.md`, princípios, guardrails,
+Definition of Done e o contrato de agente aplicável. A Engineering OS define os gates humanos e
+o ciclo de vida; este repositório define seus documentos canônicos, arquitetura e comandos.
+
 ## Leitura obrigatória
 
 Antes de planejar, revisar ou alterar código, leia integralmente `docs/agent-guidelines.md`.
@@ -37,6 +44,12 @@ Ler `docs/backend.md` antes de tocar em `backend/`. Mudança de contrato atualiz
   coordenação clara de arquivos.
 - Rode `npm run typecheck` antes de encerrar. Se houver lint e testes configurados, rode-os
   também (ver `docs/engineering-conventions.md`).
+- Tocou em cor — token de `src/theme/theme.ts` ou combinação nova numa tela? Rode
+  `npm run palette:check` e declare o par novo em `scripts/paleta-check.mjs` no mesmo commit.
+  Número de contraste em documentação sai da saída do script, nunca da sua estimativa (ADR 0018).
+- Tocou em fonte — família nova, ou `typography.numeric` apontando para outro peso? Rode
+  `npm run digits:check`. Largura de dígito é fato do arquivo da fonte, não item de validação em
+  aparelho: meça, não opine.
 - Antes de encerrar, informe arquivos alterados, validações executadas e pendências.
 - Documentação desatualizada é fonte de alucinação. Mudou a estrutura de pastas, um token de
   design ou o contrato de um endpoint? Atualize o doc correspondente **no mesmo commit**.

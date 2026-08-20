@@ -2,6 +2,13 @@
 
 Instruções específicas para o Codex e demais agentes de código neste repositório.
 
+## Engineering OS
+
+Este repositório adota a Engineering OS. Antes de qualquer trabalho, carregue o contexto global
+em `/Users/danielcampos/workspace/engineeringOS/`: `README.md`, princípios, guardrails,
+Definition of Done e o contrato de agente aplicável. A Engineering OS define os gates humanos e
+o ciclo de vida; este repositório define seus documentos canônicos, arquitetura e comandos.
+
 ## Leitura obrigatória
 
 Antes de planejar, revisar ou alterar código, leia integralmente `docs/agent-guidelines.md`.
@@ -27,7 +34,12 @@ arquitetura, contrato de API ou Definition of Done mudar, atualize somente
 
 ## Antes de abrir pull request
 
-- Os quatro gates passam: `typecheck`, `lint`, `test` e `bundle:check`.
+- Os seis gates passam: `typecheck`, `lint`, `test`, `bundle:check`, `palette:check` e
+  `digits:check`.
+- Mexeu em cor? O par novo está declarado em `scripts/paleta-check.mjs`, e todo número de
+  contraste que foi parar em documentação saiu da saída do script (ADR 0018).
+- Mexeu em fonte? A família nova está em `scripts/digitos-check.mjs`. Largura de dígito é fato do
+  arquivo da fonte — medida, nunca estimada nem adiada para "validação em aparelho".
 - Nenhuma verificação de qualidade foi desativada para concluir a tarefa.
 - Doc afetado foi atualizado no mesmo commit.
 - O template `.github/pull_request_template.md` está preenchido.
@@ -41,6 +53,8 @@ npm run typecheck    # tsc --noEmit
 npm run lint         # eslint
 npm test             # jest — inclui os testes de tela
 npm run bundle:check # expo export: prova que o grafo inteiro compila
+npm run palette:check # WCAG 2.1 e CIEDE2000 dos pares declarados de src/theme/theme.ts
+npm run digits:check  # largura de dígito lida da tabela hmtx dos TTF das fontes do app
 ```
 
 Nenhum desses gates prova que a tela está legível ou cabe no aparelho. Isso exige validação

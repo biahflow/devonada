@@ -17,7 +17,7 @@ const tones: Record<Tone, { bg: string; border: string; fg: string }> = {
   info: { bg: colors.primarySurface, border: colors.primarySoft, fg: colors.primaryDeep },
   success: { bg: colors.accentSurface, border: colors.accent, fg: colors.accent },
   warning: { bg: colors.warningSurface, border: colors.warningBorder, fg: colors.warning },
-  error: { bg: colors.dangerSurface, border: colors.dangerBorder, fg: colors.danger },
+  error: { bg: colors.dangerSurface, border: colors.dangerBorder, fg: colors.dangerText },
 };
 
 export function Feedback({ message, tone = 'info' }: Props) {

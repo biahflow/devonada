@@ -354,6 +354,77 @@ class TestResumo:
         resumo = client.get("/v1/dividas/resumo", headers=auth).json()["resumo"]
         assert resumo["proximosVencimentos"] == []
 
+    def test_custo_diario_com_carteira_toda_com_taxa(self, client, auth):
+        # R$ 1.000,00 a 3% a.m. = R$ 30,00 no mês; ÷ 30 = R$ 1,00 ao dia.
+        client.post(
+            "/v1/dividas",
+            json=_nova(valorCobrado=100000, taxaJurosMensal=300),
+            headers=auth,
+        )
+        resumo = client.get("/v1/dividas/resumo", headers=auth).json()["resumo"]
+        assert resumo["custoDiarioJuros"] == 100
+        # Zero aqui é o que autoriza a tela a dizer o número como total.
+        assert resumo["quantidadeDividasSemTaxa"] == 0
+
+    def test_custo_diario_ausente_quando_nenhuma_divida_tem_taxa(self, client, auth):
+        client.post("/v1/dividas", json=_nova(valorCobrado=100000), headers=auth)
+        resumo = client.get("/v1/dividas/resumo", headers=auth).json()["resumo"]
+        assert resumo["custoDiarioJuros"] is None
+        assert resumo["quantidadeDividasSemTaxa"] == 1
+
+    def test_custo_diario_de_carteira_mista_e_piso_e_diz_que_e(self, client, auth):
+        """
+        A consequência honesta da escolha (a).
+
+        A dívida sem taxa fica fora da soma — tratá-la como 0% afirmaria que ela
+        não cresce —, e por isso o número SUBESTIMA. Ele não sai sozinho: a
+        contagem viaja junto, e é ela que faz a tela dizer "pelo menos" em vez
+        de anunciar um total que não é total.
+        """
+        client.post(
+            "/v1/dividas",
+            json=_nova(valorCobrado=100000, taxaJurosMensal=300),
+            headers=auth,
+        )
+        client.post("/v1/dividas", json=_nova(valorCobrado=9000000), headers=auth)
+        resumo = client.get("/v1/dividas/resumo", headers=auth).json()["resumo"]
+        assert resumo["custoDiarioJuros"] == 100
+        assert resumo["quantidadeDividasSemTaxa"] == 1
+
+    def test_custo_diario_ignora_dividas_quitadas(self, client, auth):
+        criada = client.post(
+            "/v1/dividas",
+            json=_nova(valorCobrado=100000, taxaJurosMensal=300),
+            headers=auth,
+        ).json()["divida"]
+        client.post(
+            f"/v1/dividas/{criada['id']}/quitacao",
+            json={"dataQuitacao": str(HOJE), "valorPago": 100000},
+            headers=auth,
+        )
+        resumo = client.get("/v1/dividas/resumo", headers=auth).json()["resumo"]
+        assert resumo["custoDiarioJuros"] is None
+        assert resumo["quantidadeDividasSemTaxa"] == 0
+
+    def test_custo_diario_usa_a_mesma_base_do_custo_medio(self, client, auth):
+        """
+        Um payload, uma base de saldo.
+
+        As duas leituras de juros do resumo saem do MESMO `ParcelaEstimada`. Se
+        alguém trocar a base de uma delas, o mesmo card passa a exibir dois
+        números de juros que não fecham entre si — e o backend já convive com
+        duas derivações de saldo, o que basta.
+        """
+        client.post(
+            "/v1/dividas",
+            json=_nova(valorCobrado=100000, taxaJurosMensal=300),
+            headers=auth,
+        )
+        resumo = client.get("/v1/dividas/resumo", headers=auth).json()["resumo"]
+        assert resumo["custoMedioJurosMensal"] == 300
+        # 3% de R$ 1.000,00 no mês, o mesmo R$ 1.000,00 que a média ponderou.
+        assert resumo["custoDiarioJuros"] == 100
+
 
 class TestExtracaoGuardrail:
     def _campos(self, **over):

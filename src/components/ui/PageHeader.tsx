@@ -78,6 +78,13 @@ const styles = StyleSheet.create({
     minWidth: 48,
     alignItems: 'center',
     justifyContent: 'center',
+    // `alignSelf` NÃO É OPCIONAL AQUI. O container é uma coluna, e numa coluna o
+    // `alignItems` padrão é `stretch`: sem esta linha o Pressable estica pela
+    // largura inteira da tela, e o `alignItems: 'center'` de cima — que existe
+    // para centralizar o ícone DENTRO do alvo de 48pt — passa a centralizá-lo na
+    // tela. A seta aparecia no meio do topo, e o alvo de toque cobria a linha
+    // toda. As duas propriedades parecem redundantes e fazem coisas diferentes.
+    alignSelf: 'flex-start',
     // O recuo cancela o `paddingHorizontal` do `Screen`: sem ele o ícone fica
     // um passo à direita do título e a coluna do cabeçalho perde o prumo.
     marginLeft: -spacing.lg,

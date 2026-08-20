@@ -2,6 +2,7 @@ import { ScrollView, View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Screen } from '../../../src/components/ui/Screen';
 import { PageHeader } from '../../../src/components/ui/PageHeader';
+import { TopbarMarca } from '../../../src/components/rota/TopbarMarca';
 import { Card } from '../../../src/components/ui/Card';
 import { Button } from '../../../src/components/ui/Button';
 import { Feedback } from '../../../src/components/ui/Feedback';
@@ -21,11 +22,14 @@ export default function CaixaScreen() {
   useLembreteFechamento();
 
   const cabecalho = (
-    <PageHeader
-      titleLead="Seu"
-      title="caixa"
-      description="Quanto entra, quanto sai e o que sobra de verdade para pagar dívida."
-    />
+    <>
+      <TopbarMarca />
+      <PageHeader
+        titleLead="Seu"
+        title="caixa"
+        description="Quanto entra, quanto sai e o que sobra de verdade para pagar dívida."
+      />
+    </>
   );
 
   if (isPending) {

@@ -154,9 +154,14 @@ nunca morou no token de cor: ela mora nos comportamentos abaixo, e **nenhum dele
 
 Austeridade total é a principal causa de desistência. Meses só pagando dívida, sem nenhum ganho
 visível, viram "perda total"; e gasto pequeno — um sorvete, uma unha — vira fonte de culpa e de
-conflito dentro de casa. Por isso todo plano reserva, **desde o dia 1**, uma fatia da capacidade
-para lazer e autocuidado. Ela é linha da cascata, no mesmo nível do aluguel, e não sobra.
+conflito dentro de casa. Por isso o respiro está no plano **desde o dia 1**, e não a partir do dia
+em que a pessoa merecer. Ele é linha da cascata, no mesmo nível do aluguel, e não sobra.
 
+- **Quem diz o tamanho da fatia é o usuário** (ADR 0019). O app não reserva percentual nenhum por
+  conta própria: fatia arbitrada por software seria coeficiente de alocação sem fonte, proibido
+  pela ADR 0009. O que o app faz é declarar o **preço** da escolha — quantos meses a mais de
+  quitação —, e a escolha continua sendo dela. Consequência aceita: **sem declaração não há
+  respiro**, e por isso o convite a declarar é obrigação de tela, não item opcional de polimento.
 - **Gasto de respiro nunca gera alerta, aviso ou contabilização negativa.** O único acompanhamento
   é quanto ainda há disponível. Copy correta: "sobram R$ 70 pra usar sem culpa". Copy proibida:
   "você já gastou R$ 80".
@@ -164,7 +169,13 @@ para lazer e autocuidado. Ela é linha da cascata, no mesmo nível do aluguel, e
   ("se você economizar, aí pode") — ele já está no plano, e é justamente essa incondicionalidade
   que faz a culpa morrer.
 - **Respiro não usado não vira cobrança.** Ele acumula para o próximo marco ou vira aporte extra,
-  e a escolha é do usuário.
+  e a escolha é do usuário. O **default é acumular em silêncio**: sem notificação, sem pergunta no
+  fechamento do mês, sem lembrete. Perguntar todo mês o que fazer com o saldo transformaria o
+  respiro em item de prestação de contas, que é o tom que esta seção inteira existe para proibir.
+- **Marco celebra; marco não avalia.** O respiro não escala por fórmula, e nenhum marco altera o
+  valor que a pessoa declarou (ADR 0019). Um marco atingido **nunca se desfaz** — nem quando o
+  usuário cadastra uma dívida nova, o que faria a porcentagem da rota andar para trás. Perder uma
+  conquista por ter sido honesto sobre a própria situação é o oposto do que este produto faz.
 - **O piso legal continua acima dele.** Respiro sai da capacidade, e a capacidade nunca invade o
   mínimo existencial (seção 3 de `domain.md`).
 

@@ -194,6 +194,16 @@ class ResumoDividas(Camel):
     quantidadeDividas: int
     custoMedioJurosMensal: int | None = None
 
+    # Centavos POR DIA. Ausente enquanto nenhuma ativa tem taxa — nunca zero por
+    # falta de dado, que afirmaria que a dívida não cresce. Zero só sai quando a
+    # conta deu zero: taxa zero informada, ou juros abaixo de um centavo ao dia.
+    custoDiarioJuros: int | None = None
+    # Quantas ativas estão sem taxa conhecida. Maior que zero ⇒ `custoDiarioJuros`
+    # é PISO, não total. Os dois viajam juntos de propósito: um piso apresentado
+    # como total é subestimação silenciosa, que é o que este par existe para
+    # impedir (mesma disciplina de `dividasSemTaxa` na simulação).
+    quantidadeDividasSemTaxa: int = 0
+
     rendaMensal: int | None = None
     comprometimentoRenda: int | None = None
     minimoExistencial: int | None = None

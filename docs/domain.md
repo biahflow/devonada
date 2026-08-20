@@ -162,8 +162,23 @@ desistência, e é o que faz uma quitação de dezoito meses virar "perda total"
 vive. Quando o app diz "está no plano", duas coisas acontecem — a culpa morre, e o buddy passa a
 ser o terceiro que autoriza, o que desarma o policiamento mútuo dentro de casa.
 
-O respiro **escala com o marco**: sorvete → jantar a dois → bate-volta de fim de semana. Ver
-`guardrails.md`, seção 4.1, para as regras de copy que o protegem.
+**Quem diz o valor é o usuário** (ADR 0019). O respiro é declarado, como um gasto ou um pote, e o
+app responde com a única coisa que sabe de verdade: quantos meses a mais de quitação aquele valor
+custa. Não existe percentual default, nem faixa sugerida — seria coeficiente de alocação sem fonte,
+proibido pela ADR 0009. Consequência aceita: **quem não declara não tem respiro**, e a cascata dele
+não muda.
+
+Ele é subtraído **antes de `capacidadeMaxima`**, que é o cenário em que todo o não essencial foi
+cortado. É essa posição que o torna imune ao aperto: descontá-lo depois faria dele a sobra que some
+quando aperta.
+
+O respiro **escala com o marco**: sorvete → jantar a dois → bate-volta de fim de semana. Isso
+acontece por **acúmulo, não por fórmula** — quem chega ao terceiro marco tem três meses de respiro
+guardado. Não há tabela de escala, e não vai haver. Ver `guardrails.md`, seção 4.1, para as regras
+de copy que o protegem.
+
+Não confundir com `RESPIRO_EM`, em `src/components/ui/Brand.tsx`: aquilo é a área de respiro
+*tipográfica* da marca, e não tem relação nenhuma com este verbete.
 
 ### marco
 Um ponto da rota que dispara celebração e libera respiro: primeira negociação fechada, primeira
@@ -172,6 +187,15 @@ onde as pessoas param, e o marco existe para dar ganho visível antes disso.
 
 Marco é **conquista, nunca recompensa condicionada**. A copy é de permissão ("aproveita, está no
 plano"), jamais de mérito ("você mereceu").
+
+**Marco é evento persistido, não predicado.** Ele é gravado quando o gatilho ocorre e fica gravado —
+nunca recalculado sobre o estado atual. A distinção não é técnica: a porcentagem da rota anda para
+trás quando o usuário cadastra uma dívida nova, e um marco recalculado se **desfaria**. A pessoa
+perderia uma conquista por ter sido honesta sobre a própria situação, que é o oposto exato do que
+este produto faz.
+
+Atingir e celebrar são momentos separados. Um marco alcançado com o app fechado, ou durante o
+período somente leitura da assinatura, **não se perde**: ele espera a tela.
 
 ### meta
 O objeto da fase pós-quitação — a **Rota de Chegada**. Mesmo motor determinístico da rota de

@@ -14,6 +14,11 @@ import { colors, radius, spacing, typography } from '../../theme/theme';
  *
  * A frase vem de `proximaAcao()`, determinística. O dot verde é presença, não
  * status de dívida: é o buddy dizendo "estou aqui".
+ *
+ * Desde o M10 a frase pode começar pelo custo diário dos juros. O número vem
+ * pronto de `custoDiarioJuros`, no resumo — este componente não calcula, não
+ * arredonda e não decide quando a frase aparece; quem decide é `proximaAcao()`,
+ * e o docstring de lá diz por quê.
  */
 export function CardBuddy({ resumo }: { resumo: ResumoDividas }) {
   const router = useRouter();

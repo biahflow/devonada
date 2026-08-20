@@ -16,7 +16,9 @@ from domain.resumo import (
     ParcelaEstimada,
     comprometimento_mensal,
     comprometimento_renda_bps,
+    custo_diario_juros,
     custo_medio_juros_mensal,
+    dividas_sem_taxa,
 )
 from leitura import capacidade_atual
 
@@ -205,6 +207,12 @@ def resumo(
             totalQuitadoNoAno=total_quitado_ano,
             quantidadeDividas=len(ativas),
             custoMedioJurosMensal=custo_medio_juros_mensal(itens),
+            # Os dois saem do MESMO `itens` das linhas acima, e é isso que
+            # garante que a contagem descreva exatamente a carteira que o custo
+            # diário somou. Remontar a lista aqui abriria espaço para as duas
+            # divergirem em silêncio.
+            custoDiarioJuros=custo_diario_juros(itens),
+            quantidadeDividasSemTaxa=dividas_sem_taxa(itens),
             rendaMensal=renda,
             comprometimentoRenda=comprometimento_bps,
             minimoExistencial=minimo,
