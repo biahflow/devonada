@@ -564,6 +564,72 @@ def _respiro_declarado(sessao, valor=15000, ativo=True, saldo=0):
     sessao.commit()
 
 
+def _compromisso_declarado(sessao, bps=1000):
+    """
+    Semeia o percentual direto no `perfil`, pelo mesmo motivo de
+    `_respiro_declarado`: a rota que o declara é de T3 e ainda não existe.
+
+    `get-or-create` porque o `perfil` é uma linha por tenant e outros helpers
+    podem já tê-la criado — duas linhas dariam duas respostas para a mesma
+    pergunta.
+    """
+    tenant = get_settings().tenant_id
+    perfil = sessao.query(orm.Perfil).filter(orm.Perfil.tenant_id == tenant).first()
+    if perfil is None:
+        perfil = orm.Perfil(tenant_id=tenant)
+        sessao.add(perfil)
+    perfil.compromisso_percentual_bps = bps
+    sessao.commit()
+    return perfil
+
+
+class TestCompromissoPercentualNoSnapshot:
+    """
+    A gêmea de `TestRespiroNoSnapshot`, e pela mesma razão.
+
+    A partir da F-011 o compromisso percentual também entra na cascata antes da
+    `capacidade_maxima`. Sem esta coluna a foto voltaria a mostrar uma
+    capacidade derrubada sem a linha que a derrubou — que é exatamente o buraco
+    que a coluna do respiro fechou no M11.
+    """
+
+    def test_o_fechamento_do_mes_grava_o_compromisso_vigente(self, client, auth, sessao):
+        _compromisso_declarado(sessao, bps=1000)
+        fonte = _fonte(client, auth, variavel=True).json()["fonte"]
+
+        assert _fechar_o_mes(client, auth, fonte["id"]).status_code == 200
+
+        gravados = sessao.query(orm.CaixaSnapshot).all()
+        assert gravados
+        # 10% da renda LÍQUIDA típica, e é a cascata quem faz essa conta — aqui
+        # se prova só que o número dela chegou à foto, e não zerado.
+        assert all(s.compromisso_percentual is not None for s in gravados)
+        assert all(s.compromisso_percentual > 0 for s in gravados)
+
+    def test_sem_percentual_declarado_a_coluna_fica_NULL_e_nao_zero(self, client, auth, sessao):
+        # `0` afirmaria percentual declarado como zero, que é escolha legítima e
+        # diferente de não ter escolhido. `NULL` é a verdade.
+        fonte = _fonte(client, auth, variavel=True).json()["fonte"]
+
+        assert _fechar_o_mes(client, auth, fonte["id"]).status_code == 200
+
+        gravados = sessao.query(orm.CaixaSnapshot).all()
+        assert gravados
+        assert {s.compromisso_percentual for s in gravados} == {None}
+
+    def test_percentual_declarado_como_zero_grava_zero_e_nao_NULL(self, client, auth, sessao):
+        # O outro lado da distinção: quem declarou 0% escolheu, e a foto tem de
+        # registrar a escolha em vez de fingir que ela não aconteceu.
+        _compromisso_declarado(sessao, bps=0)
+        fonte = _fonte(client, auth, variavel=True).json()["fonte"]
+
+        assert _fechar_o_mes(client, auth, fonte["id"]).status_code == 200
+
+        gravados = sessao.query(orm.CaixaSnapshot).all()
+        assert gravados
+        assert {s.compromisso_percentual for s in gravados} == {0}
+
+
 def _fechar_o_mes(client, auth, fonte_id, valor=900000, mes="2026-08"):
     return client.post(
         "/v1/caixa/fechamento",

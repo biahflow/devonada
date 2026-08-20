@@ -525,6 +525,20 @@ class CaixaSnapshot(Base):
     # afirmaria respiro declarado como zero, que é escolha e não ausência.
     respiro: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
 
+    # ADITIVA e NULLABLE (M12), gêmea da coluna acima e pelo mesmo motivo: a
+    # partir da F-011 o compromisso percentual também derruba a
+    # `capacidade_maxima`, e sem esta coluna a foto voltaria a não explicar o
+    # próprio número.
+    #
+    # GRAVA O VALOR EM CENTAVOS, não os basis points. É o que a foto precisa: o
+    # percentual incide sobre a renda líquida DAQUELE mês, e guardar só a
+    # alíquota obrigaria a refazer a conta com uma renda que já mudou. Mesma
+    # escolha de `respiro`, que também guarda o valor e não a regra.
+    #
+    # `NULL` em snapshot de quem não declarou — e em toda foto anterior a esta
+    # coluna. `0` afirmaria percentual declarado como zero, que é escolha.
+    compromisso_percentual: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+
     calculado_em: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

@@ -146,6 +146,11 @@ def registrar_snapshot(db: Session, tenant: str, settings: Settings) -> None:
             # `None` para quem não declarou respiro, e é a verdade: a foto não
             # pode afirmar zero declarado por quem não escolheu nada.
             respiro=c.respiro,
+            # Mesma regra, mesma razão: a linha que derruba a
+            # `capacidade_maxima` tem de aparecer na foto que a explica. Já vem
+            # em centavos da cascata, e `None` de quem nunca declarou atravessa
+            # até aqui sem virar zero.
+            compromisso_percentual=c.compromisso_percentual,
         )
     )
     db.commit()
