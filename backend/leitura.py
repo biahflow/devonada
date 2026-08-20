@@ -15,6 +15,7 @@ from domain.caixa import (
     calcular_caixa,
     renda_tipica,
 )
+from domain.dinheiro import aplicar_percentual
 from domain.minimo_existencial import minimo_existencial
 from domain.simulacao import DividaSimulavel
 
@@ -114,8 +115,16 @@ def montar_entrada_caixa(db: Session, tenant: str, settings: Settings) -> Entrad
     idêntica à de antes do M11. É o que garante que quem nunca declarou respiro
     não perde capacidade nenhuma: não existe default, e a ausência não vira zero
     em lugar nenhum do caminho (ADR 0019).
+
+    O IMPOSTO TAMBÉM É APURADO POR FONTE (M12, ADR 0021, decisão 1), no mesmo
+    laço e pelo mesmo motivo: a alíquota de um contrato PJ não é a do CLT ao
+    lado. `imposto_por_fonte` só é preenchido quando ALGUMA fonte declarou a
+    sua; sem nenhuma, ele segue `None` e a cascata faz a multiplicação de sempre
+    sobre a renda somada — que é bit a bit o número de hoje.
     """
     hoje = date.today()
+
+    perfil = db.scalar(select(orm.Perfil).where(orm.Perfil.tenant_id == tenant))
 
     fontes = db.scalars(
         select(orm.FonteRenda).where(
@@ -125,6 +134,11 @@ def montar_entrada_caixa(db: Session, tenant: str, settings: Settings) -> Entrad
 
     bruta = 0
     origem = "informada"
+    # O fallback da fonte que não declarou nada é o `Perfil`, exatamente como
+    # antes desta linha existir.
+    imposto_do_perfil = perfil.imposto_bps if perfil else None
+    alguma_fonte_declarou_aliquota = False
+    imposto_somado_por_fonte = 0
     for f in fontes:
         recebimentos = db.scalars(
             select(orm.Recebimento.valor)
@@ -136,6 +150,18 @@ def montar_entrada_caixa(db: Session, tenant: str, settings: Settings) -> Entrad
         if origem_da_fonte == "pior_mes_registrado":
             origem = "pior_mes_registrado"
 
+        # A ALÍQUOTA DA PRÓPRIA FONTE TEM PRECEDÊNCIA; sem ela, vale a do
+        # `Perfil`. `is not None` e não truthiness: 0% declarado na fonte é uma
+        # afirmação — "esta renda não reserva imposto" — e cair no perfil ali
+        # reservaria imposto que a pessoa disse não dever.
+        if f.imposto_bps is not None:
+            alguma_fonte_declarou_aliquota = True
+            aliquota = f.imposto_bps
+        else:
+            aliquota = imposto_do_perfil
+        if aliquota:
+            imposto_somado_por_fonte += aplicar_percentual(valor, aliquota)
+
     gastos = db.scalars(
         select(orm.Gasto).where(orm.Gasto.tenant_id == tenant, orm.Gasto.ativo.is_(True))
     ).all()
@@ -145,8 +171,6 @@ def montar_entrada_caixa(db: Session, tenant: str, settings: Settings) -> Entrad
             orm.ProvisaoAnual.tenant_id == tenant, orm.ProvisaoAnual.ativa.is_(True)
         )
     ).all()
-
-    perfil = db.scalar(select(orm.Perfil).where(orm.Perfil.tenant_id == tenant))
 
     respiro = db.scalar(select(orm.Respiro).where(orm.Respiro.tenant_id == tenant))
     respiro_valor: int | None = None
@@ -204,6 +228,16 @@ def montar_entrada_caixa(db: Session, tenant: str, settings: Settings) -> Entrad
         respiro_ativo=respiro_ativo,
         respiro_usado_no_mes=respiro_usado,
         respiro_saldo_acumulado=respiro_saldo,
+        compromisso_percentual_bps=(
+            perfil.compromisso_percentual_bps if perfil else None
+        ),
+        # `None` enquanto NENHUMA fonte declarou alíquota: é o que faz a cascata
+        # cair na conta de sempre em vez de trocar uma multiplicação sobre a soma
+        # por um somatório de multiplicações — os dois diferem por centavos de
+        # arredondamento, e ninguém que não declarou nada pode mudar de número.
+        imposto_por_fonte=(
+            imposto_somado_por_fonte if alguma_fonte_declarou_aliquota else None
+        ),
     )
 
 

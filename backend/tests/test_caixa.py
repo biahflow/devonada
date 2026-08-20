@@ -8,6 +8,7 @@ from domain.caixa import (
     calcular_caixa,
     meses_ate_vencimento,
     meses_entre,
+    percentual_invade_o_piso,
     provisao_mensal,
     renda_tipica,
     respiro_invade_o_piso,
@@ -517,3 +518,323 @@ class TestRespiroContraOPisoLegal:
         # o piso, ela devolve `True` — e é o caso em que declarar qualquer valor
         # é recusado, que é o que a lei manda.
         assert respiro_invade_o_piso(650000, 645000, 0, 60000) is True
+
+
+class TestCompromissoPercentual:
+    """
+    A sétima linha da cascata (M12, ADR 0021, decisão 4).
+
+    O VALOR NÃO É REGRA FINANCEIRA — é o percentual que a pessoa declarou. O que
+    se prova aqui é a BASE sobre a qual ele incide e a POSIÇÃO em que ele entra:
+    as duas coisas que, erradas, mudam o número de todo mundo que declarar.
+    """
+
+    def test_a_base_e_a_renda_LIQUIDA_e_nunca_a_bruta(self):
+        # Bruta de R$ 10.000 com 6% de imposto: a líquida é R$ 9.400, e 10% dela
+        # são R$ 940 — não os R$ 1.000 que a bruta daria. Decidido na Nota de
+        # desempate de 20/08/2026 da ADR 0021: compromisso é percentual do que
+        # ENTRA, e sobre a bruta o app comprometeria dinheiro que a pessoa nunca
+        # vê.
+        c = calcular_caixa(_entrada(imposto_bps=600, compromisso_percentual_bps=1000))
+
+        assert c.renda_liquida == 940000
+        assert c.compromisso_percentual == 94000
+        assert c.capacidade_maxima == 446000
+        # O que a base errada teria produzido. Explícito porque a diferença é
+        # pequena o bastante para passar despercebida numa revisão.
+        assert c.capacidade_maxima != 440000
+
+    def test_entra_antes_de_capacidade_maxima_e_as_duas_de_baixo_herdam(self):
+        c = calcular_caixa(
+            _entrada(
+                compromisso_percentual_bps=1000,
+                nao_essenciais=90000,
+                comprometido_dividas=100000,
+            )
+        )
+
+        # Sem imposto a líquida é a bruta: 10% de R$ 10.000 são R$ 1.000.
+        assert c.compromisso_percentual == 100000
+        assert c.capacidade_maxima == 500000
+        # `capacidade_hoje` e `aporte_maximo` caem junto, sem regra própria.
+        assert c.capacidade_hoje == 410000
+        assert c.aporte_maximo == 310000
+
+    def test_soma_aos_potes_e_ao_respiro_em_vez_de_substituir_algum(self):
+        # A posição é a MESMA dos três, e é isso que a protege do corte do não
+        # essencial: `capacidade_maxima` é o cenário em que tudo o que dá foi
+        # cortado, e o compromisso continua de pé nele.
+        c = calcular_caixa(
+            _entrada(
+                compromisso_percentual_bps=1000,
+                aporte_reserva=50000,
+                aporte_aposentadoria=30000,
+                respiro=15000,
+            )
+        )
+        assert c.capacidade_maxima == 405000
+
+    def test_zero_declarado_e_escolha_legitima_e_nao_e_ausencia(self):
+        c = calcular_caixa(_entrada(compromisso_percentual_bps=0))
+
+        assert c.compromisso_percentual_bps == 0
+        assert c.compromisso_percentual == 0
+        # O número é o de quem não declarou — mas o campo diz que houve escolha,
+        # e a tela precisa poder dizer qual dos dois estados é.
+        assert c.capacidade_maxima == 600000
+
+    def test_quem_nao_declarou_tem_os_dois_campos_ausentes_e_nunca_zero(self):
+        c = calcular_caixa(_entrada())
+
+        assert c.compromisso_percentual_bps is None
+        assert c.compromisso_percentual is None
+        assert c.capacidade_maxima == 600000
+
+    def test_o_compromisso_pode_fazer_o_mes_deixar_de_fechar(self):
+        # A ação a distância da ADR 0021, exercitada de propósito: a mesma
+        # dívida cabia sem o compromisso e não cabe com ele. `nao_fecha`
+        # continua sendo fato aritmético, e nunca diagnóstico.
+        sem = calcular_caixa(_entrada(comprometido_dividas=550000))
+        com = calcular_caixa(
+            _entrada(comprometido_dividas=550000, compromisso_percentual_bps=1000)
+        )
+
+        assert sem.nao_fecha is False
+        assert com.nao_fecha is True
+
+
+class TestImpostoPorFonte:
+    """
+    A alíquota apurada fonte a fonte chegando à cascata (ADR 0021, decisão 1).
+
+    Quem soma é `leitura.montar_entrada_caixa`; o que se prova aqui é a
+    PRECEDÊNCIA — e que ausência e zero continuam sendo coisas diferentes.
+    """
+
+    def test_o_somatorio_por_fonte_tem_precedencia_sobre_a_aliquota_global(self):
+        c = calcular_caixa(_entrada(imposto_bps=600, imposto_por_fonte=45000))
+
+        assert c.imposto_reservado == 45000
+        assert c.renda_liquida == 955000
+        assert c.capacidade_maxima == 555000
+
+    def test_somatorio_zero_e_resposta_e_nao_cai_no_imposto_global(self):
+        # Todas as fontes declararam 0%: reservar 6% aqui seria o app inventando
+        # imposto que a pessoa disse não dever.
+        c = calcular_caixa(_entrada(imposto_bps=600, imposto_por_fonte=0))
+
+        assert c.imposto_reservado == 0
+        assert c.renda_liquida == 1000000
+
+    def test_sem_nenhuma_fonte_declarando_a_conta_e_a_de_sempre(self):
+        c = calcular_caixa(_entrada(imposto_bps=600, imposto_por_fonte=None))
+
+        assert c.imposto_reservado == 60000
+        assert c.renda_liquida == 940000
+
+
+class TestRegressaoSemCompromissoNemAliquotaPorFonte:
+    """
+    Quem não declarou nada do M12 tem a cascata idêntica à de antes dele.
+
+    Gêmeo de `TestRegressaoSemRespiro`, e pelo mesmo motivo: são quatro
+    consumidores que mudam de número sem serem tocados — o simulador, a
+    `margemDisponivel` do painel, o card `plano_sugerido` do chat e a oferta que
+    o script de negociação faz ao credor (`routers/revisao.py`, Nota de correção
+    da ADR 0021).
+    """
+
+    def test_os_dois_campos_novos_sao_ausentes_e_nunca_zero(self):
+        c = calcular_caixa(_entrada())
+        # `None`, NUNCA `0`: zero declarado é escolha legítima, e é diferente de
+        # não ter escolhido.
+        assert c.compromisso_percentual_bps is None
+        assert c.compromisso_percentual is None
+
+    def test_a_cascata_inteira_campo_a_campo_com_os_valores_de_antes(self):
+        c = calcular_caixa(
+            _entrada(
+                imposto_bps=600,
+                nao_essenciais=90000,
+                aporte_reserva=50000,
+                aporte_aposentadoria=30000,
+                comprometido_dividas=100000,
+                provisoes=(ProvisaoPendente("IPVA", 180000, 0, 1),),
+            )
+        )
+        assert c.renda_bruta_tipica == 1000000
+        assert c.imposto_reservado == 60000
+        assert c.renda_liquida == 940000
+        assert c.essenciais == 400000
+        assert c.nao_essenciais == 90000
+        assert c.provisao_mensal == 36000
+        assert c.aporte_reserva == 50000
+        assert c.aporte_aposentadoria == 30000
+        assert c.comprometido_dividas == 100000
+        assert c.capacidade_maxima == 424000
+        assert c.capacidade_hoje == 334000
+        assert c.aporte_maximo == 234000
+        assert c.compromisso_percentual_bps is None
+        assert c.compromisso_percentual is None
+        assert c.minimo_existencial == 60000
+        assert c.abaixo_do_piso is False
+        assert c.nao_fecha is False
+        assert c.preenchimento == "nivel_1"
+
+
+class TestPercentualContraOPisoLegal:
+    def test_devolve_true_quando_o_compromisso_empurra_abaixo_do_piso(self):
+        # R$ 6.500 de líquida, R$ 6.000 de essenciais e R$ 150 de compromisso
+        # deixam R$ 350 — abaixo do piso legal de R$ 600.
+        assert percentual_invade_o_piso(650000, 600000, 15000, 60000) is True
+
+    def test_devolve_false_quando_ainda_cabe_acima_do_piso(self):
+        assert percentual_invade_o_piso(1000000, 400000, 15000, 60000) is False
+
+    def test_na_fronteira_exata_o_piso_nao_e_invadido(self):
+        assert percentual_invade_o_piso(660000, 600000, 0, 60000) is False
+        assert percentual_invade_o_piso(660000, 600000, 1, 60000) is True
+
+    def test_sem_piso_configurado_devolve_None_e_nao_False(self):
+        # Mesmo espírito de `abaixo_do_piso` e de `respiro_invade_o_piso`: um
+        # `False` diria "conferimos e está tudo bem", que é afirmação diferente
+        # de "não sabemos".
+        assert percentual_invade_o_piso(1000000, 400000, 15000, None) is None
+
+    def test_compromisso_zero_nao_invade_um_piso_que_a_renda_ja_nao_cobria(self):
+        assert percentual_invade_o_piso(650000, 645000, 0, 60000) is True
+
+
+# --- O caminho que preenche a entrada (M12, T1) ------------------------------
+#
+# O motor acima é puro e continua sem banco. As três classes abaixo tocam o
+# banco de propósito, e é a única coisa que elas fazem: a apuração por fonte e o
+# percentual do perfil nascem em `leitura.montar_entrada_caixa`, e a aritmética
+# testada acima não prova que o dado chega até ela. Sem isto, uma alíquota
+# gravada e nunca lida passaria a suíte inteira verde.
+
+
+def _fonte_persistida(sessao, tenant, **kwargs):
+    import orm
+
+    padrao = dict(
+        tenant_id=tenant,
+        nome="Contrato PJ",
+        tipo="pj_hora",
+        valor_tipico_informado=600000,
+        ativo=True,
+    )
+    padrao.update(kwargs)
+    fonte = orm.FonteRenda(**padrao)
+    sessao.add(fonte)
+    sessao.commit()
+    return fonte
+
+
+def _perfil_persistido(sessao, tenant, **kwargs):
+    import orm
+
+    perfil = orm.Perfil(tenant_id=tenant, **kwargs)
+    sessao.add(perfil)
+    sessao.commit()
+    return perfil
+
+
+class TestAliquotaPorFonteNaLeitura:
+    """
+    A alíquota de cada fonte chegando à entrada da cascata (ADR 0021, decisão 1).
+
+    O caso que motivou a decisão é o CLT com contrato PJ ao lado: uma alíquota só
+    para as duas rendas é um número que não descreve nenhuma delas.
+    """
+
+    def test_soma_fonte_a_fonte_e_a_que_nao_declarou_usa_o_perfil(self, sessao):
+        from config import get_settings
+        from leitura import montar_entrada_caixa
+
+        tenant = "tenant-da-aliquota"
+        _perfil_persistido(sessao, tenant, imposto_bps=1000)
+        _fonte_persistida(sessao, tenant, valor_tipico_informado=600000, imposto_bps=600)
+        _fonte_persistida(
+            sessao, tenant, nome="Aluguel", tipo="aluguel", valor_tipico_informado=400000
+        )
+
+        entrada = montar_entrada_caixa(sessao, tenant, get_settings())
+
+        # 6% de R$ 6.000 = R$ 360; a fonte sem alíquota cai nos 10% do perfil
+        # sobre R$ 4.000 = R$ 400.
+        assert entrada.renda_bruta_tipica == 1000000
+        assert entrada.imposto_por_fonte == 76000
+
+    def test_sem_nenhuma_fonte_declarando_o_campo_e_ausente_e_nunca_zero(self, sessao):
+        from config import get_settings
+        from leitura import montar_entrada_caixa
+
+        tenant = "tenant-sem-aliquota-na-fonte"
+        _perfil_persistido(sessao, tenant, imposto_bps=600)
+        _fonte_persistida(sessao, tenant, valor_tipico_informado=1000000)
+
+        entrada = montar_entrada_caixa(sessao, tenant, get_settings())
+
+        # `None` é o que faz a cascata manter a multiplicação sobre a renda
+        # somada — bit a bit o número de hoje. Um `0` aqui apagaria o imposto de
+        # quem nunca pediu nada.
+        assert entrada.imposto_por_fonte is None
+        assert calcular_caixa(entrada).imposto_reservado == 60000
+
+    def test_zero_na_fonte_e_declaracao_e_nao_cai_no_perfil(self, sessao):
+        from config import get_settings
+        from leitura import montar_entrada_caixa
+
+        tenant = "tenant-com-fonte-isenta"
+        _perfil_persistido(sessao, tenant, imposto_bps=1000)
+        _fonte_persistida(sessao, tenant, valor_tipico_informado=600000, imposto_bps=0)
+        _fonte_persistida(
+            sessao, tenant, nome="Aluguel", tipo="aluguel", valor_tipico_informado=400000
+        )
+
+        entrada = montar_entrada_caixa(sessao, tenant, get_settings())
+
+        # Só os R$ 400 da fonte que não declarou. A isenta reserva zero, que é o
+        # que ela declarou.
+        assert entrada.imposto_por_fonte == 40000
+
+    def test_o_percentual_do_perfil_chega_a_entrada(self, sessao):
+        from config import get_settings
+        from leitura import montar_entrada_caixa
+
+        tenant = "tenant-com-compromisso"
+        _perfil_persistido(sessao, tenant, compromisso_percentual_bps=1000)
+        _fonte_persistida(sessao, tenant, valor_tipico_informado=1000000)
+
+        entrada = montar_entrada_caixa(sessao, tenant, get_settings())
+        assert entrada.compromisso_percentual_bps == 1000
+
+    def test_sem_perfil_os_dois_campos_novos_seguem_ausentes(self, sessao):
+        from config import get_settings
+        from leitura import montar_entrada_caixa
+
+        tenant = "tenant-sem-perfil"
+        _fonte_persistida(sessao, tenant, valor_tipico_informado=1000000)
+
+        entrada = montar_entrada_caixa(sessao, tenant, get_settings())
+        assert entrada.compromisso_percentual_bps is None
+        assert entrada.imposto_por_fonte is None
+
+
+class TestEventoPrevisivelEntraSozinhoNaExclusao:
+    """
+    A tabela nova nasce dentro da exclusão de conta sem uma linha a mais.
+
+    É a aposta do `tenant_id` cobrando de novo (PF-7 do plano): a varredura de
+    `routers/conta.tabelas_do_tenant()` é derivada de `Base.metadata`, e
+    `routers/conta.py` NÃO foi editado neste commit. Se um dia alguém precisar
+    acrescentar uma linha àquela rota para uma tabela nova, a varredura derivada
+    parou de funcionar — e é aqui que isso aparece, não numa auditoria de loja
+    meses depois.
+    """
+
+    def test_a_tabela_aparece_na_varredura_por_tenant(self):
+        from routers.conta import tabelas_do_tenant
+
+        assert "evento_previsivel" in {t.name for t in tabelas_do_tenant()}

@@ -153,6 +153,15 @@ class Perfil(Base):
     # único dos três que entra na cascata da capacidade.
     reserva_aporte: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     aposentadoria_aporte: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    # POTE PERCENTUAL (M12, ADR 0021, decisão 4). Em basis points, ao lado dos
+    # dois potes de valor fixo — e não convertendo nenhum deles, que teria custo
+    # de migração de dado em produção sem entregar nada a mais.
+    #
+    # NULLABLE pelo mesmo motivo dos vizinhos, e aqui o motivo tem consequência
+    # aritmética: `NULL` é "nunca declarou" e mantém a cascata idêntica à de
+    # hoje; `0` é "declarou zero", que é escolha legítima. Nenhum default — o
+    # percentual é dado do usuário, não regra financeira (ADR 0009).
+    compromisso_percentual_bps: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # Sem ele, NENHUMA comparação dívida × investimento é exibida (ADR 0009):
     # projetar rendimento seria dar recomendação de investimento.
     rendimento_esperado_bps: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -259,6 +268,20 @@ class FonteRenda(Base):
     valor_tipico_informado: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     variavel: Mapped[bool] = mapped_column(Boolean, default=False)
 
+    # A ALÍQUOTA DESCE PARA A FONTE (M12, ADR 0021, decisão 1). CLT mais contrato
+    # PJ são duas alíquotas diferentes, e o `Perfil.imposto_bps` — uma linha por
+    # tenant — não sabe de qual fonte o dinheiro veio.
+    #
+    # POR ADIÇÃO: `NULL` aqui aplica o `Perfil.imposto_bps` de hoje, exatamente
+    # como hoje, e nenhum dado migra. Quem tem uma alíquota só continua com o
+    # número idêntico, campo a campo. O fallback é dívida técnica assumida, e a
+    # ADR a declara: enquanto ele existir, o imposto tem dois lugares para morar.
+    imposto_bps: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # QUANDO O DINHEIRO CAI, de 1 a 31. `NULL` é "não informou", e é o estado de
+    # todo mundo que já usa o app — nenhuma regra deste milestone o exige.
+    dia_pagamento: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
     # Registro permanente, não lançamento mensal: a fonte vale até ser
     # desativada. É o que dispensa redigitar tudo todo mês.
     ativo: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -286,6 +309,44 @@ class Recebimento(Base):
 
     mes: Mapped[str] = mapped_column(String(7))  # AAAA-MM
     valor: Mapped[int] = mapped_column(BigInteger)
+
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class EventoPrevisivel(Base):
+    """
+    13º, férias e o que mais cai uma vez por ano (M12, ADR 0021, decisão 2).
+
+    NÃO ENCOSTA NA CASCATA. Não soma à renda mensal, não entra em
+    `domain/caixa.py` e não ocupa vaga na janela do `min()` da renda típica. O
+    que ele é está no `domain.md`: MUNIÇÃO DE NEGOCIAÇÃO À VISTA — o app
+    reconhece que o dinheiro existe e quando cai, e nada mais.
+
+    TABELA PRÓPRIA, e não `Recebimento`. Reusar o recebimento era mais barato e
+    corrompia o dado: ele é único por fonte e por mês, e o 13º lançado como
+    recebimento de dezembro consumiria uma vaga da janela de seis, deixando no
+    histórico um dezembro que não se repete. Diluir por doze foi recusado sem
+    discussão — contradiz frontalmente a razão de a renda típica ser o pior mês.
+
+    O VALOR É DECLARADO PELO USUÁRIO. Nenhum coeficiente de projeção entra aqui:
+    calcular 13º a partir da renda exigiria saber vínculo, avos e proporção, e o
+    resultado sairia na tela como se fosse direito líquido da pessoa (ADR 0009).
+
+    `fonte_id` é OPCIONAL porque nem todo evento tem fonte identificada — quem
+    tem dois contratos sabe de qual veio, quem tem um só não precisa dizer.
+    """
+
+    __tablename__ = "evento_previsivel"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=novo_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+    fonte_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+
+    tipo: Mapped[str] = mapped_column(String(20))
+    # 1 a 12, como `provisao_anual.mes_vencimento`: o evento se repete todo ano,
+    # e gravar `AAAA-MM` obrigaria a recadastrar dezembro em janeiro.
+    mes_previsto: Mapped[int] = mapped_column(Integer)
+    valor: Mapped[int] = mapped_column(BigInteger)  # centavos
 
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

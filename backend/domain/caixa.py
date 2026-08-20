@@ -105,6 +105,23 @@ class EntradaCaixa:
     # descontado na leitura, logo abaixo.
     respiro_saldo_acumulado: int | None = None
 
+    # COMPROMISSO PERCENTUAL (M12, ADR 0021, decisão 4). Pote novo e aditivo, em
+    # basis points, ao lado da reserva e da aposentadoria. Vale a mesma regra do
+    # respiro: `None` é "nunca declarou" e NÃO se confunde com `0`, que é a
+    # escolha de quem declarou zero. Não há default — um percentual de fábrica
+    # seria o coeficiente sem fonte que a ADR 0009 proíbe.
+    compromisso_percentual_bps: int | None = None
+
+    # O IMPOSTO APURADO FONTE A FONTE, em centavos (M12, ADR 0021, decisão 1).
+    # Quem preenche é `leitura.montar_entrada_caixa`, somando a alíquota de cada
+    # fonte — a da própria fonte quando ela declarou, a do `Perfil` quando não.
+    #
+    # `None` significa "NENHUMA fonte declarou alíquota", e é o que faz a cascata
+    # cair na conta de sempre (`imposto_bps` sobre a renda somada). `0` é outra
+    # afirmação: todas as fontes declararam e a soma deu zero. Confundir os dois
+    # mudaria o número de quem nunca pediu nada.
+    imposto_por_fonte: int | None = None
+
 
 @dataclass(frozen=True)
 class Caixa:
@@ -131,6 +148,11 @@ class Caixa:
     # mês passou da fatia. Piso em zero — o guardrail 4.1 proíbe contabilização
     # negativa, e é por isso que o corte fica na leitura e não numa coluna.
     respiro_saldo_acumulado: int | None
+    # A ESCOLHA, como ela foi declarada: `None` para quem nunca declarou nada.
+    compromisso_percentual_bps: int | None
+    # E o que ela custa neste mês, em centavos — derivado da renda LÍQUIDA
+    # típica a cada leitura, nunca persistido, porque muda com a renda.
+    compromisso_percentual: int | None
     minimo_existencial: int | None
     abaixo_do_piso: bool | None
     nao_fecha: bool
@@ -275,6 +297,35 @@ def respiro_invade_o_piso(
     return (liquida - essenciais - respiro) < minimo
 
 
+def percentual_invade_o_piso(
+    liquida: int, essenciais: int, compromisso: int, minimo: int | None
+) -> bool | None:
+    """
+    Se o compromisso percentual declarado empurra o que resta abaixo do mínimo
+    existencial.
+
+    FONTE: Decreto 11.150/2022, art. 3º, na redação do Decreto 11.567/2023 — o
+    mínimo existencial é piso legal de proteção do devedor, e nenhuma alocação
+    voluntária o atravessa. É a mesma lei de `domain/minimo_existencial.py`, do
+    `abaixo_do_piso` desta cascata e do `respiro_invade_o_piso` acima.
+
+    A ESCOLHA É DO USUÁRIO; O PISO É DA LEI. Esta função não diz qual percentual
+    alguém deveria comprometer — nenhum número aqui é arbitrado. Ela só responde
+    se o valor que a pessoa declarou cabe acima do piso.
+
+    `compromisso` chega em CENTAVOS, já aplicado sobre a renda líquida típica
+    (ADR 0021, Nota de desempate de 20/08/2026) — a mesma base sobre a qual esta
+    função mede o piso, e por isso a pergunta é coerente.
+
+    Devolve `None` quando não há piso configurado, no mesmo espírito de
+    `abaixo_do_piso`: um `False` diria "conferimos e está tudo bem", que é
+    afirmação diferente de "não sabemos".
+    """
+    if minimo is None:
+        return None
+    return (liquida - essenciais - compromisso) < minimo
+
+
 def _preenchimento(entrada: EntradaCaixa) -> str:
     """
     Em que nível de captura o usuário está — é o que a tela usa para escolher
@@ -301,10 +352,11 @@ def calcular_caixa(entrada: EntradaCaixa) -> Caixa:
     """
     A cascata inteira, em centavos inteiros.
 
-        imposto_reservado = renda_bruta_tipica × imposto_bps
+        imposto_reservado = Σ por fonte, ou renda_bruta_tipica × imposto_bps
         renda_liquida     = renda_bruta_tipica − imposto_reservado
         sobra_operacional = renda_liquida − essenciais − provisao_mensal
-        capacidade_maxima = sobra_operacional − reserva − aposentadoria − respiro
+        capacidade_maxima = sobra_operacional − reserva − aposentadoria
+                                             − respiro − compromisso_percentual
         capacidade_hoje   = capacidade_maxima − nao_essenciais
         aporte_maximo     = capacidade_hoje − comprometido_dividas
 
@@ -323,11 +375,34 @@ def calcular_caixa(entrada: EntradaCaixa) -> Caixa:
     (ADR 0009). Consequência aceita: QUEM NÃO DECLARA NÃO TEM RESPIRO, e
     `respiro = None` produz a cascata idêntica à de antes desta linha existir.
 
+    O COMPROMISSO PERCENTUAL ENTRA NA MESMA POSIÇÃO DO RESPIRO E DOS POTES
+    (ADR 0021, decisão 4), e pelo mesmo motivo: é alocação que a pessoa fez
+    antes de sobrar, não o que sobra depois de tudo.
+
+    O PERCENTUAL DECLARADO NÃO É REGRA FINANCEIRA: É DADO DO USUÁRIO. Ele não
+    tem FONTE no sentido de `docs/backend.md` porque não é derivado de lei,
+    contrato nem estudo — é declarado, exatamente como o respiro e como um pote.
+    Nenhuma faixa recomendada existe aqui, e não há default: QUEM NÃO DECLARA
+    NÃO TEM, e `compromisso_percentual_bps = None` produz a cascata idêntica à
+    de antes desta linha existir. O que tem fonte é o PISO que ele não pode
+    atravessar, e ele mora em `percentual_invade_o_piso`.
+
+    ELE INCIDE SOBRE A RENDA LÍQUIDA TÍPICA — a bruta menos o imposto reservado,
+    o `liquida` desta cascata. Decidido na Nota de desempate de 20/08/2026 da
+    ADR 0021: compromisso é percentual do que ENTRA, e o que entra é o que sobra
+    depois do imposto; sobre a bruta, o app comprometeria dinheiro que a pessoa
+    nunca vê. É também a base que o piso legal já usa.
+
     IMPOSTO SAI PRIMEIRO, e sai do bruto. Quem é PJ recebe dinheiro que em parte
     não é dele; tratá-lo como renda faz a pessoa gastar o que vai faltar na
     apuração. Sem `imposto_bps` informado, NADA é reservado e quem consome tem
     de dizer ao usuário que não está reservando — estimar alíquota de
     enquadramento tributário seria inventar regra (ADR 0009).
+
+    A ALÍQUOTA MORA NA FONTE, COM O `Perfil` COMO FALLBACK (ADR 0021, decisão
+    1). Quando alguma fonte declarou a sua, o imposto chega aqui já somado fonte
+    a fonte em `imposto_por_fonte`, e a multiplicação sobre a renda somada é o
+    caso particular em que ninguém declarou nada.
 
     AS PARCELAS DE DÍVIDA NÃO ENTRAM NA CASCATA. A capacidade é o total que pode
     ir para dívida, e as parcelas atuais já são dívida — descontá-las aqui as
@@ -335,7 +410,13 @@ def calcular_caixa(entrada: EntradaCaixa) -> Caixa:
     `aporte_maximo`, que é a capacidade menos o que já está comprometido.
     """
     bruta = entrada.renda_bruta_tipica
-    imposto = aplicar_percentual(bruta, entrada.imposto_bps) if entrada.imposto_bps else 0
+    # A APURAÇÃO POR FONTE TEM PRECEDÊNCIA, e `is not None` é a comparação certa:
+    # um somatório que deu zero (todas as fontes declararam 0%) é resposta, e cair
+    # no `imposto_bps` global nesse caso reservaria imposto que ninguém declarou.
+    if entrada.imposto_por_fonte is not None:
+        imposto = entrada.imposto_por_fonte
+    else:
+        imposto = aplicar_percentual(bruta, entrada.imposto_bps) if entrada.imposto_bps else 0
     liquida = bruta - imposto
 
     provisao = provisao_mensal(entrada.provisoes, entrada.mes_atual)
@@ -349,11 +430,24 @@ def calcular_caixa(entrada: EntradaCaixa) -> Caixa:
     # e saldo acumulado (ADR 0019, item 5).
     respiro_na_cascata = 0 if entrada.respiro_ativo is False else (entrada.respiro or 0)
 
+    # O PERCENTUAL VIRA CENTAVOS SOBRE A LÍQUIDA, e só existe quando foi
+    # declarado: `None` atravessa até o campo devolvido, e o `0` da aritmética
+    # mora aqui, nunca no que a tela lê. Zero declarado é escolha legítima e
+    # produz `0` — que é diferente de ausente, e a tela precisa dizer qual dos
+    # dois é.
+    compromisso_percentual: int | None = None
+    if entrada.compromisso_percentual_bps is not None:
+        compromisso_percentual = aplicar_percentual(
+            liquida, entrada.compromisso_percentual_bps
+        )
+    compromisso_na_cascata = compromisso_percentual or 0
+
     capacidade_maxima = (
         sobra_operacional
         - entrada.aporte_reserva
         - entrada.aporte_aposentadoria
         - respiro_na_cascata
+        - compromisso_na_cascata
     )
     capacidade_hoje = capacidade_maxima - entrada.nao_essenciais
 
@@ -404,6 +498,8 @@ def calcular_caixa(entrada: EntradaCaixa) -> Caixa:
         respiro_usado_no_mes=entrada.respiro_usado_no_mes,
         respiro_disponivel_no_mes=respiro_disponivel,
         respiro_saldo_acumulado=respiro_saldo,
+        compromisso_percentual_bps=entrada.compromisso_percentual_bps,
+        compromisso_percentual=compromisso_percentual,
         minimo_existencial=entrada.minimo_existencial,
         abaixo_do_piso=abaixo_do_piso,
         # FATO ARITMÉTICO, NÃO DIAGNÓSTICO. As parcelas mínimas não cabem nem
