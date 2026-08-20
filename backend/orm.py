@@ -476,6 +476,16 @@ class FechamentoMes(Base):
     """
 
     __tablename__ = "fechamento_mes"
+    # DECLARA O QUE O BANCO JÁ TEM. A constraint existe em produção desde
+    # `b3c17d2e9a04` (M7.1) e nunca esteve neste modelo — o docstring acima já
+    # dizia "um por tenant por mês", só que o metadata não. Enquanto a
+    # divergência existiu, `alembic check` acusava uma remoção pendente e o
+    # próximo `autogenerate` proporia derrubar a constraint que sustenta o
+    # refechamento por UPDATE. Nenhuma migração acompanha esta linha: não há o
+    # que mudar no banco, era o metadata que estava incompleto.
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "mes", name="uq_fechamento_mes_tenant_mes"),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=novo_id)
     tenant_id: Mapped[str] = mapped_column(String(36), index=True)
