@@ -634,13 +634,42 @@ resposta".
 **`RespiroCard`** — "Respiro deste mês: R$ 150 · usados R$ 80". A barra enche em **verde**: usar
 respiro é positivo, e pintá-la de vermelho seria a contradição exata do que o Respiro existe para
 resolver. Copy sempre de permissão — "sobram R$ 70 pra usar sem culpa", nunca "você já gastou
-R$ 80". Ver `guardrails.md`, seção 4.1.
+R$ 80". Ver `guardrails.md`, seção 4.1, e ADR 0019.
 
-**`MarcoScreen`** — tela cheia disparada em marco. Conquista em Archivo Black, respiro
+Props, todas vindas de `GET /v1/caixa` e nenhuma calculada aqui:
+`{ respiro, respiroUsadoNoMes, respiroDisponivelNoMes, respiroSaldoAcumulado }`, mais `onRegistrarUso`
+e `onDeclarar`. O card tem **dois estados**, e o vazio é o que faz a feature existir para quem mais
+precisa dela: sem respiro declarado (`respiro === null`) ele convida a declarar e diz o que o valor
+vai custar em meses, porque não existe default (ADR 0019). Com respiro declarado, mostra o número.
+
+Barra no molde inline de `MetaCard`: trilho de 8px em `colors.neutralSurface`, preenchimento em
+**`colors.accent`**, `radius.pill`. **Não use `Meter`** — ele é medidor de limiar, com marca de
+limite e virada para `warning` acima dela, e aqui não existe limite a ultrapassar. A largura em
+porcentagem é proporção visual, não dinheiro exibido; o valor de `respiroDisponivelNoMes` vem
+pronto do servidor.
+
+Saldo acumulado, quando maior que zero, é **linha discreta em `caption`** — "guardado: R$ 220" —
+e não uma segunda barra. Duas barras no mesmo card leriam como progresso e meta, que é a semântica
+do `MetaCard`, não desta.
+
+**`MarcoScreen`** — tela cheia disparada em marco. Conquista em Archivo Black (`display`), respiro
 desbloqueado com valor concreto, e um CTA de permissão ("Aproveita. Tá no plano."). Sugestão
 contextual por tamanho do marco: sorvete/café → unha/cabelo/jantar → viagem rápida. Botão
 alternativo "guardar pro próximo marco". Glow verde, na intensidade menor da tela de vitória.
-Compartilhável em formato story.
+
+Props: `{ tipo, respiroSaldoAcumulado }` e os dois `on*` dos botões. **A sugestão contextual sai de
+uma tabela de copy no cliente indexada pela faixa de valor, e é texto — nunca um número.** Se ela
+produzisse valor, seria o app dizendo quanto a pessoa deve gastar em lazer, que é exatamente o
+coeficiente sem fonte que a ADR 0019 recusou.
+
+Vive **fora do grupo `(tabs)`**, no molde de `(onboarding)`: barra de abas embaixo de uma tela de
+celebração a transforma em modal decorativo. `gestureEnabled: false` e saída só pelos dois botões,
+que é o que grava `celebradoEm` e impede a tela de reaparecer a cada abertura do app.
+
+**O compartilhamento em formato story fica de fora do M11.** A concepção o previa, e ele volta
+quando estiver decidido o que pode aparecer na imagem — valor absoluto de dívida é o dado mais
+sensível do produto e não deveria sair do aparelho por esse caminho sem decisão explícita
+(`docs/features/010-respiro.md`, *Open questions*).
 
 **Pill de status** — fundo translúcido da cor, texto na cor, dot de 7px. Três variantes:
 `debt` (crítica), `warning` (negociando), `primary` (sob controle / quitada). O `Badge` atual cobre

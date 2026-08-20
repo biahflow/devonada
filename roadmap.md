@@ -660,24 +660,55 @@ declarando. O que sobrou de aberto aqui é o mesmo que sobra em M1.5–M9: devic
 
 ## M11 — Respiro — a intervenção anti-desistência
 
-**Feature Contract:** [F-010 — Respiro](docs/features/010-respiro.md) · `SPEC_IN_PROGRESS`.
-O escopo está aceito no roadmap; endpoints, modelo de persistência e regra de valor ainda precisam
-de especificação e gate humano antes de planejamento ou código.
+**Feature Contract:** [F-010 — Respiro](docs/features/010-respiro.md) · `READY_FOR_PLANNING`.
+**Decisões:** ADR 0019 · **Contrato:** `api-contract.md`, Bloco 13.
 
 O item mais valioso que a concepção trouxe, e o único que nenhum concorrente tem. A justificativa
 inteira está em `domain.md` (verbete `respiro`) e as regras de copy em `guardrails.md`, 4.1.
 
-- [ ] `respiro` entra na **cascata de `domain/caixa.py`** como linha de primeira classe, ao lado
-      de gasto e provisão — nunca como sobra. A capacidade passa a descontá-lo.
-- [ ] Tabela `respiro` mais o registro de uso do mês. Gasto de respiro **não** entra em nenhum
-      cálculo de alerta.
-- [ ] `marco`: primeira negociação fechada, primeira dívida quitada, 25/50/75% da rota. O valor do
-      respiro escala com o marco.
-- [ ] `RespiroCard` e `MarcoScreen` (spec em `design-system.md`, 4c).
-- [ ] Teste de copy gêmeo dos do M4/M6/M7, quebrando em texto que trate respiro como desvio,
-      recompensa condicionada ou culpa.
+**A spec fechou em 19/08/2026**, e fechou reenquadrando a feature. `capacidade_maxima` é hoje,
+literalmente, o cenário em que **todo o não essencial foi cortado** — a cascata já continha a
+austeridade total que o Respiro existe para impedir, e é dela que saem o teto do simulador, a sobra
+do painel e o aporte do card do chat. O trabalho do respiro não é reservar uma sobra: é **pôr um
+piso sob esse corte**.
+
+As três decisões que destravaram o gate humano (ADR 0019):
+
+- **Quem diz o valor é o usuário.** Nenhum coeficiente, nenhum default. A faixa "5–8% da
+  capacidade" que a concepção trazia **não sobe** para documento canônico: a ADR 0009 proíbe
+  coeficiente de alocação sem fonte, e esta ADR a aplica em vez de substituí-la. Consequência
+  aceita: quem não declara não tem respiro.
+- **O marco celebra e libera o acumulado; não mexe no valor.** Some a tabela de escala marco a
+  marco, que era o item de maior risco do milestone. "Escalar com o marco" acontece por acúmulo.
+- **Respiro não usado acumula em silêncio.** Destinar a aporte extra é botão, nunca pergunta
+  mensal — perguntar todo mês transformaria o respiro em prestação de contas.
+
+- [ ] `respiro` entra na **cascata de `domain/caixa.py`** como linha de primeira classe, subtraída
+      **antes de `capacidade_maxima`** — é essa posição que a torna imune ao aperto.
+- [ ] Validação de piso: `422` quando o respiro declarado faz
+      `renda_liquida − essenciais − respiro` cair abaixo do mínimo existencial.
+- [ ] Tabelas `respiro`, `respiro_uso` e `respiro_destinacao`. Gasto de respiro **não** entra em
+      nenhum cálculo de alerta.
+- [ ] `marco` como **evento persistido**: primeira negociação fechada, primeira dívida quitada,
+      25/50/75% da rota. Os cinco gatilhos já têm dado — `renegociacao` e `situacao = 'quitada'`
+      existem desde M3 e M1, e nenhum depende do M12.
+- [ ] **Defeito a corrigir junto:** `src/components/rota/CardSaldo.tsx` calcula a porcentagem da
+      rota no cliente, sobre uma linha de base móvel (`evolucaoSaldo[0]`, recortada pelo mês
+      selecionado). Como largura de barra passou; como gatilho de marco, não — cadastrar dívida
+      nova faz a porcentagem andar para trás, e um marco recalculado se **desfaria**. Vira
+      `rotaPercorridaBps` no servidor, com o maior saldo já registrado como base.
+- [ ] `RespiroCard` e `MarcoScreen` (spec em `design-system.md`, 4c — "Ainda só especificação").
+- [ ] Teste de copy gêmeo dos do M4/M6/M7, quebrando em "você já gastou", "você mereceu", "se você
+      economizar", "desvio" e "extrapolou".
 - [ ] O piso legal continua acima: respiro sai da capacidade, e a capacidade nunca invade o mínimo
       existencial.
+
+**Sai com:** um teto de pagamento que assume que a pessoa continua viva — e uma conquista que não
+se desfaz quando ela é honesta sobre uma dívida nova.
+
+**Mudança de comportamento a declarar:** `aporte_maximo` cai para quem declarar respiro, e três
+telas mudam de número sem serem tocadas (simulador, painel, card `plano_sugerido`). `nao_fecha`
+passa a disparar mais, e está correto: o plano de fato não fecha se a pessoa precisa viver.
 
 ## M12 — Renda tipada, negociação por canal e a Rota de Chegada
 

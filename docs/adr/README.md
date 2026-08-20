@@ -65,3 +65,4 @@ quanto o das certas — ele impede que o mesmo caminho seja tentado duas vezes.
 | [0016](0016-voltar-e-entrada-multi-divida.md) | Toda tela empilhada tem volta, e o onboarding aceita mais de uma dívida | aceito |
 | [0017](0017-entidade-meta-e-fase-verde.md) | `Meta` é entidade nova, e a fase verde troca a aba sem esconder as dívidas | aceito |
 | [0018](0018-medicao-de-contraste-e-gate-e-o-vermelho-ganha-token-de-texto.md) | A medição de contraste volta para dentro do repositório e vira gate; e o vermelho ganha um token de texto | aceito (supersede a decisão da 0010 de manter o validador fora do repo) |
+| [0019](0019-respiro-e-linha-da-cascata-e-quem-diz-o-valor-e-o-usuario.md) | O respiro é o piso do corte, e quem diz o valor dele é o usuário | aceito |

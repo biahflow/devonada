@@ -1045,6 +1045,141 @@ remove o prazo ou o aporte de uma meta. Sem essa distinção não haveria desfaz
 ruído de cadastro, não histórico financeiro. Quem quer guardar sem ver na lista usa `ativa: false`.
 Id de outro tenant devolve `404`, nunca `403` — um `403` confirmaria que o id existe.
 
+### 3.13 M11 · respiro e marcos (ADR 0019)
+
+> **O respiro entra ANTES de `capacidadeMaxima`, e é isso que o define.** Descontá-lo depois faria
+> dele a sobra que some quando aperta — exatamente o que `domain.md` proíbe que ele seja. Quem não
+> declarou respiro tem a cascata idêntica à de hoje: **não existe valor default**, porque um default
+> seria o coeficiente que a ADR 0009 proíbe entrando pela porta dos fundos.
+
+#### Campos novos em `GET /v1/caixa`
+
+```json
+{ "caixa": {
+  "capacidadeMaxima": 62000,
+  "respiro": 15000,
+  "respiroUsadoNoMes": 8000,
+  "respiroDisponivelNoMes": 7000,
+  "respiroSaldoAcumulado": 22000,
+  "respiroAtivo": true
+} }
+```
+
+Tudo em **centavos**. A cascata passa a ser:
+
+```
+capacidadeMaxima = rendaLiquida − essenciais − provisaoMensal − aporteReserva
+                   − aporteAposentadoria − respiro
+capacidadeHoje   = capacidadeMaxima − naoEssenciais
+aporteMaximo     = capacidadeHoje − comprometidoDividas
+```
+
+| Campo | Ausente (`null`) quando |
+|---|---|
+| `respiro` | o usuário nunca declarou. **Nunca `0` por ausência** — zero declarado é uma escolha legítima e diferente de não ter escolhido |
+| `respiroUsadoNoMes` | não há respiro declarado. Com respiro declarado e nada usado, é `0` — o zero aqui é fato |
+| `respiroDisponivelNoMes` | idem. **Derivado, nunca persistido**: `respiro − respiroUsadoNoMes`, com piso em `0` |
+| `respiroSaldoAcumulado` | idem. **Persistido**, no molde de `provisao_anual.saldo_acumulado` |
+
+O saldo acumulado rola na **virada do mês**, na primeira leitura que perceber que o mês mudou, e o
+mês já apurado fica registrado para a rolagem ser idempotente. Não há job, não há notificação e não
+há pergunta: o guardrail 4.1 diz que respiro não usado não vira cobrança, e perguntar todo mês o que
+fazer com ele seria transformá-lo em prestação de contas.
+
+#### `PUT /v1/caixa/respiro`
+
+```json
+{ "valorMensal": 15000, "ativo": true }
+```
+
+Resposta devolve o respiro gravado **mais o preço dele**:
+
+```json
+{ "respiro": { "valorMensal": 15000, "ativo": true, "saldoAcumulado": 22000 },
+  "custoEmMeses": 2 }
+```
+
+`custoEmMeses` é a diferença de prazo entre o plano com e sem este respiro, pela **mesma**
+`domain/simulacao.py` do M4 — não é estimativa nova, é a simulação existente rodada duas vezes.
+É `null` quando não há dívida com dado suficiente para simular; a tela então grava sem exibir preço,
+em vez de exibir palpite.
+
+**`422` quando o respiro invade o piso legal**, isto é, quando
+`rendaLiquida − essenciais − valorMensal < minimoExistencial`. Mesmo padrão e mesmo registro de
+`_validar_aporte`: a mensagem diz o que aconteceu, em pt-BR, e não chama o usuário de nada.
+`valorMensal` negativo devolve `422`. `ativo: false` **preserva o saldo acumulado** — desativar não
+é apagar.
+
+#### `POST /v1/caixa/respiro/uso` → `201` · `DELETE /v1/caixa/respiro/uso/{id}` → `204`
+
+```json
+{ "valor": 8000, "descricao": "cinema" }
+```
+
+`descricao` é opcional e livre. **Registrar uso de respiro não produz alerta, aviso, sinal nem
+campo de comparação**: a resposta é o novo `respiroDisponivelNoMes`, e nada mais. Uso que exceda o
+disponível do mês é aceito e consome o saldo acumulado; excedendo os dois, ainda é aceito e o
+disponível vai a `0` — o app não impede ninguém de gastar o próprio dinheiro, e recusar aqui seria
+o policiamento que a feature existe para desmontar.
+
+`DELETE` existe porque valor digitado errado precisa de desfazer, e obrigar a conviver com ele
+transformaria um erro de digitação em culpa.
+
+#### `POST /v1/caixa/respiro/destinacao` → `201`
+
+```json
+{ "valor": 22000 }
+```
+
+Manda saldo acumulado para aporte extra na dívida. Sempre por ação explícita — **nunca automático,
+nunca sugerido em push**. `422` se `valor > saldoAcumulado`.
+
+#### `GET /v1/marcos`
+
+```json
+{ "marcos": [
+  { "tipo": "primeira_negociacao", "atingidoEm": "2026-07-14", "celebradoEm": "2026-07-14" },
+  { "tipo": "rota_25", "atingidoEm": "2026-08-02", "celebradoEm": null },
+  { "tipo": "primeira_quitacao", "atingidoEm": null, "celebradoEm": null }
+] }
+```
+
+`tipo` é `primeira_negociacao` \| `primeira_quitacao` \| `rota_25` \| `rota_50` \| `rota_75`.
+
+**Marco é evento persistido, atingido uma vez e para sempre.** Não é predicado recalculado sobre o
+estado atual, e a distinção é a coisa mais importante deste bloco: a porcentagem da rota se move
+para trás quando o usuário cadastra uma dívida nova, e um marco recalculado se **desfaria** — a
+pessoa perderia uma conquista por ter sido honesta sobre a própria situação.
+
+`atingidoEm` grava quando o gatilho ocorreu; `celebradoEm`, quando a `MarcoScreen` foi exibida. Os
+dois são separados para a tela não reaparecer a cada abertura do app, e para um marco atingido
+offline não se perder.
+
+Fontes dos gatilhos, todas já existentes: `renegociacao` para `primeira_negociacao`,
+`divida.situacao = 'quitada'` para `primeira_quitacao`, e `rotaPercorridaBps` cruzando `2500`,
+`5000` e `7500`.
+
+#### `POST /v1/marcos/{tipo}/celebracao` → `204`
+
+Grava `celebradoEm`. É escrita, e por isso passa pela trava de assinatura como qualquer outra —
+mas um marco atingido durante o período somente leitura **não se perde**: ele fica com
+`celebradoEm: null` e a tela aparece quando a assinatura voltar.
+
+#### Campos novos em `GET /v1/dividas/resumo`
+
+```json
+{ "saldoInicialDaRota": 9100000, "rotaPercorridaBps": 2740 }
+```
+
+Isto **move para o servidor** uma conta que hoje o app faz em `src/components/rota/CardSaldo.tsx`,
+e corrige a linha de base no caminho. Hoje ela é `evolucaoSaldo[0]`, que é o primeiro ponto da
+série devolvida — e a série é recortada pelo mês selecionado. Passa a ser o **maior saldo já
+registrado** em `saldo_snapshot`: linha de base que não encolhe, e porcentagem que nunca fica
+negativa.
+
+Os dois são `null` sem histórico — quem cadastrou hoje tem um ponto só, e "0% percorrido" no
+primeiro dia seria desanimador **e falso**: a pessoa não deixou de andar, ela acabou de chegar.
+
 ---
 
 ## 4. Fila do backend
@@ -1256,6 +1391,37 @@ e dois deles são código.*
       status. `None` nos dois, e a tela então não exibe selo em vez de exibir palpite
 - [ ] `GET /v1/metas/{id}` — não existe de propósito: a coleção cabe numa resposta, e a tela de
       edição lê do cache que a aba já buscou (ADR 0002). Entra se algum dia houver deep link direto
+
+### Bloco 13 — M11 · respiro e marcos (ADR 0019)
+
+*Destrava: a intervenção anti-desistência. Sem ela, o teto que o produto propõe pressupõe que a
+pessoa parou de viver — e o mês 4 é onde ela desiste.*
+
+- [ ] `respiro` — tabela com `valor_mensal`, `ativo`, `saldo_acumulado`, `ultimo_mes_apurado`, uma
+      linha por tenant. `saldo_acumulado` no molde de `provisao_anual`; `ultimo_mes_apurado` é o que
+      torna a rolagem da virada do mês idempotente sem job
+- [ ] `respiro_uso` e `respiro_destinacao` — lançamentos datados, com `tenant_id`. Entram sozinhas na
+      exclusão de conta por `tabelas_do_tenant()`
+- [ ] `marco` — evento persistido com `tipo`, `atingido_em`, `celebrado_em`. **Nunca um predicado
+      recalculado**: marco que se desfaz quando o usuário cadastra dívida nova é o modo de falha mais
+      cruel desta feature
+- [ ] `domain/caixa.py` — `respiro` em `EntradaCaixa` e em `Caixa`, subtraído **antes** de
+      `capacidade_maxima`. O docstring precisa declarar que o valor **não é regra financeira: é dado
+      do usuário** — é a distinção que autoriza o módulo a existir sem fonte legal
+- [ ] Validação de piso: `422` quando `renda_liquida − essenciais − respiro < minimo_existencial`,
+      no registro de `_validar_aporte`
+- [ ] `PUT /v1/caixa/respiro` com `custoEmMeses` pela mesma `domain/simulacao.py` do M4 — nenhuma
+      conta nova, a existente rodada duas vezes
+- [ ] `POST`/`DELETE /v1/caixa/respiro/uso` e `POST /v1/caixa/respiro/destinacao`
+- [ ] `GET /v1/marcos` e `POST /v1/marcos/{tipo}/celebracao`
+- [ ] `saldoInicialDaRota` e `rotaPercorridaBps` em `GET /v1/dividas/resumo` — tira do
+      `CardSaldo.tsx` a única conta derivada que o app ainda faz, e troca a linha de base móvel pelo
+      maior saldo já registrado
+- [ ] Teste que cruza respiro declarado × teto do simulador. É o gêmeo do teste de M7.2 que ligou
+      fonte de renda a painel preenchido — e que faltava justamente quando o defeito passou por
+      quatro gates verdes
+- [ ] Teste que cadastra dívida nova depois de um marco e prova que o marco **não se desfaz**
+- [ ] Teste de regressão: tenant sem respiro declarado tem cascata byte a byte idêntica à de hoje
 
 ### Estado observado em device
 
