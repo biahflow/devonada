@@ -131,6 +131,9 @@ def registrar_snapshot(db: Session, tenant: str, settings: Settings) -> None:
             aporte_maximo=c.aporte_maximo,
             minimo_existencial=c.minimo_existencial,
             nao_fecha=c.nao_fecha,
+            # `None` para quem não declarou respiro, e é a verdade: a foto não
+            # pode afirmar zero declarado por quem não escolheu nada.
+            respiro=c.respiro,
         )
     )
     db.commit()

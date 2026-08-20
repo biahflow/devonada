@@ -109,6 +109,11 @@ def montar_entrada_caixa(db: Session, tenant: str, settings: Settings) -> Entrad
     pode ser puxada para baixo pelo pior mês de uma fonte variável. Basta uma
     fonte vir do histórico para a origem deixar de ser "informada" — é isso que
     a tela precisa dizer ao usuário sobre o número que ele está vendo.
+
+    SEM LINHA DE `respiro`, OS QUATRO CAMPOS SEGUEM `None` e a entrada fica
+    idêntica à de antes do M11. É o que garante que quem nunca declarou respiro
+    não perde capacidade nenhuma: não existe default, e a ausência não vira zero
+    em lugar nenhum do caminho (ADR 0019).
     """
     hoje = date.today()
 
@@ -143,6 +148,35 @@ def montar_entrada_caixa(db: Session, tenant: str, settings: Settings) -> Entrad
 
     perfil = db.scalar(select(orm.Perfil).where(orm.Perfil.tenant_id == tenant))
 
+    respiro = db.scalar(select(orm.Respiro).where(orm.Respiro.tenant_id == tenant))
+    respiro_valor: int | None = None
+    respiro_ativo: bool | None = None
+    respiro_usado: int | None = None
+    respiro_saldo: int | None = None
+    if respiro is not None:
+        # A janela é o MÊS CORRENTE. O disponível zera na virada porque a fatia
+        # é mensal; o que não foi usado não some — vai para `saldo_acumulado`,
+        # e a rolagem que o move é da leitura que perceber a virada.
+        primeiro_do_mes = hoje.replace(day=1)
+        primeiro_do_proximo = (
+            date(hoje.year + 1, 1, 1)
+            if hoje.month == 12
+            else date(hoje.year, hoje.month + 1, 1)
+        )
+        usos = db.scalars(
+            select(orm.RespiroUso.valor).where(
+                orm.RespiroUso.tenant_id == tenant,
+                orm.RespiroUso.data >= primeiro_do_mes,
+                orm.RespiroUso.data < primeiro_do_proximo,
+            )
+        ).all()
+        respiro_valor = respiro.valor_mensal
+        respiro_ativo = respiro.ativo
+        # Zero AQUI é fato, não ausência: com respiro declarado e nada gasto, o
+        # usado do mês é zero mesmo.
+        respiro_usado = sum(usos)
+        respiro_saldo = respiro.saldo_acumulado
+
     return EntradaCaixa(
         renda_bruta_tipica=bruta,
         origem_renda=origem,
@@ -166,6 +200,10 @@ def montar_entrada_caixa(db: Session, tenant: str, settings: Settings) -> Entrad
         ),
         minimo_existencial=minimo_existencial(settings.minimo_existencial_centavos),
         mes_atual=hoje.month,
+        respiro=respiro_valor,
+        respiro_ativo=respiro_ativo,
+        respiro_usado_no_mes=respiro_usado,
+        respiro_saldo_acumulado=respiro_saldo,
     )
 
 

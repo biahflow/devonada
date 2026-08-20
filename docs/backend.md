@@ -110,6 +110,8 @@ varre `app.openapi()` e falha se `LIVRES` crescer sem decisão explícita.
 | Ordem da bola de neve | Menor saldo primeiro | — (idem; ver `domain.md`, seção 4) | `domain/simulacao.py` |
 | Orçamento da simulação | Mínimos iniciais + aporte, **com rolagem** | — (escolha de método, documentada) | `domain/simulacao.py` |
 | `economiaVsMinimo` | Juros do cenário mínimo − juros do cenário com aporte | — (diferença entre dois resultados do mesmo motor) | `domain/simulacao.py` |
+| `respiro` na cascata | Subtraído **antes** de `capacidade_maxima`; valor **declarado pelo usuário**, sem default nem faixa | — (dado do usuário, não regra derivada de lei; ADR 0019) | `domain/caixa.py` |
+| `respiroInvadeOPiso` | `líquida − essenciais − respiro < mínimo existencial` | Decreto 11.150/2022, art. 3º, **na redação do Decreto 11.567/2023** | `domain/caixa.py` |
 | Multa de atraso acima do teto | Teto de **2% do valor da prestação** | CDC, art. 52, §1º (redação da Lei 9.298/1996) | `domain/revisao.py` |
 | Tarifa de cadastro repetida | Devida **no início do relacionamento** | STJ, Súmula 566 | `domain/revisao.py` |
 | Seguro prestamista embutido | Consumidor não pode ser **compelido** a contratar | CDC, art. 39, I; STJ, Tema 972 | `domain/revisao.py` |

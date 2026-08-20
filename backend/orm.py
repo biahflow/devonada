@@ -448,9 +448,136 @@ class CaixaSnapshot(Base):
     minimo_existencial: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     nao_fecha: Mapped[bool] = mapped_column(Boolean, default=False)
 
+    # ADITIVA e NULLABLE (M11). A foto precisa explicar a própria
+    # `capacidade_maxima` seis meses depois, e sem esta coluna faltaria a linha
+    # que a derrubou. `NULL` em snapshot anterior ao respiro é a verdade; `0`
+    # afirmaria respiro declarado como zero, que é escolha e não ausência.
+    respiro: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+
     calculado_em: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+
+class Respiro(Base):
+    """
+    A fatia que a pessoa reservou para viver enquanto paga (M11, ADR 0019).
+
+    UMA LINHA POR TENANT. Não é uma coleção como `meta` ou `gasto`: é uma linha
+    da cascata, no mesmo nível do aluguel, e duas linhas dariam dois valores para
+    a mesma pergunta.
+
+    O VALOR NÃO É REGRA FINANCEIRA — é dado do usuário, e a ausência de linha
+    significa "nunca declarou", nunca "declarou zero". Não existe default: um
+    percentual de fábrica seria o coeficiente sem fonte que a ADR 0009 proíbe.
+
+    `ativo=False` NÃO APAGA: preserva `valor_mensal` e `saldo_acumulado`, e só
+    tira a linha da cascata. Desativar é diferente de nunca ter declarado, e a
+    tela precisa dizer qual dos dois é.
+
+    `saldo_acumulado` segue o molde de `provisao_anual.saldo_acumulado`: respiro
+    não usado acumula em silêncio, sem notificação e sem pergunta no fechamento
+    (guardrail 4.1). `ultimo_mes_apurado` é `NULL` até a primeira apuração — e é
+    ele que torna a rolagem da virada do mês idempotente, sem job e sem cron.
+    """
+
+    __tablename__ = "respiro"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=novo_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+
+    valor_mensal: Mapped[int] = mapped_column(BigInteger)
+    ativo: Mapped[bool] = mapped_column(Boolean, default=True)
+    saldo_acumulado: Mapped[int] = mapped_column(BigInteger, default=0)
+    ultimo_mes_apurado: Mapped[str | None] = mapped_column(String(7), nullable=True)
+
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    atualizado_em: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class RespiroUso(Base):
+    """
+    Um gasto de respiro — o sorvete, o cinema, as unhas.
+
+    LANÇAMENTO, NÃO SALDO. O disponível do mês é derivado a cada leitura em
+    `domain/caixa.py`; gravá-lo aqui daria um número que envelhece entre um uso
+    e o seguinte.
+
+    `descricao` é opcional e livre porque ninguém deve prestação de contas do
+    próprio lazer: o registro existe para a pessoa saber quanto ainda há, e
+    nunca para produzir alerta, comparação ou tom negativo (guardrail 4.1).
+
+    `data` é `Date`, e não timestamp: a apuração é mensal, e a hora do sorvete
+    não é dado que este produto precise guardar.
+    """
+
+    __tablename__ = "respiro_uso"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=novo_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+
+    valor: Mapped[int] = mapped_column(BigInteger)
+    descricao: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    data: Mapped[date] = mapped_column(Date, default=date.today)
+
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class RespiroDestinacao(Base):
+    """
+    Saldo acumulado de respiro que o usuário mandou virar aporte extra.
+
+    SEMPRE POR AÇÃO EXPLÍCITA. Nunca automático, nunca sugerido em push: a
+    escolha do destino é do usuário (ADR 0019, item 5), e o app que decidisse
+    por ele transformaria o respiro em prestação de contas mensal.
+
+    Tabela separada de `respiro_uso` porque as duas respondem perguntas
+    diferentes — uma é o que a pessoa viveu, a outra é o que ela adiantou na
+    dívida. Somá-las numa coluna `tipo` faria o relatório de uma contaminar o da
+    outra.
+    """
+
+    __tablename__ = "respiro_destinacao"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=novo_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+
+    valor: Mapped[int] = mapped_column(BigInteger)
+    data: Mapped[date] = mapped_column(Date, default=date.today)
+
+    criada_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Marco(Base):
+    """
+    Uma conquista atingida — e ela não se desfaz (M11, ADR 0019, item 4).
+
+    EVENTO PERSISTIDO, NUNCA PREDICADO RECALCULADO, e é a distinção mais
+    importante desta tabela. A porcentagem da rota anda para trás quando o
+    usuário cadastra uma dívida nova; um marco derivado do estado atual se
+    desfaria, e a pessoa perderia uma conquista por ter sido honesta sobre a
+    própria situação.
+
+    Molde append-only de `CaixaSnapshot`, com UMA ressalva: `celebrado_em` é o
+    único UPDATE permitido aqui. Os dois campos são separados para a tela não
+    reaparecer a cada abertura do app, e para que um marco atingido durante o
+    período somente leitura não se perca — ele espera com `celebrado_em` nulo.
+
+    `tipo` é `primeira_negociacao` | `primeira_quitacao` | `rota_25` | `rota_50`
+    | `rota_75`. Linha ausente é marco não atingido; a rota devolve os cinco
+    tipos com nulos, e não é este arquivo que decide quando o gatilho ocorre.
+    """
+
+    __tablename__ = "marco"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=novo_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+
+    tipo: Mapped[str] = mapped_column(String(30))
+    atingido_em: Mapped[date] = mapped_column(Date, default=date.today)
+    celebrado_em: Mapped[date | None] = mapped_column(Date, nullable=True)
 
 
 class Usuario(Base):

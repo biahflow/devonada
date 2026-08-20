@@ -902,6 +902,14 @@ claro e nenhum bloqueia o lançamento:
   seção 5.
 - **Proteção contra screenshot** nas telas de dívida.
 - **Acessibilidade auditada** com leitor de tela real, não só `accessibilityLabel` presente.
+- **Teste que amarra a migração ao `Base.metadata`.** Hoje nada liga os dois: `backend/tests/
+  conftest.py` monta o schema com `Base.metadata.create_all`, não pelo Alembic, então **uma
+  migração quebrada ou divergente do ORM passa a suíte inteira verde**. O buraco apareceu ao
+  escrever a migração do M11 (F-010, T1), e a conferência que o fechou naquela vez foi manual —
+  DDL rendido × `CreateTable(Base.metadata)`, mais o round-trip contra o Postgres local. Isso não
+  escala: a próxima divergência entre ORM e migração passa sem ninguém tropeçar nela. É a mesma
+  classe de defeito que `tabelas_do_tenant()` derivada do metadata resolveu para exclusão de conta
+  no M8 — lista escrita à mão envelhece; verificação derivada, não.
 
 ---
 

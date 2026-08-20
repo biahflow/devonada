@@ -91,6 +91,17 @@ class EntradaCaixa:
     minimo_existencial: int | None
     mes_atual: int  # 1 a 12
 
+    # RESPIRO (M11, ADR 0019). `None` é "nunca declarou", e NÃO se confunde com
+    # `0`, que é uma escolha legítima de quem declarou zero. Não há default:
+    # um percentual de fábrica seria o coeficiente sem fonte que a ADR 0009
+    # proíbe, entrando pela porta dos fundos.
+    respiro: int | None = None
+    # Desativar não é apagar: o valor e o saldo continuam registrados, e só a
+    # linha da cascata para de valer enquanto `ativo` for `False`.
+    respiro_ativo: bool | None = None
+    respiro_usado_no_mes: int | None = None
+    respiro_saldo_acumulado: int | None = None
+
 
 @dataclass(frozen=True)
 class Caixa:
@@ -107,6 +118,13 @@ class Caixa:
     capacidade_hoje: int
     capacidade_maxima: int
     aporte_maximo: int
+    respiro: int | None
+    respiro_ativo: bool | None
+    respiro_usado_no_mes: int | None
+    # Derivado a cada leitura, NUNCA persistido: valor calculado que dorme em
+    # coluna é valor que envelhece errado, e este muda a cada uso registrado.
+    respiro_disponivel_no_mes: int | None
+    respiro_saldo_acumulado: int | None
     minimo_existencial: int | None
     abaixo_do_piso: bool | None
     nao_fecha: bool
@@ -227,6 +245,30 @@ def caixa_defasado(meses_desde_fechamento: int | None) -> bool | None:
     return meses_desde_fechamento >= MESES_ATE_DEFASAR
 
 
+def respiro_invade_o_piso(
+    liquida: int, essenciais: int, respiro: int, minimo: int | None
+) -> bool | None:
+    """
+    Se o respiro declarado empurra o que resta abaixo do mínimo existencial.
+
+    FONTE: Decreto 11.150/2022, art. 3º, na redação do Decreto 11.567/2023 — o
+    mínimo existencial é piso legal de proteção do devedor, e nenhuma alocação
+    voluntária o atravessa. É a mesma lei de `domain/minimo_existencial.py` e do
+    `abaixo_do_piso` desta cascata.
+
+    A ESCOLHA É DO USUÁRIO; O PISO É DA LEI (ADR 0019, item 6). Esta função não
+    diz quanto respiro alguém deveria ter — ela só responde se o valor que a
+    pessoa declarou cabe acima do piso.
+
+    Devolve `None` quando não há piso configurado, no mesmo espírito de
+    `abaixo_do_piso`: um `False` diria "conferimos e está tudo bem", que é
+    afirmação diferente de "não sabemos".
+    """
+    if minimo is None:
+        return None
+    return (liquida - essenciais - respiro) < minimo
+
+
 def _preenchimento(entrada: EntradaCaixa) -> str:
     """
     Em que nível de captura o usuário está — é o que a tela usa para escolher
@@ -256,8 +298,24 @@ def calcular_caixa(entrada: EntradaCaixa) -> Caixa:
         imposto_reservado = renda_bruta_tipica × imposto_bps
         renda_liquida     = renda_bruta_tipica − imposto_reservado
         sobra_operacional = renda_liquida − essenciais − provisao_mensal
-        capacidade_maxima = sobra_operacional − reserva − aposentadoria
+        capacidade_maxima = sobra_operacional − reserva − aposentadoria − respiro
         capacidade_hoje   = capacidade_maxima − nao_essenciais
+        aporte_maximo     = capacidade_hoje − comprometido_dividas
+
+    O RESPIRO ENTRA ANTES DO CORTE, E É ISSO QUE O DEFINE (ADR 0019).
+    `capacidade_maxima` é, literalmente, o cenário em que todo o não essencial
+    foi cortado. Descontar o respiro depois dele faria dele a sobra que some
+    quando aperta — exatamente o que ele existe para não ser. Antes, ele é
+    imune ao corte por construção, e não por disciplina de quem escreve a tela.
+
+    O VALOR DO RESPIRO NÃO É REGRA FINANCEIRA: É DADO DO USUÁRIO. Ele não tem
+    FONTE no sentido de `docs/backend.md` porque não é derivado de lei, contrato
+    nem estudo — é declarado, como um gasto ou um pote, e o app responde apenas
+    com o que sabe de verdade: quantos meses a mais de quitação aquela escolha
+    custa. Nenhum coeficiente é arbitrado aqui: a faixa "5 a 8% da capacidade"
+    que a concepção trazia não sobe a documento canônico, porque não tem fonte
+    (ADR 0009). Consequência aceita: QUEM NÃO DECLARA NÃO TEM RESPIRO, e
+    `respiro = None` produz a cascata idêntica à de antes desta linha existir.
 
     IMPOSTO SAI PRIMEIRO, e sai do bruto. Quem é PJ recebe dinheiro que em parte
     não é dele; tratá-lo como renda faz a pessoa gastar o que vai faltar na
@@ -277,10 +335,30 @@ def calcular_caixa(entrada: EntradaCaixa) -> Caixa:
     provisao = provisao_mensal(entrada.provisoes, entrada.mes_atual)
     sobra_operacional = liquida - entrada.essenciais - provisao
 
+    # O `or 0` mora na ARITMÉTICA, e nunca no campo devolvido: `Caixa.respiro`
+    # continua `None` para quem nunca declarou. Ausência que vira zero apagaria
+    # a distinção entre não ter escolhido e ter escolhido zero.
+    #
+    # Desativado sai da cascata sem apagar nada — `ativo: false` preserva valor
+    # e saldo acumulado (ADR 0019, item 5).
+    respiro_na_cascata = 0 if entrada.respiro_ativo is False else (entrada.respiro or 0)
+
     capacidade_maxima = (
-        sobra_operacional - entrada.aporte_reserva - entrada.aporte_aposentadoria
+        sobra_operacional
+        - entrada.aporte_reserva
+        - entrada.aporte_aposentadoria
+        - respiro_na_cascata
     )
     capacidade_hoje = capacidade_maxima - entrada.nao_essenciais
+
+    # Piso em zero: quem usou mais do que declarou não fica com disponível
+    # negativo, que na tela viraria dívida de lazer — o oposto do que a linha
+    # existe para fazer (guardrail 4.1). Derivado aqui, nunca persistido.
+    respiro_disponivel = None
+    if entrada.respiro is not None:
+        respiro_disponivel = max(
+            0, entrada.respiro - (entrada.respiro_usado_no_mes or 0)
+        )
 
     # O piso é da lei e não se negocia; a alocação acima dele é do usuário.
     # Sem piso configurado o sinal é ausente, nunca `False`: um `False` diria
@@ -305,6 +383,11 @@ def calcular_caixa(entrada: EntradaCaixa) -> Caixa:
         # Teto do aporte extra do simulador. Pode ser negativo, e negativo aqui
         # significa que as parcelas atuais já não cabem.
         aporte_maximo=capacidade_hoje - entrada.comprometido_dividas,
+        respiro=entrada.respiro,
+        respiro_ativo=entrada.respiro_ativo,
+        respiro_usado_no_mes=entrada.respiro_usado_no_mes,
+        respiro_disponivel_no_mes=respiro_disponivel,
+        respiro_saldo_acumulado=entrada.respiro_saldo_acumulado,
         minimo_existencial=entrada.minimo_existencial,
         abaixo_do_piso=abaixo_do_piso,
         # FATO ARITMÉTICO, NÃO DIAGNÓSTICO. As parcelas mínimas não cabem nem

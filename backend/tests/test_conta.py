@@ -147,6 +147,18 @@ class TestNenhumaTabelaFicaDeFora:
         varridas = {t.name for t in tabelas_do_tenant()}
         assert {"usuario", "sessao"} <= varridas
 
+    def test_as_tabelas_do_respiro_e_dos_marcos_entram_sozinhas(self):
+        """
+        M11: quatro tabelas nascem e `routers/conta.py` não é editado.
+
+        É a aposta do `tenant_id` cobrando de novo, pela quarta vez. Se um dia
+        alguém precisar acrescentar uma linha à rota de exclusão para uma tabela
+        nova, a varredura derivada parou de funcionar — e este teste é onde isso
+        aparece, e não numa auditoria de loja meses depois.
+        """
+        varridas = {t.name for t in tabelas_do_tenant()}
+        assert {"respiro", "respiro_uso", "respiro_destinacao", "marco"} <= varridas
+
 
 class TestPaginaPublicaDeExclusao:
     def test_responde_sem_autenticacao(self, client):

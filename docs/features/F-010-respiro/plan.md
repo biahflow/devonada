@@ -595,7 +595,32 @@ Conferido item a item contra a checklist de `agents/planner.md`:
 
 ## `PLAN_DEVIATION`
 
-Nenhum registrado. **O plano foi congelado para execução em 19/08/2026**, com os três gates de
-planejamento satisfeitos: PF-1, PF-2 e a aprovação. A partir daqui, mudança em dependência ou em
-trabalho planejado entra nesta seção com tarefa, estado planejado, estado real, impacto e
-resolução — não se corrige o plano em silêncio.
+O plano foi congelado para execução em 19/08/2026, com os três gates de planejamento satisfeitos:
+PF-1, PF-2 e a aprovação. Mudança em dependência ou em trabalho planejado entra aqui com tarefa,
+estado planejado, estado real, impacto e resolução — não se corrige o plano em silêncio.
+
+### PD-1 — T1 editou `backend/routers/caixa.py`, que seu `Out of Scope` proibia
+
+- **Tarefa:** T1.
+- **Planejado:** o `Scope` manda a coluna `respiro` do `CaixaSnapshot` ser gravada "no ponto onde
+  `CaixaSnapshot` é gravado", e T1-AC9 exige prova por teste. O `Out of Scope` proibia
+  `backend/routers/` em bloco.
+- **Real:** esse ponto não existe em `leitura.py` — é `routers/caixa.py::registrar_snapshot`. O
+  contrato se contradizia: cumprir o `Scope` e o AC9 exigia atravessar o `Out of Scope`.
+- **Impacto:** três linhas — `respiro=c.respiro` mais o comentário que explica o `None`. Nenhum
+  endpoint, schema ou rota. `git diff --stat -- backend/routers/conta.py` continua vazio (T1-AC6).
+- **Resolução:** ratificado. A contradição é do contrato, não da execução, e o executor tomou a
+  leitura mínima e reportou em vez de ampliar em silêncio. **Lição para os contratos seguintes:**
+  `Out of Scope` por pasta inteira colide com `Scope` escrito por comportamento — quando o
+  comportamento exige um ponto de escrita, o contrato precisa nomear o arquivo.
+
+### PD-2 — `EntradaCaixa` ganhou um quarto campo, `respiro_ativo`
+
+- **Tarefa:** T1.
+- **Planejado:** três campos de respiro na entrada, cinco na saída.
+- **Real:** quatro na entrada. `Caixa.respiro_ativo` é um dos cinco de saída e **não é derivável**
+  dos três de entrada — só inventável.
+- **Impacto:** com o campo, a decisão do `api-contract.md` 3.13 ("`ativo: false` preserva o saldo
+  acumulado") vira código verificável: respiro desativado sai da cascata sem apagar valor nem
+  saldo, com teste dos dois lados.
+- **Resolução:** ratificado. Era erro de contagem do plano, não ampliação de escopo.

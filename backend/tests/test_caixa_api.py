@@ -1,5 +1,8 @@
 import pytest
 
+import orm
+from config import get_settings
+
 """
 Endpoints do módulo de caixa. A aritmética já é coberta por test_caixa.py; aqui
 o que se prova é persistência, isolamento por tenant, o snapshot append-only e a
@@ -539,3 +542,137 @@ class TestDefasagem:
         caixa = client.get("/v1/caixa", headers=auth).json()["caixa"]
         assert caixa["caixaDefasado"] is True
         assert caixa["mesesDesdeFechamento"] >= 24
+
+
+def _respiro_declarado(sessao, valor=15000, ativo=True, saldo=0):
+    """
+    Semeia a linha de respiro direto na tabela.
+
+    `PUT /v1/caixa/respiro` é de T2 e ainda não existe. Semear é o único jeito
+    honesto de exercitar a coluna do snapshot hoje — um teste que fingisse
+    passar pela rota passaria pelo motivo errado, como o `renda_legada` já
+    ensinou.
+    """
+    sessao.add(
+        orm.Respiro(
+            tenant_id=get_settings().tenant_id,
+            valor_mensal=valor,
+            ativo=ativo,
+            saldo_acumulado=saldo,
+        )
+    )
+    sessao.commit()
+
+
+def _fechar_o_mes(client, auth, fonte_id, valor=900000, mes="2026-08"):
+    return client.post(
+        "/v1/caixa/fechamento",
+        json={"mes": mes, "itens": [{"tipo": "recebimento", "id": fonte_id, "valor": valor}]},
+        headers=auth,
+    )
+
+
+class TestRespiroNoSnapshot:
+    """
+    A foto precisa explicar a própria `capacidade_maxima` seis meses depois.
+
+    Sem a coluna, o histórico mostraria uma capacidade menor sem a linha que a
+    derrubou — e a pergunta que a tabela existe para responder ("com base em
+    qual renda eu propus aquele acordo?") ficaria sem metade da resposta.
+    """
+
+    def test_o_fechamento_do_mes_grava_o_respiro_vigente(self, client, auth, sessao):
+        _respiro_declarado(sessao, valor=15000)
+        fonte = _fonte(client, auth, variavel=True).json()["fonte"]
+
+        assert _fechar_o_mes(client, auth, fonte["id"]).status_code == 200
+
+        gravados = sessao.query(orm.CaixaSnapshot).all()
+        assert gravados
+        assert {s.respiro for s in gravados} == {15000}
+
+    def test_sem_respiro_declarado_a_coluna_fica_NULL_e_nao_zero(self, client, auth, sessao):
+        # `0` afirmaria respiro declarado como zero, que é escolha legítima e
+        # diferente de não ter escolhido. `NULL` é a verdade.
+        fonte = _fonte(client, auth, variavel=True).json()["fonte"]
+
+        assert _fechar_o_mes(client, auth, fonte["id"]).status_code == 200
+
+        gravados = sessao.query(orm.CaixaSnapshot).all()
+        assert gravados
+        assert {s.respiro for s in gravados} == {None}
+
+
+class TestRespiroNaCascataDaAPI:
+    """
+    O respiro persistido chegando à cascata pelo caminho de verdade.
+
+    A aritmética já é de `test_caixa.py`; o que se prova aqui é que
+    `leitura.montar_entrada_caixa` lê a tabela e que a queda aparece no número
+    que a tela mostra — inclusive para os três consumidores que ninguém tocou.
+    """
+
+    def test_a_capacidade_maxima_da_api_ja_vem_com_o_respiro_descontado(
+        self, client, auth, sessao
+    ):
+        _respiro_declarado(sessao, valor=15000)
+        _fonte(client, auth, valorTipicoInformado=1000000)
+        _gasto(client, auth, valorMensal=400000)
+
+        caixa = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        assert caixa["capacidadeMaxima"] == 585000
+        assert caixa["capacidadeHoje"] == 585000
+
+    def test_sem_linha_de_respiro_a_capacidade_e_a_de_sempre(self, client, auth):
+        # A regressão que protege quem nunca declarou: mesma entrada, mesmo
+        # número de antes do M11.
+        _fonte(client, auth, valorTipicoInformado=1000000)
+        _gasto(client, auth, valorMensal=400000)
+
+        caixa = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        assert caixa["capacidadeMaxima"] == 600000
+
+    def test_o_respiro_desativado_nao_derruba_a_capacidade(self, client, auth, sessao):
+        _respiro_declarado(sessao, valor=15000, ativo=False)
+        _fonte(client, auth, valorTipicoInformado=1000000)
+        _gasto(client, auth, valorMensal=400000)
+
+        caixa = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        assert caixa["capacidadeMaxima"] == 600000
+
+    def test_o_usado_soma_so_os_usos_do_mes_corrente(self, client, auth, sessao):
+        # O sorvete do mês passado não come a fatia deste mês. Sem rota de uso
+        # (T2), a leitura é exercitada direto — é onde a janela mensal mora.
+        from datetime import date, timedelta
+
+        from leitura import montar_entrada_caixa
+
+        tenant = get_settings().tenant_id
+        _respiro_declarado(sessao, valor=15000)
+        hoje = date.today()
+        sessao.add_all(
+            [
+                orm.RespiroUso(tenant_id=tenant, valor=5000, data=hoje),
+                orm.RespiroUso(tenant_id=tenant, valor=3000, data=hoje),
+                orm.RespiroUso(
+                    tenant_id=tenant, valor=9900, data=hoje.replace(day=1) - timedelta(days=1)
+                ),
+            ]
+        )
+        sessao.commit()
+
+        entrada = montar_entrada_caixa(sessao, tenant, get_settings())
+        assert entrada.respiro_usado_no_mes == 8000
+        assert entrada.respiro == 15000
+        assert entrada.respiro_saldo_acumulado == 0
+
+    def test_sem_linha_de_respiro_os_quatro_campos_da_entrada_sao_ausentes(
+        self, client, auth, sessao
+    ):
+        from leitura import montar_entrada_caixa
+
+        entrada = montar_entrada_caixa(sessao, get_settings().tenant_id, get_settings())
+        assert entrada.respiro is None
+        assert entrada.respiro_ativo is None
+        assert entrada.respiro_usado_no_mes is None
+        assert entrada.respiro_saldo_acumulado is None

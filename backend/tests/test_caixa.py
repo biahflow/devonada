@@ -10,6 +10,7 @@ from domain.caixa import (
     meses_entre,
     provisao_mensal,
     renda_tipica,
+    respiro_invade_o_piso,
 )
 
 """
@@ -332,3 +333,187 @@ class TestCaixaDefasado:
 
     def test_fechado_no_proprio_mes_esta_em_dia(self):
         assert caixa_defasado(0) is False
+
+
+class TestRespiroNaCascata:
+    """
+    A linha que sobrevive ao aperto (M11, ADR 0019).
+
+    O respiro entra ANTES de `capacidade_maxima`, que é o cenário em que todo o
+    não essencial foi cortado. É a posição, e não o valor, que faz a feature
+    existir: depois do corte ele seria a sobra que some quando aperta.
+    """
+
+    def test_a_capacidade_maxima_cai_exatamente_pelo_valor_declarado(self):
+        sem = calcular_caixa(_entrada())
+        com = calcular_caixa(_entrada(respiro=15000, respiro_ativo=True))
+        assert sem.capacidade_maxima == 600000
+        assert com.capacidade_maxima == 585000
+        assert sem.capacidade_maxima - com.capacidade_maxima == 15000
+
+    def test_cortar_todo_o_nao_essencial_NAO_zera_o_respiro(self):
+        # O critério que dá nome à feature. `capacidade_maxima` é a hipótese de
+        # austeridade total, e o respiro continua descontado dentro dela.
+        c = calcular_caixa(_entrada(nao_essenciais=0, respiro=15000, respiro_ativo=True))
+        assert c.capacidade_maxima == 585000
+        assert c.capacidade_hoje == 585000
+        assert c.respiro == 15000
+
+    def test_capacidade_hoje_e_aporte_maximo_herdam_a_queda_sem_desconto_proprio(self):
+        # O respiro é subtraído UMA vez, no topo. As duas linhas de baixo só
+        # herdam — se aparecesse de novo aqui, seria contado duas vezes.
+        c = calcular_caixa(
+            _entrada(nao_essenciais=90000, comprometido_dividas=100000, respiro=15000)
+        )
+        assert c.capacidade_maxima == 585000
+        assert c.capacidade_hoje == 495000
+        assert c.aporte_maximo == 395000
+
+    def test_o_respiro_pode_fazer_a_conta_deixar_de_fechar(self):
+        # Consequência declarada da ADR 0019: com a capacidade máxima menor,
+        # `nao_fecha` dispara para mais gente. Está correto — o plano de fato
+        # não fecha se a pessoa precisa viver —, e continua sendo fato
+        # aritmético, nunca diagnóstico de superendividamento.
+        sem = calcular_caixa(_entrada(comprometido_dividas=595000))
+        com = calcular_caixa(_entrada(comprometido_dividas=595000, respiro=15000))
+        assert sem.nao_fecha is False
+        assert com.nao_fecha is True
+
+    def test_disponivel_no_mes_e_o_declarado_menos_o_usado(self):
+        c = calcular_caixa(_entrada(respiro=15000, respiro_usado_no_mes=8000))
+        assert c.respiro_disponivel_no_mes == 7000
+
+    def test_disponivel_tem_piso_em_zero_e_nunca_fica_negativo(self):
+        # Disponível negativo viraria dívida de lazer na tela — o oposto do que
+        # a linha existe para fazer (guardrail 4.1).
+        c = calcular_caixa(_entrada(respiro=15000, respiro_usado_no_mes=23000))
+        assert c.respiro_disponivel_no_mes == 0
+
+    def test_declarado_e_nada_usado_da_disponivel_igual_ao_declarado(self):
+        c = calcular_caixa(_entrada(respiro=15000, respiro_usado_no_mes=0))
+        assert c.respiro_disponivel_no_mes == 15000
+
+    def test_o_uso_do_mes_nao_mexe_na_capacidade(self):
+        # A fatia sai da cascata quando é DECLARADA. Descontar de novo o que foi
+        # gasto dentro dela seria contar o sorvete duas vezes.
+        sem_uso = calcular_caixa(_entrada(respiro=15000, respiro_usado_no_mes=0))
+        com_uso = calcular_caixa(_entrada(respiro=15000, respiro_usado_no_mes=15000))
+        assert sem_uso.capacidade_maxima == com_uso.capacidade_maxima == 585000
+
+    def test_zero_declarado_e_escolha_legitima_e_entra_como_zero(self):
+        c = calcular_caixa(_entrada(respiro=0, respiro_ativo=True, respiro_usado_no_mes=0))
+        assert c.respiro == 0
+        assert c.respiro_disponivel_no_mes == 0
+        assert c.capacidade_maxima == 600000
+
+    def test_respiro_desativado_sai_da_cascata_sem_apagar_valor_nem_saldo(self):
+        # `ativo: false` PRESERVA o saldo acumulado: desativar não é apagar.
+        c = calcular_caixa(
+            _entrada(
+                respiro=15000,
+                respiro_ativo=False,
+                respiro_usado_no_mes=0,
+                respiro_saldo_acumulado=22000,
+            )
+        )
+        assert c.capacidade_maxima == 600000
+        assert c.respiro == 15000
+        assert c.respiro_ativo is False
+        assert c.respiro_saldo_acumulado == 22000
+
+    def test_o_saldo_acumulado_atravessa_sem_entrar_em_conta_nenhuma(self):
+        # Ele é do usuário e espera um marco ou um botão. Somá-lo à capacidade
+        # transformaria respiro guardado em aporte automático — exatamente a
+        # escolha que a ADR 0019 devolve à pessoa.
+        c = calcular_caixa(_entrada(respiro=15000, respiro_saldo_acumulado=22000))
+        assert c.respiro_saldo_acumulado == 22000
+        assert c.capacidade_maxima == 585000
+
+
+class TestRegressaoSemRespiro:
+    """
+    Quem nunca declarou respiro tem a cascata idêntica à de antes do M11.
+
+    É o teste que impede a linha nova de vazar para quem não pediu — e o que
+    protege os três consumidores que mudam de número sem serem tocados
+    (simulador, painel e card do chat, todos via `leitura.capacidade_atual`).
+    """
+
+    def test_os_cinco_campos_sao_ausentes_e_nunca_zero(self):
+        c = calcular_caixa(_entrada())
+        # `None`, NUNCA `0`: zero declarado é escolha legítima, e é diferente de
+        # não ter escolhido. Um default aqui seria o coeficiente sem fonte da
+        # ADR 0009 entrando pela porta dos fundos.
+        assert c.respiro is None
+        assert c.respiro_ativo is None
+        assert c.respiro_usado_no_mes is None
+        assert c.respiro_disponivel_no_mes is None
+        assert c.respiro_saldo_acumulado is None
+
+    def test_a_cascata_inteira_campo_a_campo_com_os_valores_de_antes(self):
+        c = calcular_caixa(
+            _entrada(
+                imposto_bps=600,
+                nao_essenciais=90000,
+                aporte_reserva=50000,
+                aporte_aposentadoria=30000,
+                comprometido_dividas=100000,
+                provisoes=(ProvisaoPendente("IPVA", 180000, 0, 1),),
+            )
+        )
+        assert c.renda_bruta_tipica == 1000000
+        assert c.imposto_reservado == 60000
+        assert c.renda_liquida == 940000
+        assert c.essenciais == 400000
+        assert c.nao_essenciais == 90000
+        assert c.provisao_mensal == 36000
+        assert c.aporte_reserva == 50000
+        assert c.aporte_aposentadoria == 30000
+        assert c.comprometido_dividas == 100000
+        assert c.capacidade_maxima == 424000
+        assert c.capacidade_hoje == 334000
+        assert c.aporte_maximo == 234000
+        assert c.minimo_existencial == 60000
+        assert c.abaixo_do_piso is False
+        assert c.nao_fecha is False
+        assert c.preenchimento == "nivel_1"
+
+    def test_o_caso_real_PJ_do_M7_continua_dando_o_mesmo_numero(self):
+        # A mesma entrada de `TestCasoRealPJ`, sem respiro: se a linha nova
+        # tivesse default, este número teria mudado em silêncio.
+        c = calcular_caixa(
+            _entrada(
+                renda_bruta_tipica=700000,
+                imposto_bps=600,
+                essenciais=450000,
+                nao_essenciais=60000,
+            )
+        )
+        assert c.capacidade_maxima == 208000
+        assert c.capacidade_hoje == 148000
+
+
+class TestRespiroContraOPisoLegal:
+    def test_devolve_true_quando_o_respiro_empurra_abaixo_do_piso(self):
+        # R$ 6.500 de líquida, R$ 6.000 de essenciais e R$ 150 de respiro deixam
+        # R$ 350 — abaixo do piso legal de R$ 600.
+        assert respiro_invade_o_piso(650000, 600000, 15000, 60000) is True
+
+    def test_devolve_false_quando_ainda_cabe_acima_do_piso(self):
+        assert respiro_invade_o_piso(1000000, 400000, 15000, 60000) is False
+
+    def test_na_fronteira_exata_o_piso_nao_e_invadido(self):
+        # Igual ao piso ainda é o piso preservado; um centavo abaixo, não.
+        assert respiro_invade_o_piso(660000, 600000, 0, 60000) is False
+        assert respiro_invade_o_piso(660000, 600000, 1, 60000) is True
+
+    def test_sem_piso_configurado_devolve_None_e_nao_False(self):
+        # Mesmo espírito de `abaixo_do_piso`: `False` diria "conferimos e está
+        # tudo bem", que é afirmação diferente de "não sabemos".
+        assert respiro_invade_o_piso(1000000, 400000, 15000, None) is None
+
+    def test_respiro_zero_nao_invade_um_piso_que_a_renda_ja_nao_cobria(self):
+        # A função responde sobre o RESPIRO. Quando nem sem ele a pessoa alcança
+        # o piso, ela devolve `True` — e é o caso em que declarar qualquer valor
+        # é recusado, que é o que a lei manda.
+        assert respiro_invade_o_piso(650000, 645000, 0, 60000) is True
