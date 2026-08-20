@@ -38,6 +38,10 @@ export function umResumo(over: Partial<ResumoDividas> = {}): ResumoDividas {
     ],
     proximosVencimentos: [],
     evolucaoSaldo: [],
+    // Default sem histórico, mesmo efeito que `evolucaoSaldo: []` tinha antes
+    // de T6 mover a conta da rota para o servidor: barra escondida.
+    saldoInicialDaRota: null,
+    rotaPercorridaBps: null,
     ...over,
   };
 }

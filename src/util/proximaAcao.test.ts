@@ -9,6 +9,8 @@ function resumo(parcial: Partial<ResumoDividas>): ResumoDividas {
     porCriticidade: [],
     proximosVencimentos: [],
     evolucaoSaldo: [],
+    saldoInicialDaRota: null,
+    rotaPercorridaBps: null,
     ...parcial,
   };
 }

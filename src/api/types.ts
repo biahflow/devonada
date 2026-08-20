@@ -239,6 +239,28 @@ export interface ResumoDividas {
   proximosVencimentos: VencimentoProximo[];
   /** no máximo 12 pontos, do mais antigo ao mais recente */
   evolucaoSaldo: PontoEvolucao[];
+
+  /**
+   * Em centavos. O MAIOR saldo já registrado para o tenant — não o primeiro
+   * ponto de `evolucaoSaldo`, que é recortada pelo mês selecionado e pelos
+   * últimos 12 pontos. É a base que não anda para trás quando o usuário
+   * cadastra uma dívida nova ou troca o mês consultado (ADR 0019, item 4).
+   *
+   * `null` sem histórico: quem cadastrou hoje tem um ponto só, e `null` aqui
+   * não é o mesmo que `0` — a barra de progresso some, não aparece vazia.
+   */
+  saldoInicialDaRota: number | null;
+  /**
+   * `saldoInicialDaRota` percorrido, em BASIS POINTS (2740 = 27,40%), com
+   * piso em zero — nunca negativo. Calculado em
+   * `backend/domain/resumo.py::rota_percorrida_bps`; o app não deriva mais
+   * este número (guardrail 1.2).
+   *
+   * `null` junto com `saldoInicialDaRota` quando não há histórico. `0` é
+   * estado legítimo e diferente de `null`: quem tem histórico e ainda não
+   * andou vê a barra vazia, não escondida.
+   */
+  rotaPercorridaBps: number | null;
 }
 
 export interface PerfilFinanceiro {
