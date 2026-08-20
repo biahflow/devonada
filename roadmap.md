@@ -764,6 +764,27 @@ três números idênticos aos de antes do M11, e há teste de regressão dos doi
 
 ## M12 — Renda tipada, negociação por canal e a Rota de Chegada
 
+**Feature Contracts:** o que resta do M12 foi partido em dois, em 20/08/2026, porque renda tipada
+e negociação por canal não têm interseção de código — uma mora em `domain/caixa.py` e `leitura.py`,
+a outra em `routers/revisao.py` e `orm.Renegociacao`. Executáveis em paralelo.
+
+- [F-011 — Renda tipada e compromisso percentual](docs/features/F-011-renda-tipada/feature.md) ·
+  `READY_FOR_PLANNING`
+- [F-012 — Negociação por canal e registro de resultado](docs/features/F-012-negociacao-por-canal/feature.md) ·
+  `READY_FOR_PLANNING`
+
+A [**ADR 0021**](docs/adr/0021-renda-tipada-por-adicao-e-o-canal-decide-quando-a-oferta-e-dita.md)
+fechou as sete incógnitas de modelagem em 20/08/2026, e com ela os dois contratos subiram para
+planejamento. O eixo das sete: **nada muda por conversão, tudo entra por adição** — alíquota por
+fonte com o global como fallback, 13º e férias como evento previsível fora da cascata, compromisso
+percentual como pote novo, resultado de negociação como entidade nova. Os potes, o `min()` da renda
+típica e a `Renegociacao` ficam como estão.
+
+**Uma decisão altera comportamento que já está no ar**, e é a única: a oferta de valor
+(*"consigo comprometer até R$ X por mês"*) sai do primeiro contato nos canais escritos. Hoje
+`montar_script` a insere para qualquer destino, contra o que `domain.md` manda — o código é que
+cede. Atinge a tela de revisão e o card `valor_justo` do chat.
+
 - [x] **Metas nomeadas e a aba da fase verde** (ADR 0017). A tela 09 pedia uma lista de metas com
       nome, emoji, prazo e selo de situação; o que existia eram seis colunas fixas no `perfil` que
       alimentam a cascata do caixa. A entidade `Meta` entrou **aditiva** — mover os potes mudaria a
@@ -776,16 +797,27 @@ três números idênticos aos de antes do M11, e há teste de regressão dos doi
 - [x] **A segunda aba troca na fase verde** com `href: null`, que tira da barra sem tirar da rota:
       `/dividas` continua alcançável e a tela de Metas oferece o caminho. Sem isso, quem quitasse
       tudo e contraísse dívida nova não teria como cadastrá-la.
-- [ ] `fonte_renda` ganha `tipo` (`clt` · `pj_hora` · `autonomo`), com a UX dedicada de cada um —
-      13º e férias no CLT, taxa × horas menos imposto no PJ, renda típica no autônomo.
-- [ ] Compromisso **percentual** para renda variável, no lugar de valor fixo.
-- [ ] `script` ganha as **três variantes de canal** (`telefone` · `chat` · `email`), mesmo motor
-      de valor justo, formatos diferentes. Ver `domain.md`, verbete `canal`.
-- [ ] Alerta de validação de canal abrindo o script escrito e regra de pagamento fechando —
-      **é anti-golpe embutido no próprio script**, e é o item de maior retorno por linha do
-      milestone.
-- [ ] Registro de resultado da negociação em qualquer canal. Coletar isso **desde o dia 1** é o
-      que constrói o benchmark de desconto por credor, que é o maior ativo competitivo do produto.
+- [ ] **F-011** · `fonte_renda` ganha `tipo` (`clt` · `pj_hora` · `autonomo`), com a UX dedicada de
+      cada um — 13º e férias no CLT, taxa × horas menos imposto no PJ, renda típica no autônomo.
+      **O campo já existe** e não faz nada: é coluna desde a migração do M7, validada em seis
+      valores, e nenhuma regra de domínio a consulta. O trabalho é dar efeito a dado que usuários
+      já preencheram — o que muda o plano de quem já usa o app, retroativamente. `beneficio`,
+      `aluguel` e `outro` também ganham UX, por decisão de 20/08/2026.
+- [ ] **F-011** · Compromisso **percentual** para renda variável, no lugar de valor fixo. Incide
+      sobre a renda típica e sai antes de `capacidade_maxima`, junto aos potes (decisão de
+      20/08/2026) — logo, ação a distância nos mesmos três consumidores do M11.
+- [ ] **F-012** · `script` ganha as **três variantes de canal** (`telefone` · `chat` · `email`),
+      mesmo motor de valor justo, formatos diferentes. Ver `domain.md`, verbete `canal`. Barato do
+      jeito certo: `montar_script` é template curado, sem LLM, por guardrail.
+- [ ] **F-012** · Alerta de validação de canal abrindo o script escrito e regra de pagamento
+      fechando — **é anti-golpe embutido no próprio script**, e é o item de maior retorno por linha
+      do milestone. Decidido em 20/08/2026 que ele **alcança quem não tem achado**: `montar_script`
+      deixa de devolver `None`, porque validação de canal é segurança, não argumento de negociação,
+      e quem cadastrou a dívida na mão é justamente o mais exposto ao golpe.
+- [ ] **F-012** · Registro de resultado da negociação em qualquer canal. Coletar isso **desde o
+      dia 1** é o que constrói o benchmark de desconto por credor, que é o maior ativo competitivo
+      do produto. Hoje `orm.Renegociacao` é grava-e-esquece: **nenhum `GET` a devolve**, e ela só
+      nasce quando houve acordo — recusa e silêncio do credor não cabem nela.
 
 ## M13 — Entrada pelo alívio — parcialmente entregue
 
