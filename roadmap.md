@@ -838,7 +838,9 @@ claro e nenhum bloqueia o lançamento:
 - [x] **Exclusão de conta dentro do app** — Apple, diretriz 5.1.1(v). Física, em transação, com a
       senha reconfirmada.
 - [x] **Página web de solicitação de exclusão** — `GET /exclusao`, servida pelo backend. Continua
-      precisando de **URL pública** quando houver domínio: hoje ela só existe onde a API existe.
+      precisando de **URL pública**: hoje ela só existe onde a API existe. O domínio deixou de ser
+      a incógnita em 20/08/2026 — é `devonada.com.br` —, e o que falta é hospedar a API num
+      endereço estável e apontar o DNS.
 
 **Declarações — nenhuma escrita.**
 
@@ -850,11 +852,12 @@ claro e nenhum bloqueia o lançamento:
 - [ ] Divulgar que o contrato é enviado a um provedor de LLM. A ADR 0005 e o guardrail 8 já
       sustentam o texto: o arquivo é **descartado** após a extração. O PDF pode conter CPF e
       dados de terceiros, e isso precisa estar dito.
-- [ ] **E-mail de contato da página pública `GET /exclusao` ainda é da marca anterior**
-      (`contato@buddyfinanceiro.app`, domínio que não é nosso). Precisa ser trocado junto com a
-      definição da URL pública (ver item acima, em "Conta de usuário"). Importa porque é a página
-      por onde alguém exerce o direito de excluir a conta — um endereço morto impede o exercício
-      desse direito. Ver ADR 0020, item 3.
+- [~] **Caixa de e-mail `contato@devonada.com.br` funcionando.** O domínio foi definido em
+      20/08/2026 e o endereço já está na página pública `GET /exclusao`, no lugar do da marca
+      anterior (ADR 0020, item 3). **O que falta é a caixa existir e alguém
+      ler**: é por ali que quem perdeu acesso ao app exerce o direito de excluir a conta, e a
+      própria página promete resposta em até 30 dias. Endereço que não recebe é tão ruim quanto
+      endereço errado. Ver ADR 0020, item 3.
 
 **Cobrança — entregue no M9.**
 

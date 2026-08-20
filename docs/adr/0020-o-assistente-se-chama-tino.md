@@ -45,11 +45,15 @@ de quem fala com elas devia ser pronunciável na primeira leitura.
    a outra é a persona. Trocar marca por nome de personagem na página pública de exclusão de conta
    seria substituir um erro por outro.
 
-3. **O e-mail de contato não é inventado.** `contato@buddyfinanceiro.app` aponta para o domínio da
-   marca anterior, numa página cuja única função é permitir a alguém exercer um direito. Um
+3. **O e-mail de contato não é inventado.** `contato@buddyfinanceiro.app` apontava para o domínio
+   da marca anterior, numa página cuja única função é permitir a alguém exercer um direito. Um
    endereço plausível e morto é pior que um endereço visivelmente pendente: quem escreve para ele
-   não recebe resposta e não descobre por quê. A pendência fica declarada no roadmap, ao lado da
-   URL pública que também falta.
+   não recebe resposta e não descobre por quê. Por isso ele ficou como pendência declarada em vez
+   de virar um palpite.
+
+   **Resolvido em 20/08/2026:** o domínio é `devonada.com.br`, e a página passou a trazer
+   `contato@devonada.com.br`. A pendência que sobra é de operação, não de decisão — a caixa
+   precisa existir e ser lida, porque a própria página promete resposta em até 30 dias.
 
 4. **Registro histórico não se reescreve.** `docs/concepcao/` é fonte histórica declarada, e as
    ADRs 0004, 0006, 0007 e 0014 dizem "Buddy" porque era isso que existia quando foram escritas.
@@ -59,15 +63,15 @@ de quem fala com elas devia ser pronunciável na primeira leitura.
 ## Consequências
 
 + `grep -ri buddy` volta a ter significado único. A saída legítima, e nada além dela, é:
-  `docs/concepcao/*` (fonte histórica), as ADRs 0004, 0006, 0007 e 0014 (registro datado), esta
-  própria ADR — que precisa citar o nome antigo para explicar a troca — e as duas ocorrências do
-  e-mail `contato@buddyfinanceiro.app`, preservado pelo item 3. Qualquer outro resultado é
+  `docs/concepcao/*` (fonte histórica), as ADRs 0004, 0006, 0007 e 0014 (registro datado) e esta
+  própria ADR, que precisa citar o nome antigo para explicar a troca. Qualquer outro resultado é
   resíduo. Vira uma verificação barata e confiável, e é a que fecha esta mudança.
 
-  A lista tem cinco itens em vez de zero porque **o e-mail pendente é ocorrência legítima**: uma
-  primeira redação deste critério exigiu saída vazia e se contradizia com o item 3, que proíbe
-  inventar endereço. Um critério que só passa violando outra regra do mesmo documento é critério
-  errado — quando o domínio existir, o e-mail sai da lista sozinho.
+  A primeira redação deste critério exigia saída VAZIA, e se contradizia com o item 3: enquanto o
+  e-mail da marca anterior estivesse na página, ele apareceria na varredura. Um critério que só
+  passa violando outra regra do mesmo documento é critério errado. Com o domínio definido em
+  20/08/2026 o e-mail saiu da lista, como previsto — mas a lição fica, porque a próxima pendência
+  declarada vai colidir com o próximo critério escrito sem contá-la.
 + A copy ganha um nome próprio que flexiona em português: "o Tino sugere", "pergunte ao Tino".
 + A página pública de exclusão de conta deixa de anunciar um produto que não existe mais.
 − Mais uma ADR superseded parcialmente, o que exige ler duas para entender uma. Mitigado por este

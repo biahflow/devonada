@@ -409,7 +409,7 @@ deixou de ser aproximação e `proximosVencimentos` deixou de voltar vazio.)
 | ~~**Login de verdade**~~ | **Fechada no M8.** Cadastro, login, sessão revogável e recuperação de senha (ADR 0012). A tela de token do beta foi removida |
 | ~~**Não há como cobrar**~~ | **Fechada no M9.** In-app purchase com validação no servidor, provedor de loja plugável e paywall por método HTTP (ADR 0013). Falta cadastrar o produto nas lojas |
 | **Recuperação de senha sem SMTP** | Sem `DEVONADA_SMTP_*` configurado, nenhum código é enviado — e a rota continua respondendo 202, porque responder outra coisa a transformaria em verificador de cadastro. É a única dependência externa do produto cuja ausência não tem contorno pela interface |
-| **URL pública de exclusão** | `GET /exclusao` existe, mas só onde a API existe. A exigência do Google é uma URL pública — falta domínio |
+| **URL pública de exclusão** | `GET /exclusao` existe, mas só onde a API existe. A exigência do Google é uma URL pública. O domínio é `devonada.com.br` desde 20/08/2026; falta hospedar e apontar o DNS |
 | **CI** | Nenhum pipeline. Os gates dependem de disciplina |
 | **Tetos do consignado** | Sem default e sem rotina de atualização — mudam por resolução do CNPS |
 
