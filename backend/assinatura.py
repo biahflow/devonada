@@ -21,11 +21,10 @@ silencioso que existe. É o mesmo raciocínio de `routers/conta.tabelas_do_tenan
 que deriva a exclusão de conta do metadata em vez de listar tabelas: rota nova de
 escrita nasce travada, sem ninguém fazer nada.
 
-O CUSTO É QUE A REGRA PRECISA SER VERDADEIRA. Ela é: nenhuma rota deste servidor
-grava por GET, e nenhuma rota de escrita é livre por natureza do recurso. As três
-exceções abaixo não são exceções de recurso — são as rotas que existem para
-começar, gerenciar e encerrar a relação, e nenhuma delas pode depender de estar
-em dia:
+O CUSTO É QUE A REGRA PRECISA SER VERDADEIRA, e a parte dela que importa é esta:
+nenhuma rota de escrita é livre por natureza do recurso. As três exceções abaixo
+não são exceções de recurso — são as rotas que existem para começar, gerenciar e
+encerrar a relação, e nenhuma delas pode depender de estar em dia:
 
 - `/v1/auth`   — entrar. Cobrar de quem não conseguiu nem fazer login é absurdo,
                  e o login é POST.
@@ -40,6 +39,22 @@ LEITURA NUNCA É BLOQUEADA, e isso é decisão de produto, não descuido. Quem p
 de pagar continua vendo as próprias dívidas, o próprio caixa e o próprio
 histórico. Trancar alguém endividado para fora da lista das dívidas dele é o
 oposto do que este produto existe para fazer.
+
+E SIM, EXISTEM GETs QUE GRAVAM. Uma versão anterior deste texto afirmava que
+nenhuma rota gravava por GET, e a frase já era falsa quando foi escrita: `GET
+/v1/dividas/resumo` grava `saldo_snapshot` desde o M2, e a apuração da virada do
+mês do respiro grava em `GET /v1/caixa` desde o M11. As duas são deliberadas, e
+nenhuma delas fura a trava — ela é derivada do MÉTODO, e GET passa por
+construção.
+
+O que sustenta a regra não é a ausência de escrita em GET; é a NATUREZA do que
+essas escritas fazem. Elas registram o que já é do usuário — a foto do saldo de
+hoje, o respiro que ele não usou no mês que fechou —, e é justamente por isso que
+precisam acontecer também no período somente leitura. Perder um saldo acumulado
+ou um marco atingido porque a assinatura venceu seria punir alguém pelo que ele
+já tinha, e é o oposto do que a trava existe para fazer. O que a trava impede é
+dado NOVO entrando por ação de quem não está em dia, e isso continua valendo
+inteiro.
 """
 
 # Prefixos que a trava não alcança. A ordem não importa; a comparação é por

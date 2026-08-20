@@ -199,3 +199,79 @@ class TestFormatarBRL:
 
     def test_negativo_leva_o_sinal_antes_do_simbolo(self):
         assert formatar_brl(-50000) == "-R$ 500,00"
+
+
+class TestRespiroNoSimulador:
+    """
+    O ponto do M11: o respiro entra ANTES do corte, e o teto do simulador cai
+    junto — sem `routers/simulacoes.py` ter sido tocado.
+
+    A cascata é uma só (`domain/caixa.py`) e o simulador lê o `aporte_maximo`
+    dela por `leitura.capacidade_atual`. Se a queda precisasse de uma linha no
+    simulador, o respiro seria a sobra que some quando aperta.
+    """
+
+    def _declarar(self, client, auth, valor, ativo=True):
+        return client.put(
+            "/v1/caixa/respiro",
+            json={"valorMensal": valor, "ativo": ativo},
+            headers=auth,
+        )
+
+    def test_o_teto_do_aporte_cai_para_quem_declarou_respiro(self, client, auth):
+        # Renda R$ 10.000, essenciais R$ 4.000: capacidade R$ 6.000, menos a
+        # parcela de R$ 1.000, dá R$ 5.000 de aporte. Um respiro de R$ 1.000
+        # derruba o teto para R$ 4.000, e o aporte de R$ 4.900 deixa de caber.
+        _caixa(client, auth, renda=1000000, essenciais=400000)
+        _divida(client, auth)
+        assert _simular(client, auth, 490000).status_code == 200
+
+        assert self._declarar(client, auth, 100000).status_code == 200
+
+        recusado = _simular(client, auth, 490000)
+        assert recusado.status_code == 422
+        assert recusado.json()["campo"] == "aporteExtraMensal"
+        # Guardrail 5: a recusa não carrega valor.
+        assert "R$" not in recusado.json()["message"]
+
+    def test_o_respiro_desativado_devolve_o_teto(self, client, auth):
+        # Desativar tira a linha da cascata sem apagar nada.
+        _caixa(client, auth, renda=1000000, essenciais=400000)
+        _divida(client, auth)
+        self._declarar(client, auth, 100000)
+        assert _simular(client, auth, 490000).status_code == 422
+
+        self._declarar(client, auth, 100000, ativo=False)
+        assert _simular(client, auth, 490000).status_code == 200
+
+    def test_o_preco_em_meses_e_a_diferenca_das_duas_mesmas_simulacoes(
+        self, client, auth
+    ):
+        """
+        `custoEmMeses` NÃO É ESTIMATIVA NOVA.
+
+        As duas simulações são feitas aqui pela rota pública do simulador,
+        ANTES de declarar o respiro — enquanto os dois aportes ainda cabem no
+        teto. O preço devolvido pelo `PUT` tem de ser exatamente a diferença
+        entre elas: se um dia alguém escrever uma fórmula própria para o preço,
+        é aqui que a suíte quebra.
+        """
+        _caixa(client, auth, renda=1000000, essenciais=400000)
+        _divida(client, auth, valorCobrado=6000000, totalParcelas=60)
+
+        # Aporte de R$ 5.000 é o teto de hoje; R$ 4.000 é o que sobraria com um
+        # respiro de R$ 1.000.
+        sem_respiro = _simular(client, auth, 500000).json()["simulacoes"][0]
+        com_respiro = _simular(client, auth, 400000).json()["simulacoes"][0]
+        prazo_a_mais = (
+            com_respiro["mesesAteQuitacao"] - sem_respiro["mesesAteQuitacao"]
+        )
+        assert prazo_a_mais > 0
+
+        preco = self._declarar(client, auth, 100000).json()["custoEmMeses"]
+        assert preco == prazo_a_mais
+
+    def test_sem_divida_o_preco_nao_e_afirmado(self, client, auth):
+        # A tela grava sem preço em vez de exibir palpite.
+        _caixa(client, auth, renda=1000000, essenciais=400000)
+        assert self._declarar(client, auth, 100000).json()["custoEmMeses"] is None

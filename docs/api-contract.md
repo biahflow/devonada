@@ -1079,10 +1079,12 @@ aporteMaximo     = capacidadeHoje − comprometidoDividas
 | `respiro` | o usuário nunca declarou. **Nunca `0` por ausência** — zero declarado é uma escolha legítima e diferente de não ter escolhido |
 | `respiroUsadoNoMes` | não há respiro declarado. Com respiro declarado e nada usado, é `0` — o zero aqui é fato |
 | `respiroDisponivelNoMes` | idem. **Derivado, nunca persistido**: `respiro − respiroUsadoNoMes`, com piso em `0` |
-| `respiroSaldoAcumulado` | idem. **Persistido**, no molde de `provisao_anual.saldo_acumulado` |
+| `respiroSaldoAcumulado` | idem. Persistido é o dos **meses fechados**, no molde de `provisao_anual.saldo_acumulado`; o exposto é ele menos o que o uso deste mês passou da fatia, com piso em `0` |
 
 O saldo acumulado rola na **virada do mês**, na primeira leitura que perceber que o mês mudou, e o
-mês já apurado fica registrado para a rolagem ser idempotente. Não há job, não há notificação e não
+mês já apurado fica registrado para a rolagem ser idempotente. A virada liquida o mês fechado nas
+duas pontas — tira o que passou da fatia, soma o que não foi usado —, e só um dos dois termos é
+diferente de zero em qualquer mês. Não há job, não há notificação e não
 há pergunta: o guardrail 4.1 diz que respiro não usado não vira cobrança, e perguntar todo mês o que
 fazer com ele seria transformá-lo em prestação de contas.
 
@@ -1110,20 +1112,49 @@ em vez de exibir palpite.
 `valorMensal` negativo devolve `422`. `ativo: false` **preserva o saldo acumulado** — desativar não
 é apagar.
 
+**Sem caixa preenchido, a declaração passa sem a checagem do piso.** Com renda e essenciais em
+zero, qualquer valor "invadiria" o mínimo existencial, e a recusa diria a quem nunca informou nada
+que o respiro dele é ilegal — afirmação sem dado. É a mesma limitação declarada de `_validar_aporte`
+em `routers/simulacoes.py`, que também segue sem validar quando não há capacidade apurada.
+
 #### `POST /v1/caixa/respiro/uso` → `201` · `DELETE /v1/caixa/respiro/uso/{id}` → `204`
 
 ```json
 { "valor": 8000, "descricao": "cinema" }
 ```
 
+A resposta:
+
+```json
+{ "id": "b3f1…", "respiroDisponivelNoMes": 7000 }
+```
+
 `descricao` é opcional e livre. **Registrar uso de respiro não produz alerta, aviso, sinal nem
-campo de comparação**: a resposta é o novo `respiroDisponivelNoMes`, e nada mais. Uso que exceda o
-disponível do mês é aceito e consome o saldo acumulado; excedendo os dois, ainda é aceito e o
-disponível vai a `0` — o app não impede ninguém de gastar o próprio dinheiro, e recusar aqui seria
-o policiamento que a feature existe para desmontar.
+campo de comparação**: a resposta é o novo `respiroDisponivelNoMes` e o `id` do lançamento, e nada
+além disso. Uso que exceda o disponível do mês é aceito e consome o saldo acumulado; excedendo os
+dois, ainda é aceito e o disponível vai a `0` — o app não impede ninguém de gastar o próprio
+dinheiro, e recusar aqui seria o policiamento que a feature existe para desmontar.
+
+O `id` está na resposta porque **o `DELETE` é inalcançável sem ele**: não há rota de listagem de
+usos, e desfazer um valor digitado errado é a razão de o `DELETE` existir. Identificador do registro
+que acabou de nascer não é juízo sobre o gasto — o que a resposta não carrega é comparação, sinal de
+excesso ou "quanto você já gastou".
 
 `DELETE` existe porque valor digitado errado precisa de desfazer, e obrigar a conviver com ele
-transformaria um erro de digitação em culpa.
+transformaria um erro de digitação em culpa. **O desfazer é exato, inclusive quando o uso tinha
+consumido todo o acumulado** — R$ 300 digitados no lugar de R$ 30 voltam sem custo nenhum.
+
+Ele é exato por construção: **registrar uso não escreve em `saldoAcumulado`.** A coluna guarda o que
+veio dos **meses fechados** e é invariante durante o mês; o que o uso corrente passa da fatia é
+descontado **na leitura** — `max(0, saldoAcumulado − max(0, usadoNoMes − respiro))` — e liquidado na
+virada, junto com o não usado. Apagar o lançamento devolve os dois números ao que eram, porque não
+houve débito a estornar. Gravar o desconto a cada uso destruiria saldo real de quem corrige um erro
+de digitação, num produto cuja promessa é que respiro não usado acumula. É a mesma razão pela qual
+`respiroDisponivelNoMes` nunca é persistido: valor calculado que dorme em coluna é valor que
+envelhece errado.
+
+**Registrar uso sem respiro declarado devolve `404`**, e não um `422`: é operação sobre recurso
+ausente, e responder qualquer outra coisa inventaria um respiro de zero para quem nunca declarou.
 
 #### `POST /v1/caixa/respiro/destinacao` → `201`
 
@@ -1131,8 +1162,22 @@ transformaria um erro de digitação em culpa.
 { "valor": 22000 }
 ```
 
+A resposta:
+
+```json
+{ "respiroSaldoAcumulado": 0 }
+```
+
 Manda saldo acumulado para aporte extra na dívida. Sempre por ação explícita — **nunca automático,
-nunca sugerido em push**. `422` se `valor > saldoAcumulado`.
+nunca sugerido em push**. `422` se `valor > saldoAcumulado`; `404` sem respiro declarado.
+
+O teto é o saldo **exposto**, não a coluna: destinar sobre o valor cru deixaria o usuário mandar
+para a dívida um dinheiro que a tela dele já não mostra.
+
+**Ela debita `saldoAcumulado` e grava o lançamento, e nada mais** (decidido em 19/08/2026). Não
+escreve em parcela, pagamento nem dívida: "aporte extra" segue sendo parâmetro de simulação, não
+dado gravado, e registrar um pagamento real exigiria dizer contra qual dívida — decisão que este
+milestone não tomou.
 
 #### `GET /v1/marcos`
 
@@ -1408,19 +1453,24 @@ pessoa parou de viver — e o mês 4 é onde ela desiste.*
 - [ ] `domain/caixa.py` — `respiro` em `EntradaCaixa` e em `Caixa`, subtraído **antes** de
       `capacidade_maxima`. O docstring precisa declarar que o valor **não é regra financeira: é dado
       do usuário** — é a distinção que autoriza o módulo a existir sem fonte legal
-- [ ] Validação de piso: `422` quando `renda_liquida − essenciais − respiro < minimo_existencial`,
-      no registro de `_validar_aporte`
-- [ ] `PUT /v1/caixa/respiro` com `custoEmMeses` pela mesma `domain/simulacao.py` do M4 — nenhuma
-      conta nova, a existente rodada duas vezes
-- [ ] `POST`/`DELETE /v1/caixa/respiro/uso` e `POST /v1/caixa/respiro/destinacao`
+- [~] Validação de piso: `422` quando `renda_liquida − essenciais − respiro < minimo_existencial`,
+      no registro de `_validar_aporte`. Implementado em `PUT /v1/caixa/respiro` (T2); sem caixa
+      preenchido a checagem não roda, pela mesma limitação declarada de `_validar_aporte`
+- [~] `PUT /v1/caixa/respiro` com `custoEmMeses` pela mesma `domain/simulacao.py` do M4 — nenhuma
+      conta nova, a existente rodada duas vezes (`domain/simulacao.custo_em_meses`). Implementado e
+      coberto por teste (T2); falta ver no app
+- [~] `POST`/`DELETE /v1/caixa/respiro/uso` e `POST /v1/caixa/respiro/destinacao`, mais a rolagem
+      idempotente do saldo na virada do mês. Implementados e cobertos por teste (T2); falta ver no
+      app
 - [ ] `GET /v1/marcos` e `POST /v1/marcos/{tipo}/celebracao`
 - [~] `saldoInicialDaRota` e `rotaPercorridaBps` em `GET /v1/dividas/resumo` — tira do
       `CardSaldo.tsx` a única conta derivada que o app ainda faz, e troca a linha de base móvel pelo
       maior saldo já registrado. Implementado e coberto por teste (T3); o consumo pelo app
       (`CardSaldo.tsx`) é T6 e ainda não foi exercitado em device
-- [ ] Teste que cruza respiro declarado × teto do simulador. É o gêmeo do teste de M7.2 que ligou
+- [x] Teste que cruza respiro declarado × teto do simulador. É o gêmeo do teste de M7.2 que ligou
       fonte de renda a painel preenchido — e que faltava justamente quando o defeito passou por
-      quatro gates verdes
+      quatro gates verdes. Em `tests/test_caixa_integracao.py::TestRespiroNoSimulador`, com
+      `custoEmMeses` conferido contra as duas simulações feitas pela rota pública
 - [ ] Teste que cadastra dívida nova depois de um marco e prova que o marco **não se desfaz**
 - [ ] Teste de regressão: tenant sem respiro declarado tem cascata byte a byte idêntica à de hoje
 

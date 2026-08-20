@@ -544,6 +544,22 @@ class Caixa(Camel):
     capacidadeHoje: int
     capacidadeMaxima: int
     aporteMaximo: int
+    # RESPIRO (M11, ADR 0019). `None` é "nunca declarou", e NÃO se confunde com
+    # `0`: zero declarado é escolha legítima, e não existe default — um
+    # percentual de fábrica seria o coeficiente sem fonte que a ADR 0009 proíbe.
+    respiro: int | None = None
+    # Desativar não é apagar: `False` tira a linha da cascata e preserva o valor
+    # e o saldo acumulado.
+    respiroAtivo: bool | None = None
+    # Com respiro declarado e nada usado é `0`, e o zero AQUI é fato, não
+    # ausência.
+    respiroUsadoNoMes: int | None = None
+    # DERIVADO a cada leitura, nunca persistido: `respiro − usado`, com piso em
+    # zero. Valor calculado que dorme em coluna é valor que envelhece errado.
+    respiroDisponivelNoMes: int | None = None
+    # PERSISTIDO, no molde de `provisao_anual.saldoAcumulado`: respiro não usado
+    # acumula em silêncio, sem notificação e sem pergunta (guardrail 4.1).
+    respiroSaldoAcumulado: int | None = None
     minimoExistencial: int | None = None
     minimoExistencialVigenteEm: str | None = None
     # `None` quando não há piso configurado: um `False` diria "conferimos e está
@@ -690,6 +706,84 @@ class MetasCaixa(Camel):
 
 class RespostaMetas(Camel):
     metas: MetasCaixa
+
+
+# --- Respiro (M11, ADR 0019) -------------------------------------------------
+
+
+class RespiroInput(Camel):
+    """
+    O valor que o USUÁRIO declara — a fatia para viver enquanto paga.
+
+    SEM DEFAULT, SEM FAIXA E SEM SUGESTÃO. Quem diz o tamanho da fatia é o
+    usuário (ADR 0019, item 2); um percentual de fábrica seria o coeficiente de
+    alocação sem fonte que a ADR 0009 proíbe pelo nome.
+
+    Sem `ge=0` de propósito: valor negativo é recusado no router, com uma frase
+    que diz o que aconteceu. A mensagem genérica do Pydantic ("Confira os dados
+    enviados") não diria.
+    """
+
+    valorMensal: int
+    ativo: bool = True
+
+
+class Respiro(Camel):
+    """
+    A linha gravada. `saldoAcumulado` é persistido; o disponível do mês não —
+    ele é derivado a cada leitura e viaja em `Caixa`.
+    """
+
+    valorMensal: int
+    ativo: bool
+    saldoAcumulado: int
+
+
+class RespostaRespiro(Camel):
+    respiro: Respiro
+    # O PREÇO DA ESCOLHA, em meses a mais de quitação — a única coisa que o app
+    # sabe de verdade sobre o valor que a pessoa escolheu. `None` quando não há
+    # dívida com dado suficiente para simular: a tela grava sem preço, em vez de
+    # exibir palpite.
+    custoEmMeses: int | None = None
+
+
+class NovoUsoDeRespiro(Camel):
+    """
+    Um gasto de respiro — o sorvete, o cinema, as unhas.
+
+    `descricao` é OPCIONAL E LIVRE: ninguém deve prestação de contas do próprio
+    lazer, e o registro existe para a pessoa saber quanto ainda há.
+    """
+
+    valor: int = Field(gt=0)
+    descricao: str | None = Field(default=None, max_length=120)
+
+
+class RespostaUsoDeRespiro(Camel):
+    """
+    O que a tela precisa depois de registrar um uso, e nada além disso.
+
+    NENHUM CAMPO DE ALERTA, AVISO, SINAL DE EXCESSO OU COMPARAÇÃO. "Você já
+    gastou R$ 80" é a copy que o guardrail 4.1 proíbe pelo nome; o único
+    acompanhamento é quanto ainda há.
+
+    O `id` está aqui porque `DELETE /v1/caixa/respiro/uso/{id}` é inalcançável
+    sem ele — não há rota de listagem de usos no contrato, e desfazer um valor
+    digitado errado é a razão de o DELETE existir. Identificador do registro que
+    acabou de nascer não é juízo sobre o gasto.
+    """
+
+    id: str
+    respiroDisponivelNoMes: int | None = None
+
+
+class NovaDestinacaoDeRespiro(Camel):
+    valor: int = Field(gt=0)
+
+
+class RespostaDestinacaoDeRespiro(Camel):
+    respiroSaldoAcumulado: int
 
 
 # --- Metas nomeadas (/v1/metas) ---

@@ -676,3 +676,620 @@ class TestRespiroNaCascataDaAPI:
         assert entrada.respiro_ativo is None
         assert entrada.respiro_usado_no_mes is None
         assert entrada.respiro_saldo_acumulado is None
+
+
+# --- Respiro pela API (M11, T2) ----------------------------------------------
+
+
+def _declarar_respiro(client, auth, **kwargs):
+    corpo = {"valorMensal": 15000, "ativo": True}
+    corpo.update(kwargs)
+    return client.put("/v1/caixa/respiro", json=corpo, headers=auth)
+
+
+def _usar_respiro(client, auth, valor=8000, **kwargs):
+    corpo = {"valor": valor}
+    corpo.update(kwargs)
+    return client.post("/v1/caixa/respiro/uso", json=corpo, headers=auth)
+
+
+def _destinar_respiro(client, auth, valor):
+    return client.post(
+        "/v1/caixa/respiro/destinacao", json={"valor": valor}, headers=auth
+    )
+
+
+def _linha_de_respiro(sessao):
+    """Relê a linha do banco. Sempre por consulta nova: o objeto antigo não
+    enxerga o que a rota gravou pela outra sessão."""
+    sessao.expire_all()
+    return sessao.query(orm.Respiro).one()
+
+
+def _mes_relativo(meses_atras: int) -> str:
+    """`AAAA-MM` de N meses atrás, atravessando o ano."""
+    from datetime import date
+
+    hoje = date.today()
+    total = (hoje.year * 12 + hoje.month - 1) - meses_atras
+    return f"{total // 12}-{total % 12 + 1:02d}"
+
+
+def _carimbar(sessao, ultimo_mes_apurado=None, saldo=None):
+    linha = sessao.query(orm.Respiro).one()
+    if ultimo_mes_apurado is not None:
+        linha.ultimo_mes_apurado = ultimo_mes_apurado
+    if saldo is not None:
+        linha.saldo_acumulado = saldo
+    sessao.commit()
+
+
+class TestRespiroNoContratoDoCaixa:
+    """
+    Os cinco campos em `GET /v1/caixa`, com as ausências certas.
+
+    A distinção que este bloco protege: `null` é "nunca declarou" e `0` é
+    "declarou e não usou". Confundir os dois faria o app inventar uma escolha
+    que a pessoa não fez (ADR 0019, item 2).
+    """
+
+    def test_quem_nunca_declarou_tem_os_cinco_campos_ausentes(self, client, auth):
+        _fonte(client, auth)
+        caixa = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        assert caixa["respiro"] is None
+        assert caixa["respiroAtivo"] is None
+        assert caixa["respiroUsadoNoMes"] is None
+        assert caixa["respiroDisponivelNoMes"] is None
+        assert caixa["respiroSaldoAcumulado"] is None
+
+    def test_com_respiro_declarado_e_nada_usado_o_usado_e_zero(self, client, auth):
+        # Aqui o zero é FATO, não ausência: a fatia existe e está inteira.
+        _fonte(client, auth)
+        _declarar_respiro(client, auth, valorMensal=15000)
+
+        caixa = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        assert caixa["respiro"] == 15000
+        assert caixa["respiroAtivo"] is True
+        assert caixa["respiroUsadoNoMes"] == 0
+        assert caixa["respiroDisponivelNoMes"] == 15000
+        assert caixa["respiroSaldoAcumulado"] == 0
+
+    def test_o_disponivel_desce_com_o_uso_e_nunca_fica_negativo(self, client, auth):
+        _fonte(client, auth)
+        _declarar_respiro(client, auth, valorMensal=15000)
+        _usar_respiro(client, auth, 8000)
+
+        caixa = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        assert caixa["respiroUsadoNoMes"] == 8000
+        assert caixa["respiroDisponivelNoMes"] == 7000
+
+        _usar_respiro(client, auth, 12000)
+        caixa = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        assert caixa["respiroDisponivelNoMes"] == 0
+
+
+class TestDeclaracaoDeRespiro:
+    def test_o_put_grava_e_devolve_a_linha(self, client, auth):
+        _fonte(client, auth)
+        corpo = _declarar_respiro(client, auth, valorMensal=15000).json()
+        assert corpo["respiro"] == {
+            "valorMensal": 15000,
+            "ativo": True,
+            "saldoAcumulado": 0,
+        }
+
+    def test_declarar_de_novo_atualiza_a_mesma_linha(self, client, auth, sessao):
+        # UMA LINHA POR TENANT: duas dariam dois valores para a mesma pergunta.
+        _fonte(client, auth)
+        _declarar_respiro(client, auth, valorMensal=15000)
+        _declarar_respiro(client, auth, valorMensal=20000)
+
+        assert sessao.query(orm.Respiro).count() == 1
+        assert _linha_de_respiro(sessao).valor_mensal == 20000
+
+    def test_sem_divida_simulavel_o_preco_e_nulo(self, client, auth):
+        # A tela grava sem preço em vez de exibir palpite.
+        _fonte(client, auth)
+        assert _declarar_respiro(client, auth).json()["custoEmMeses"] is None
+
+    def test_plano_que_nao_quita_nao_tem_preco(self, client, auth):
+        # Dívida sem cronograma e com juros que passam do orçamento: nenhum dos
+        # dois cenários quita, e sem os dois lados não há diferença a afirmar.
+        _fonte(client, auth, valorTipicoInformado=200000)
+        _gasto(client, auth, valorMensal=100000)
+        client.post(
+            "/v1/dividas",
+            json={
+                "credor": "Banco Teste",
+                "valorCobrado": 6000000,
+                "dataOrigem": "2025-01-10",
+                "tipo": "consumo",
+                "taxaJurosMensal": 1000,
+            },
+            headers=auth,
+        )
+
+        corpo = _declarar_respiro(client, auth, valorMensal=20000).json()
+        assert corpo["custoEmMeses"] is None
+
+    def test_o_snapshot_e_gravado_depois_da_declaracao(self, client, auth, sessao):
+        _fonte(client, auth)
+        _declarar_respiro(client, auth, valorMensal=15000)
+
+        fotos = sessao.query(orm.CaixaSnapshot).all()
+        assert fotos
+        assert fotos[-1].respiro == 15000
+
+    def test_desativar_preserva_o_valor_e_o_saldo_acumulado(self, client, auth, sessao):
+        # Desativar NÃO É APAGAR (ADR 0019, item 5). A tela precisa poder
+        # distinguir "desativou" de "nunca declarou".
+        _fonte(client, auth)
+        _declarar_respiro(client, auth, valorMensal=15000)
+        _carimbar(sessao, saldo=22000)
+
+        corpo = _declarar_respiro(client, auth, valorMensal=15000, ativo=False).json()
+        assert corpo["respiro"]["ativo"] is False
+        assert corpo["respiro"]["valorMensal"] == 15000
+        assert corpo["respiro"]["saldoAcumulado"] == 22000
+
+        caixa = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        assert caixa["respiroAtivo"] is False
+        assert caixa["respiroSaldoAcumulado"] == 22000
+        assert caixa["respiro"] == 15000
+
+    def test_exige_token(self, client):
+        assert client.put("/v1/caixa/respiro", json={"valorMensal": 1}).status_code == 401
+
+
+class TestRecusaDeRespiro:
+    """
+    O piso é da lei; a alocação acima dele é do usuário (ADR 0019, item 6).
+    """
+
+    def test_respiro_que_invade_o_minimo_existencial_devolve_422(self, client, auth):
+        # Renda R$ 2.000, essenciais R$ 1.000: sobram R$ 1.000, e um respiro de
+        # R$ 500 deixaria R$ 500 — abaixo do piso legal de R$ 600.
+        _fonte(client, auth, valorTipicoInformado=200000)
+        _gasto(client, auth, valorMensal=100000)
+
+        r = _declarar_respiro(client, auth, valorMensal=50000)
+        assert r.status_code == 422
+        corpo = r.json()
+        assert corpo["campo"] == "valorMensal"
+        # Guardrail 5: renda e custo de vida não vazam em corpo de erro.
+        assert "R$" not in corpo["message"]
+        assert "mínimo existencial" in corpo["message"]
+
+    def test_respiro_que_cabe_acima_do_piso_passa(self, client, auth):
+        _fonte(client, auth, valorTipicoInformado=200000)
+        _gasto(client, auth, valorMensal=100000)
+        assert _declarar_respiro(client, auth, valorMensal=20000).status_code == 200
+
+    def test_valor_negativo_devolve_422(self, client, auth):
+        _fonte(client, auth)
+        r = _declarar_respiro(client, auth, valorMensal=-1)
+        assert r.status_code == 422
+        corpo = r.json()
+        assert corpo["campo"] == "valorMensal"
+        assert "R$" not in corpo["message"]
+
+    def test_a_recusa_nao_grava_nada(self, client, auth, sessao):
+        _fonte(client, auth, valorTipicoInformado=200000)
+        _gasto(client, auth, valorMensal=100000)
+        _declarar_respiro(client, auth, valorMensal=50000)
+        assert sessao.query(orm.Respiro).count() == 0
+
+    def test_sem_caixa_preenchido_a_declaracao_segue(self, client, auth):
+        # Limitação declarada, no molde de `_validar_aporte`: sem renda e sem
+        # essenciais não há o que comparar, e recusar diria a quem não informou
+        # nada que o respiro dele é ilegal.
+        assert _declarar_respiro(client, auth, valorMensal=15000).status_code == 200
+
+
+class TestUsoDeRespiro:
+    """
+    Registrar uso não produz alerta, aviso, sinal nem comparação. O único
+    acompanhamento é quanto ainda há (guardrail 4.1).
+    """
+
+    def test_registrar_uso_devolve_o_disponivel_e_nada_mais(self, client, auth):
+        _fonte(client, auth)
+        _declarar_respiro(client, auth, valorMensal=15000)
+
+        r = _usar_respiro(client, auth, 8000, descricao="cinema")
+        assert r.status_code == 201
+        corpo = r.json()
+        # NENHUM campo de alerta, aviso, sinal de excesso ou comparação. O `id`
+        # existe porque o DELETE do desfazer é inalcançável sem ele.
+        assert set(corpo) == {"id", "respiroDisponivelNoMes"}
+        assert corpo["respiroDisponivelNoMes"] == 7000
+
+    def test_a_descricao_e_opcional(self, client, auth, sessao):
+        _fonte(client, auth)
+        _declarar_respiro(client, auth)
+        assert _usar_respiro(client, auth, 1000).status_code == 201
+        assert sessao.query(orm.RespiroUso).one().descricao is None
+
+    def test_uso_maior_que_o_disponivel_e_aceito_e_consome_o_acumulado(
+        self, client, auth, sessao
+    ):
+        # O app não impede ninguém de gastar o próprio dinheiro.
+        _fonte(client, auth)
+        _declarar_respiro(client, auth, valorMensal=15000)
+        _carimbar(sessao, saldo=22000)
+
+        r = _usar_respiro(client, auth, 20000)
+        assert r.status_code == 201
+        assert r.json()["respiroDisponivelNoMes"] == 0
+
+        caixa = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        assert caixa["respiroDisponivelNoMes"] == 0
+        assert caixa["respiroSaldoAcumulado"] == 17000
+
+    def test_uso_alem_dos_dois_ainda_e_aceito_e_nada_fica_negativo(
+        self, client, auth, sessao
+    ):
+        _fonte(client, auth)
+        _declarar_respiro(client, auth, valorMensal=15000)
+        _carimbar(sessao, saldo=2000)
+
+        assert _usar_respiro(client, auth, 50000).status_code == 201
+        caixa = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        assert caixa["respiroDisponivelNoMes"] == 0
+        assert caixa["respiroSaldoAcumulado"] == 0
+
+    def test_sem_respiro_declarado_o_uso_devolve_404(self, client, auth):
+        _fonte(client, auth)
+        assert _usar_respiro(client, auth, 1000).status_code == 404
+
+    def test_valor_zero_ou_negativo_nao_entra(self, client, auth):
+        _fonte(client, auth)
+        _declarar_respiro(client, auth)
+        assert _usar_respiro(client, auth, 0).status_code == 422
+        assert _usar_respiro(client, auth, -500).status_code == 422
+
+
+class TestDesfazerUsoDeRespiro:
+    """
+    Existe porque valor digitado errado precisa de desfazer, e conviver com ele
+    transformaria um erro de digitação em culpa.
+    """
+
+    def test_a_ida_e_a_volta_devolvem_o_disponivel(self, client, auth):
+        _fonte(client, auth)
+        _declarar_respiro(client, auth, valorMensal=15000)
+        uso_id = _usar_respiro(client, auth, 8000).json()["id"]
+
+        caixa = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        assert caixa["respiroDisponivelNoMes"] == 7000
+
+        assert (
+            client.delete(f"/v1/caixa/respiro/uso/{uso_id}", headers=auth).status_code
+            == 204
+        )
+
+        caixa = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        assert caixa["respiroUsadoNoMes"] == 0
+        assert caixa["respiroDisponivelNoMes"] == 15000
+
+    def test_desfazer_devolve_tambem_o_que_o_excesso_consumiu_do_acumulado(
+        self, client, auth, sessao
+    ):
+        # Sem esta volta, desfazer um valor digitado errado custaria saldo
+        # acumulado de verdade — o erro de digitação viraria prejuízo.
+        #
+        # A COLUNA NÃO SE MEXE: o desconto do excesso é derivado na leitura, e é
+        # isso que torna o desfazer exato. Este teste prova as duas pontas — o
+        # que o usuário vê desce, e o que está gravado fica.
+        _fonte(client, auth)
+        _declarar_respiro(client, auth, valorMensal=15000)
+        _carimbar(sessao, saldo=22000)
+
+        uso_id = _usar_respiro(client, auth, 20000).json()["id"]
+        exposto = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        assert exposto["respiroSaldoAcumulado"] == 17000
+        assert _linha_de_respiro(sessao).saldo_acumulado == 22000
+
+        client.delete(f"/v1/caixa/respiro/uso/{uso_id}", headers=auth)
+        de_volta = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        assert de_volta["respiroSaldoAcumulado"] == 22000
+        assert de_volta["respiroDisponivelNoMes"] == 15000
+
+    def test_desfazer_um_uso_que_exauriu_o_acumulado_devolve_o_saldo_inteiro(
+        self, client, auth, sessao
+    ):
+        """
+        O caso REAL do desfazer: R$ 300 digitados no lugar de R$ 30.
+
+        A fatia é R$ 150 e havia R$ 50 guardados. O uso de R$ 300 leva o
+        disponível e o saldo visíveis a zero — e corrigir o erro tem de devolver
+        os R$ 50 inteiros. Uma implementação que debitasse a coluna a cada uso
+        não teria como: zerada, ela não sabe se era zero desde o começo do mês
+        ou se foi exaurida. Derivado, não há o que estornar.
+        """
+        _fonte(client, auth)
+        _declarar_respiro(client, auth, valorMensal=15000)
+        _carimbar(sessao, saldo=5000)
+
+        uso_id = _usar_respiro(client, auth, 30000).json()["id"]
+        no_erro = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        assert no_erro["respiroDisponivelNoMes"] == 0
+        assert no_erro["respiroSaldoAcumulado"] == 0
+
+        assert (
+            client.delete(f"/v1/caixa/respiro/uso/{uso_id}", headers=auth).status_code
+            == 204
+        )
+        corrigido = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        assert corrigido["respiroSaldoAcumulado"] == 5000
+        assert corrigido["respiroDisponivelNoMes"] == 15000
+        assert corrigido["respiroUsadoNoMes"] == 0
+
+    def test_uso_inexistente_devolve_404(self, client, auth):
+        _fonte(client, auth)
+        _declarar_respiro(client, auth)
+        assert (
+            client.delete("/v1/caixa/respiro/uso/nao-existe", headers=auth).status_code
+            == 404
+        )
+
+    def test_uso_de_outro_tenant_devolve_404(self, client, auth, sessao):
+        # 404, nunca 403: um 403 confirmaria que o id existe em outro tenant.
+        _fonte(client, auth)
+        _declarar_respiro(client, auth)
+        alheio = orm.RespiroUso(tenant_id="outro-tenant", valor=5000)
+        sessao.add(alheio)
+        sessao.commit()
+
+        assert (
+            client.delete(f"/v1/caixa/respiro/uso/{alheio.id}", headers=auth).status_code
+            == 404
+        )
+        assert sessao.query(orm.RespiroUso).count() == 1
+
+
+class TestDestinacaoDeRespiro:
+    def test_destinar_debita_o_saldo_e_grava_o_lancamento(self, client, auth, sessao):
+        _fonte(client, auth)
+        _declarar_respiro(client, auth, valorMensal=15000)
+        _carimbar(sessao, saldo=22000)
+
+        r = _destinar_respiro(client, auth, 22000)
+        assert r.status_code == 201
+        assert r.json() == {"respiroSaldoAcumulado": 0}
+
+        lancamentos = sessao.query(orm.RespiroDestinacao).all()
+        assert [x.valor for x in lancamentos] == [22000]
+        assert _linha_de_respiro(sessao).saldo_acumulado == 0
+
+    def test_destinar_mais_que_o_saldo_devolve_422(self, client, auth, sessao):
+        _fonte(client, auth)
+        _declarar_respiro(client, auth, valorMensal=15000)
+        _carimbar(sessao, saldo=22000)
+
+        r = _destinar_respiro(client, auth, 22001)
+        assert r.status_code == 422
+        corpo = r.json()
+        assert corpo["campo"] == "valor"
+        assert "R$" not in corpo["message"]
+        assert sessao.query(orm.RespiroDestinacao).count() == 0
+        assert _linha_de_respiro(sessao).saldo_acumulado == 22000
+
+    def test_o_teto_da_destinacao_e_o_saldo_que_o_usuario_ve(
+        self, client, auth, sessao
+    ):
+        # R$ 220 guardados, fatia R$ 150, uso de R$ 200 no mês: o usuário vê
+        # R$ 170. Destinar sobre a coluna crua deixaria ele mandar para a dívida
+        # um dinheiro que a tela dele não mostra mais.
+        _fonte(client, auth)
+        _declarar_respiro(client, auth, valorMensal=15000)
+        _carimbar(sessao, saldo=22000)
+        _usar_respiro(client, auth, 20000)
+
+        assert _destinar_respiro(client, auth, 18000).status_code == 422
+
+        r = _destinar_respiro(client, auth, 17000)
+        assert r.status_code == 201
+        assert r.json() == {"respiroSaldoAcumulado": 0}
+        assert _linha_de_respiro(sessao).saldo_acumulado == 5000
+
+    def test_sem_respiro_declarado_a_destinacao_devolve_404(self, client, auth):
+        _fonte(client, auth)
+        assert _destinar_respiro(client, auth, 1000).status_code == 404
+
+    def test_a_destinacao_nao_toca_parcela_nem_divida(self, client, auth, sessao):
+        # PF-1, decidido em 19/08/2026: a destinação DEBITA o saldo e grava o
+        # lançamento, e nada mais. Não é pagamento, não abate saldo devedor.
+        _fonte(client, auth)
+        _declarar_respiro(client, auth, valorMensal=15000)
+        _carimbar(sessao, saldo=22000)
+        divida = client.post(
+            "/v1/dividas",
+            json={
+                "credor": "Banco Teste",
+                "valorCobrado": 1200000,
+                "dataOrigem": "2025-01-10",
+                "tipo": "consumo",
+                "taxaJurosMensal": 200,
+                "totalParcelas": 12,
+                "primeiroVencimento": "2026-09-10",
+            },
+            headers=auth,
+        ).json()["divida"]
+
+        assert _destinar_respiro(client, auth, 22000).status_code == 201
+
+        depois = client.get(f"/v1/dividas/{divida['id']}", headers=auth).json()["divida"]
+        assert depois["valorCobrado"] == 1200000
+        assert depois["situacao"] == divida["situacao"]
+        parcelas = client.get(
+            f"/v1/dividas/{divida['id']}/parcelas", headers=auth
+        ).json()["parcelas"]
+        assert all(p["pagoEm"] is None for p in parcelas)
+        assert all(p["valorPago"] is None for p in parcelas)
+
+
+class TestViradaDoMes:
+    """
+    O saldo não usado rola na virada, sem job, sem notificação e sem pergunta.
+
+    O MODO DE FALHA É ROLAR DUAS VEZES e inflar o saldo em silêncio: ele seria
+    invisível até alguém conferir a conta. Por isso cada cenário aqui lê MAIS DE
+    UMA VEZ, e a asserção é sobre o total não ter se mexido na segunda leitura.
+    """
+
+    def test_a_primeira_leitura_de_uma_linha_sem_carimbo_so_carimba(
+        self, client, auth, sessao
+    ):
+        # Sem carimbo não há mês fechado sob a linha, e somar o mês anterior
+        # somaria uma fatia que ninguém reservou.
+        _respiro_declarado(sessao, valor=15000)
+        _fonte(client, auth)
+
+        caixa = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        assert caixa["respiroSaldoAcumulado"] == 0
+        # O carimbo é o mês ANTERIOR: o mês corrente ainda está sendo vivido, e
+        # a fatia dele é disponível, não saldo.
+        assert _linha_de_respiro(sessao).ultimo_mes_apurado == _mes_relativo(1)
+
+    def test_ler_varias_vezes_no_mesmo_mes_nao_rola_duas_vezes(
+        self, client, auth, sessao
+    ):
+        _respiro_declarado(sessao, valor=15000)
+        _fonte(client, auth)
+        # Apurado até o antepassado: o mês passado ainda tem uma fatia a rolar.
+        _carimbar(sessao, ultimo_mes_apurado=_mes_relativo(2))
+
+        primeira = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        assert primeira["respiroSaldoAcumulado"] == 15000
+
+        for _ in range(3):
+            de_novo = client.get("/v1/caixa", headers=auth).json()["caixa"]
+            assert de_novo["respiroSaldoAcumulado"] == 15000
+
+        assert _linha_de_respiro(sessao).ultimo_mes_apurado == _mes_relativo(1)
+
+    def test_dois_meses_fechados_rolam_uma_vez_cada(self, client, auth, sessao):
+        _respiro_declarado(sessao, valor=15000)
+        _fonte(client, auth)
+        _carimbar(sessao, ultimo_mes_apurado=_mes_relativo(3))
+
+        assert (
+            client.get("/v1/caixa", headers=auth).json()["caixa"]["respiroSaldoAcumulado"]
+            == 30000
+        )
+        assert (
+            client.get("/v1/caixa", headers=auth).json()["caixa"]["respiroSaldoAcumulado"]
+            == 30000
+        )
+
+    def test_o_que_foi_usado_no_mes_fechado_nao_rola(self, client, auth, sessao):
+        from datetime import date, timedelta
+
+        _respiro_declarado(sessao, valor=15000)
+        _fonte(client, auth)
+        ultimo_dia_do_mes_passado = date.today().replace(day=1) - timedelta(days=1)
+        sessao.add(
+            orm.RespiroUso(
+                tenant_id=get_settings().tenant_id,
+                valor=5000,
+                data=ultimo_dia_do_mes_passado,
+            )
+        )
+        sessao.commit()
+        _carimbar(sessao, ultimo_mes_apurado=_mes_relativo(2))
+
+        caixa = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        assert caixa["respiroSaldoAcumulado"] == 10000
+        # E o sorvete do mês passado não come a fatia deste mês.
+        assert caixa["respiroUsadoNoMes"] == 0
+        assert caixa["respiroDisponivelNoMes"] == 15000
+
+        assert (
+            client.get("/v1/caixa", headers=auth).json()["caixa"]["respiroSaldoAcumulado"]
+            == 10000
+        )
+
+    @pytest.mark.parametrize(
+        "usos_do_mes_fechado, saldo_esperado",
+        [
+            # Fatia R$ 150, R$ 50 guardados. Só um dos dois termos da
+            # liquidação é diferente de zero em cada linha.
+            (10000, 10000),  # sobrou R$ 50 da fatia: 50 guardados + 50
+            (17000, 3000),  # passou R$ 20 da fatia: 50 guardados − 20
+            (30000, 0),  # passou mais do que havia: piso em zero, nunca dívida
+        ],
+    )
+    def test_a_virada_liquida_o_mes_fechado_nas_duas_pontas(
+        self, client, auth, sessao, usos_do_mes_fechado, saldo_esperado
+    ):
+        # Enquanto o mês corre, o excesso é descontado NA LEITURA; quando ele
+        # fecha, o desconto vira definitivo. Sem esta ponta, o número sumiria
+        # sozinho na virada.
+        from datetime import date, timedelta
+
+        _respiro_declarado(sessao, valor=15000, saldo=5000)
+        _fonte(client, auth)
+        sessao.add(
+            orm.RespiroUso(
+                tenant_id=get_settings().tenant_id,
+                valor=usos_do_mes_fechado,
+                data=date.today().replace(day=1) - timedelta(days=1),
+            )
+        )
+        sessao.commit()
+        _carimbar(sessao, ultimo_mes_apurado=_mes_relativo(2))
+
+        caixa = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        assert caixa["respiroSaldoAcumulado"] == saldo_esperado
+        # E a virada continua idempotente com a liquidação nas duas pontas.
+        de_novo = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        assert de_novo["respiroSaldoAcumulado"] == saldo_esperado
+
+    def test_o_excesso_do_mes_corrente_nao_e_liquidado_antes_da_virada(
+        self, client, auth, sessao
+    ):
+        # A coluna é invariante durante o mês: o desconto que o usuário vê é
+        # derivado, e é isso que mantém o desfazer exato.
+        _respiro_declarado(sessao, valor=15000, saldo=5000)
+        _fonte(client, auth)
+        _usar_respiro(client, auth, 20000)
+
+        assert (
+            client.get("/v1/caixa", headers=auth).json()["caixa"][
+                "respiroSaldoAcumulado"
+            ]
+            == 0
+        )
+        assert _linha_de_respiro(sessao).saldo_acumulado == 5000
+
+    def test_a_virada_tambem_e_apurada_pelas_rotas_de_escrita(self, client, auth, sessao):
+        # A rolagem não depende de alguém abrir a tela do caixa antes.
+        _respiro_declarado(sessao, valor=15000)
+        _fonte(client, auth)
+        _carimbar(sessao, ultimo_mes_apurado=_mes_relativo(2))
+
+        _usar_respiro(client, auth, 1000)
+        assert _linha_de_respiro(sessao).saldo_acumulado == 15000
+
+    def test_desativado_nao_acumula_mas_o_mes_e_carimbado(self, client, auth, sessao):
+        # O que não foi reservado na cascata não pode acumular — e carimbar
+        # impede que reativar meses depois faça aparecer saldo retroativo.
+        _respiro_declarado(sessao, valor=15000, ativo=False)
+        _fonte(client, auth)
+        _carimbar(sessao, ultimo_mes_apurado=_mes_relativo(3))
+
+        caixa = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        assert caixa["respiroSaldoAcumulado"] == 0
+        assert _linha_de_respiro(sessao).ultimo_mes_apurado == _mes_relativo(1)
+
+        _declarar_respiro(client, auth, valorMensal=15000, ativo=True)
+        assert (
+            client.get("/v1/caixa", headers=auth).json()["caixa"]["respiroSaldoAcumulado"]
+            == 0
+        )
+
+    def test_a_leitura_de_quem_nao_declarou_nao_grava_nada(self, client, auth, sessao):
+        _fonte(client, auth)
+        client.get("/v1/caixa", headers=auth)
+        assert sessao.query(orm.Respiro).count() == 0

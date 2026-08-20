@@ -479,6 +479,14 @@ class Respiro(Base):
     não usado acumula em silêncio, sem notificação e sem pergunta no fechamento
     (guardrail 4.1). `ultimo_mes_apurado` é `NULL` até a primeira apuração — e é
     ele que torna a rolagem da virada do mês idempotente, sem job e sem cron.
+
+    A COLUNA GUARDA O QUE VEIO DOS MESES FECHADOS, e é INVARIANTE DURANTE O MÊS:
+    registrar ou desfazer um uso não escreve nela. O que o uso do mês corrente
+    passa da fatia é descontado na LEITURA (`domain/caixa.calcular_caixa`) e
+    liquidado na virada, junto com o não usado. Gravar esse desconto a cada uso
+    tornaria o `DELETE` do uso irreversível: quem digitasse R$ 300 no lugar de
+    R$ 30 perderia saldo real ao corrigir, num produto cuja promessa é que
+    respiro não usado acumula.
     """
 
     __tablename__ = "respiro"

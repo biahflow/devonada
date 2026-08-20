@@ -234,3 +234,38 @@ def economia_vs_minimo(
     if com_aporte is None or so_minimo is None:
         return None
     return so_minimo.total_juros_pagos - com_aporte.total_juros_pagos
+
+
+def custo_em_meses(
+    dividas: list[DividaSimulavel],
+    aporte_com_respiro: int,
+    aporte_sem_respiro: int,
+    estrategia: str,
+    mes_inicial: str,
+) -> int | None:
+    """
+    Quantos meses a mais de quitação a fatia de respiro declarada custa.
+
+    NÃO É ESTIMATIVA NOVA, e não poderia ser: é a MESMA `simular` rodada duas
+    vezes — uma com o aporte que sobra depois do respiro, outra com o que
+    sobraria sem ele — e a diferença dos prazos. Uma fórmula própria aqui seria
+    regra financeira inventada, e o produto inteiro existe para não emitir
+    número que ele mesmo escolheu (ADR 0009; ADR 0019, item 2).
+
+    É o molde de `economia_vs_minimo` logo acima, que compara os mesmos dois
+    cenários em JUROS. Este compara em MESES, que é o preço que o usuário
+    sente — e é a única coisa que o app afirma sobre o valor que a pessoa
+    escolheu. A escolha continua sendo dela.
+
+    Devolve None quando não há dívida simulável ou quando qualquer um dos dois
+    cenários não quita dentro do teto: sem os dois lados não existe diferença a
+    afirmar, e a tela grava sem preço em vez de exibir palpite.
+    """
+    if not dividas:
+        return None
+
+    com_respiro = simular(dividas, aporte_com_respiro, estrategia, mes_inicial)
+    sem_respiro = simular(dividas, aporte_sem_respiro, estrategia, mes_inicial)
+    if com_respiro is None or sem_respiro is None:
+        return None
+    return com_respiro.meses_ate_quitacao - sem_respiro.meses_ate_quitacao

@@ -100,6 +100,9 @@ class EntradaCaixa:
     # linha da cascata para de valer enquanto `ativo` for `False`.
     respiro_ativo: bool | None = None
     respiro_usado_no_mes: int | None = None
+    # O QUE VEIO DOS MESES FECHADOS, e só isso: a coluna é invariante durante o
+    # mês corrente. O excesso do mês em curso não é gravado nela — ele é
+    # descontado na leitura, logo abaixo.
     respiro_saldo_acumulado: int | None = None
 
 
@@ -124,6 +127,9 @@ class Caixa:
     # Derivado a cada leitura, NUNCA persistido: valor calculado que dorme em
     # coluna é valor que envelhece errado, e este muda a cada uso registrado.
     respiro_disponivel_no_mes: int | None
+    # Também derivado: o que rolou dos meses fechados, menos o que o uso deste
+    # mês passou da fatia. Piso em zero — o guardrail 4.1 proíbe contabilização
+    # negativa, e é por isso que o corte fica na leitura e não numa coluna.
     respiro_saldo_acumulado: int | None
     minimo_existencial: int | None
     abaixo_do_piso: bool | None
@@ -354,11 +360,21 @@ def calcular_caixa(entrada: EntradaCaixa) -> Caixa:
     # Piso em zero: quem usou mais do que declarou não fica com disponível
     # negativo, que na tela viraria dívida de lazer — o oposto do que a linha
     # existe para fazer (guardrail 4.1). Derivado aqui, nunca persistido.
+    #
+    # O SALDO ACUMULADO É DERIVADO PELO MESMO MOTIVO. A coluna guarda o que veio
+    # dos MESES FECHADOS e não se mexe durante o mês; o que o uso corrente passa
+    # da fatia é descontado AQUI, na leitura. Gravar esse desconto a cada uso
+    # tornaria o desfazer irreversível — apagaria saldo real de quem digitou
+    # R$ 300 no lugar de R$ 30 —, e valor calculado que dorme em coluna é valor
+    # que envelhece errado. Derivado, o desfazer é exato por construção: não há
+    # nada a desfazer.
     respiro_disponivel = None
+    respiro_saldo = entrada.respiro_saldo_acumulado
     if entrada.respiro is not None:
-        respiro_disponivel = max(
-            0, entrada.respiro - (entrada.respiro_usado_no_mes or 0)
-        )
+        usado = entrada.respiro_usado_no_mes or 0
+        respiro_disponivel = max(0, entrada.respiro - usado)
+        if respiro_saldo is not None:
+            respiro_saldo = max(0, respiro_saldo - max(0, usado - entrada.respiro))
 
     # O piso é da lei e não se negocia; a alocação acima dele é do usuário.
     # Sem piso configurado o sinal é ausente, nunca `False`: um `False` diria
@@ -387,7 +403,7 @@ def calcular_caixa(entrada: EntradaCaixa) -> Caixa:
         respiro_ativo=entrada.respiro_ativo,
         respiro_usado_no_mes=entrada.respiro_usado_no_mes,
         respiro_disponivel_no_mes=respiro_disponivel,
-        respiro_saldo_acumulado=entrada.respiro_saldo_acumulado,
+        respiro_saldo_acumulado=respiro_saldo,
         minimo_existencial=entrada.minimo_existencial,
         abaixo_do_piso=abaixo_do_piso,
         # FATO ARITMÉTICO, NÃO DIAGNÓSTICO. As parcelas mínimas não cabem nem
