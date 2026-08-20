@@ -190,6 +190,7 @@ justificativa fica ao lado dele. As exceções vigentes estão registradas na AD
 
 | Frente | Fundo | Contraste | Piso | Resultado |
 |---|---|---|---|---|
+| `accent` `#3FDC8A` | `neutralSurface` `#1F232B` <br><sub>preenchimento da barra do RespiroCard e do MetaCard (status atingida), sobre o trilho</sub> | 8,86:1 | 3,0:1 | passa |
 | `debtText` `#EC6C65` | `surface` `#181B21` <br><sub>o quadrado da aba ativa, sobre a barra — fase de dívida</sub> | 5,67:1 | 3,0:1 | passa |
 | `debt` `#E5352B` | `background` `#101216` <br><sub>ponto do wordmark, halo da splash, e o saldo devedor em display/displaySm — texto grande (≥26px), que a WCAG mede por este mesmo piso</sub> | 4,35:1 | 3,0:1 | passa |
 | `debt` `#E5352B` | `surface` `#181B21` <br><sub>ponto do wordmark na topbar de toda aba; saldo devedor grande dentro de card</sub> | 4,00:1 | 3,0:1 | passa |
@@ -225,20 +226,6 @@ justificativa fica ao lado dele. As exceções vigentes estão registradas na AD
 | `azul` `#60A5FA` × `magenta` `#F472B6` | ΔE 40,4 | ΔE 15 | passa |
 | `azul` `#60A5FA` × `ambar` `#FBBF24` | ΔE 55,5 | ΔE 15 | passa |
 | `magenta` `#F472B6` × `ambar` `#FBBF24` | ΔE 57,7 | ΔE 15 | passa |
----
-
-## 2. Escalas
-
-```ts
-spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32, xxxl: 48 }
-radius  = { sm: 8, md: 14, lg: 16, xl: 24, pill: 999 }
-```
-
-Aplicação: **card `radius.lg`**, **controle e botão `radius.md`**, **badge, pill e botão circular
-`radius.pill`**, **banner de feedback `radius.md`**, **bolha de chat `radius.lg`** (com 4px no
-canto de origem).
-
-`spacing.xxxl` é o ritmo entre seções de uma tela rolável e a folga no fim da lista.
 
 ### Sombras — não existem
 

@@ -57,6 +57,12 @@ const pares = [
   { fg: 'accent', bg: 'background', intencao: 'texto' },
   { fg: 'accent', bg: 'surface', intencao: 'texto' },
   { fg: 'accent', bg: 'accentSurface', intencao: 'texto', nota: 'Badge progresso, Feedback success' },
+  {
+    fg: 'accent',
+    bg: 'neutralSurface',
+    intencao: 'grafico',
+    nota: 'preenchimento da barra do RespiroCard e do MetaCard (status atingida), sobre o trilho',
+  },
 
   // --- âmbar: negociação em andamento --------------------------------------
   { fg: 'warning', bg: 'background', intencao: 'texto' },

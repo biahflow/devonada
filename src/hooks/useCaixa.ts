@@ -8,9 +8,11 @@ import {
   criarFonte,
   criarGasto,
   criarProvisao,
+  destinarRespiro,
   excluirFonte,
   excluirGasto,
   excluirProvisao,
+  excluirUsoDeRespiro,
   getCaixa,
   getFechamento,
   getHistoricoCaixa,
@@ -18,11 +20,14 @@ import {
   listarFontes,
   listarGastos,
   listarProvisoes,
+  putRespiro,
   registrarRecebimento,
+  registrarUsoDeRespiro,
   updateMetas,
   type NovaFonteRenda,
   type NovaProvisao,
   type NovoGasto,
+  type RespiroInput,
 } from '../api/caixa';
 import type { ItemConfirmado, MetasCaixa, Uuid } from '../api/types';
 import { dividasKeys } from './useDividas';
@@ -190,6 +195,45 @@ export function useConfirmarFechamento() {
       confirmarFechamento(mes, itens),
     onSuccess: invalidar,
   });
+}
+
+/**
+ * Declara (ou atualiza) o respiro do mês. A resposta traz `custoEmMeses` — o
+ * preço da escolha —, e a tela chama `useCaixa` de novo (via `invalidar`) para
+ * o card já nascer com o número novo.
+ */
+export function useDeclararRespiro() {
+  const invalidar = useInvalidarCaixa();
+  return useMutation({
+    mutationFn: (input: RespiroInput) => putRespiro(input),
+    onSuccess: invalidar,
+  });
+}
+
+/**
+ * Registra um uso de respiro. NENHUM tratamento de alerta aqui — a resposta é
+ * só o disponível novo e o id do lançamento (guardrail 4.1); quem decide o que
+ * fazer com isso é a tela, e a tela não decide nada além de mostrar o número.
+ */
+export function useRegistrarUsoDeRespiro() {
+  const invalidar = useInvalidarCaixa();
+  return useMutation({
+    mutationFn: ({ valor, descricao }: { valor: number; descricao?: string }) =>
+      registrarUsoDeRespiro(valor, descricao),
+    onSuccess: invalidar,
+  });
+}
+
+/** Desfaz um uso de respiro — o caminho para um valor digitado errado. */
+export function useExcluirUsoDeRespiro() {
+  const invalidar = useInvalidarCaixa();
+  return useMutation({ mutationFn: (id: Uuid) => excluirUsoDeRespiro(id), onSuccess: invalidar });
+}
+
+/** Manda o saldo acumulado de respiro para aporte extra na dívida. */
+export function useDestinarRespiro() {
+  const invalidar = useInvalidarCaixa();
+  return useMutation({ mutationFn: (valor: number) => destinarRespiro(valor), onSuccess: invalidar });
 }
 
 /**

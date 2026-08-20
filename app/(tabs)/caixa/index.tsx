@@ -11,7 +11,13 @@ import { LoadingState } from '../../../src/components/ui/LoadingState';
 import { ErrorState } from '../../../src/components/ui/ErrorState';
 import { EmptyState } from '../../../src/components/ui/EmptyState';
 import { Cascata, type Degrau } from '../../../src/components/caixa/Cascata';
-import { useCaixa, useLembreteFechamento } from '../../../src/hooks/useCaixa';
+import { RespiroCard } from '../../../src/components/caixa/RespiroCard';
+import { ErroDeMutacao } from '../../../src/components/ui/ErroDeMutacao';
+import {
+  useCaixa,
+  useLembreteFechamento,
+  useRegistrarUsoDeRespiro,
+} from '../../../src/hooks/useCaixa';
 import { isoParaBR } from '../../../src/util/date';
 import { formatMesCurto } from '../../../src/util/mes';
 import { colors, spacing, typography } from '../../../src/theme/theme';
@@ -19,6 +25,7 @@ import { colors, spacing, typography } from '../../../src/theme/theme';
 export default function CaixaScreen() {
   const router = useRouter();
   const { caixa, isPending, error, refetch, isRefetching } = useCaixa();
+  const registrarUso = useRegistrarUsoDeRespiro();
   useLembreteFechamento();
 
   const cabecalho = (
@@ -146,6 +153,17 @@ export default function CaixaScreen() {
             total={caixa.capacidadeHoje}
           />
         </Card>
+
+        <RespiroCard
+          respiro={caixa.respiro}
+          respiroUsadoNoMes={caixa.respiroUsadoNoMes}
+          respiroDisponivelNoMes={caixa.respiroDisponivelNoMes}
+          respiroSaldoAcumulado={caixa.respiroSaldoAcumulado}
+          onDeclarar={() => router.push('/caixa/respiro')}
+          onRegistrarUso={(valor, descricao) => registrarUso.mutate({ valor, descricao })}
+          registrandoUso={registrarUso.isPending}
+        />
+        <ErroDeMutacao error={registrarUso.error} fallback="Não deu para registrar o uso. Tente de novo." />
 
         {caixa.origemRenda === 'pior_mes_registrado' ? (
           <Feedback

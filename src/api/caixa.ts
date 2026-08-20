@@ -139,3 +139,85 @@ export function confirmarFechamento(mes: string, itens: readonly ItemConfirmado[
     body: { mes, itens },
   });
 }
+
+/* --- Respiro (M11, ADR 0019) --- */
+
+/**
+ * O que o USUÁRIO declara — SEM DEFAULT, SEM FAIXA E SEM SUGESTÃO (ADR 0019,
+ * item 2). Um percentual de fábrica seria o coeficiente de alocação sem fonte
+ * que a ADR 0009 proíbe pelo nome.
+ */
+export interface RespiroInput {
+  /** Em centavos. */
+  valorMensal: number;
+  ativo?: boolean;
+}
+
+/** A linha gravada. `saldoAcumulado` é persistido; o disponível do mês não — ele viaja em `Caixa`. */
+export interface Respiro {
+  valorMensal: number;
+  ativo: boolean;
+  saldoAcumulado: number;
+}
+
+export interface RespostaRespiro {
+  respiro: Respiro;
+  /**
+   * O PREÇO da escolha, em meses a mais de quitação — a mesma
+   * `domain/simulacao.py` do M4 rodada duas vezes, não estimativa nova.
+   * `null` quando não há dívida com dado suficiente para simular: a tela grava
+   * sem preço, em vez de exibir palpite.
+   */
+  custoEmMeses: number | null;
+}
+
+/**
+ * Declara (ou atualiza) o respiro do mês. `ativo: false` PRESERVA o saldo
+ * acumulado — desativar não é apagar.
+ *
+ * `422` quando o valor invade o piso legal (mínimo existencial). A mensagem já
+ * vem pronta em pt-BR do servidor — a tela exibe, nunca reescreve.
+ */
+export function putRespiro(input: RespiroInput) {
+  return request<RespostaRespiro>('/v1/caixa/respiro', { method: 'PUT', body: input });
+}
+
+export interface RespostaUsoDeRespiro {
+  /** Existe porque o `DELETE` de uso é inalcançável sem ele — não há listagem. */
+  id: Uuid;
+  respiroDisponivelNoMes: number | null;
+}
+
+/**
+ * Um gasto de respiro — o sorvete, o cinema, as unhas. `descricao` é opcional
+ * e livre: ninguém deve prestação de contas do próprio lazer.
+ *
+ * A resposta NÃO carrega alerta, sinal de excesso nem comparação — só o novo
+ * disponível e o id do lançamento (guardrail 4.1).
+ */
+export function registrarUsoDeRespiro(valor: number, descricao?: string) {
+  return request<RespostaUsoDeRespiro>('/v1/caixa/respiro/uso', {
+    method: 'POST',
+    body: { valor, descricao },
+  });
+}
+
+/**
+ * Desfaz um uso — o caminho para um valor digitado errado. Exato mesmo quando
+ * o uso tinha consumido o acumulado: registrar uso não escreve em
+ * `saldoAcumulado`, então apagar não deixa resto para estornar.
+ */
+export function excluirUsoDeRespiro(id: Uuid) {
+  return request<void>(`/v1/caixa/respiro/uso/${id}`, { method: 'DELETE' });
+}
+
+/**
+ * Manda o saldo acumulado para aporte extra na dívida. SEMPRE por ação
+ * explícita — nunca automático, nunca sugerido em push (ADR 0019, item 5).
+ */
+export function destinarRespiro(valor: number) {
+  return request<{ respiroSaldoAcumulado: number }>('/v1/caixa/respiro/destinacao', {
+    method: 'POST',
+    body: { valor },
+  });
+}

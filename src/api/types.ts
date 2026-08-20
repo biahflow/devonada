@@ -491,6 +491,30 @@ export interface Caixa {
   provisaoMensal: number;
   aporteReserva: number;
   aporteAposentadoria: number;
+  /**
+   * O RESPIRO (M11, ADR 0019): a fatia que o usuário declara para viver
+   * enquanto paga, subtraída ANTES de `capacidadeMaxima` — é essa posição que a
+   * torna imune ao corte por austeridade total.
+   *
+   * `null` é **nunca declarou**, e NÃO se confunde com `0`: zero declarado é
+   * escolha legítima. Não existe default (ADR 0009); sem declaração não há
+   * respiro, e o convite a declarar é obrigação de tela.
+   */
+  respiro: number | null;
+  /** `false` desativa a linha da cascata e PRESERVA o valor e o saldo acumulado. */
+  respiroAtivo: boolean | null;
+  /** Com respiro declarado e nada usado é `0` — fato, não ausência. */
+  respiroUsadoNoMes: number | null;
+  /**
+   * DERIVADO a cada leitura, nunca persistido: `respiro − respiroUsadoNoMes`,
+   * com piso em zero.
+   */
+  respiroDisponivelNoMes: number | null;
+  /**
+   * PERSISTIDO: o acumulado dos MESES FECHADOS menos o excesso que o uso deste
+   * mês passou da fatia, com piso em zero — já é o efetivo. Não recalcule.
+   */
+  respiroSaldoAcumulado: number | null;
   comprometidoDividas: number;
   /**
    * O que sobra sem mudar nada de vida. **Pode ser negativo**, e o negativo é a

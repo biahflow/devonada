@@ -120,6 +120,14 @@ export function umCaixa(over: Partial<Caixa> = {}): Caixa {
     provisaoMensal: 0,
     aporteReserva: 0,
     aporteAposentadoria: 0,
+    // Default é NUNCA DECLAROU (M11, ADR 0019) — mesma disciplina de
+    // `saldoInicialDaRota` em `umResumo`: `null` é o estado que não muda o
+    // comportamento das telas que não conhecem respiro ainda.
+    respiro: null,
+    respiroAtivo: null,
+    respiroUsadoNoMes: null,
+    respiroDisponivelNoMes: null,
+    respiroSaldoAcumulado: null,
     comprometidoDividas: 0,
     capacidadeHoje: 600000,
     capacidadeMaxima: 600000,
