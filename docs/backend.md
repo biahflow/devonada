@@ -112,6 +112,9 @@ varre `app.openapi()` e falha se `LIVRES` crescer sem decisão explícita.
 | `economiaVsMinimo` | Juros do cenário mínimo − juros do cenário com aporte | — (diferença entre dois resultados do mesmo motor) | `domain/simulacao.py` |
 | `respiro` na cascata | Subtraído **antes** de `capacidade_maxima`; valor **declarado pelo usuário**, sem default nem faixa | — (dado do usuário, não regra derivada de lei; ADR 0019) | `domain/caixa.py` |
 | `respiroInvadeOPiso` | `líquida − essenciais − respiro < mínimo existencial` | Decreto 11.150/2022, art. 3º, **na redação do Decreto 11.567/2023** | `domain/caixa.py` |
+| `compromisso_percentual` na cascata | Subtraído **antes** de `capacidade_maxima`, na mesma posição do respiro e dos potes; percentual **declarado pelo usuário**, aplicado sobre a renda **líquida** típica, sem default nem faixa recomendada | — (dado do usuário, não regra derivada de lei; ADR 0021, decisão 4, e a Nota de desempate de 20/08/2026 para a base ser a líquida) | `domain/caixa.py` |
+| `percentualInvadeOPiso` | `líquida − essenciais − compromisso < mínimo existencial` | Decreto 11.150/2022, art. 3º, **na redação do Decreto 11.567/2023** | `domain/caixa.py` |
+| Alíquota de imposto da fonte | `fonte_renda.imposto_bps` tem precedência; `NULL` cai no `perfil.imposto_bps`. Com **alguma** fonte declarando, o imposto é o **somatório fonte a fonte**; sem nenhuma, é a multiplicação sobre a renda somada | — (escolha de método; ADR 0021, decisão 1. **Nenhuma alíquota é estimada:** sem declaração, nada é reservado, ADR 0009) | `leitura.py`, `domain/caixa.py` |
 | Gatilho de marco | Acordo fechado, dívida quitada e a rota cruzando **2500/5000/7500 bps** | — (escolha de método; os cinco pontos vêm da ADR 0019, item 3, e do verbete `marco` de `domain.md`. **Nenhum valor em dinheiro sai daí:** o marco celebra e libera o acumulado, e não altera o respiro declarado) | `domain/marcos.py` |
 | Multa de atraso acima do teto | Teto de **2% do valor da prestação** | CDC, art. 52, §1º (redação da Lei 9.298/1996) | `domain/revisao.py` |
 | Tarifa de cadastro repetida | Devida **no início do relacionamento** | STJ, Súmula 566 | `domain/revisao.py` |
@@ -389,6 +392,19 @@ Recurso de outro tenant devolve **404, nunca 403**: um 403 confirmaria que o id 
 > revogável e recuperação de senha (ADR 0012). A previsão de que "a troca não muda o cliente"
 > valeu pela metade: ele já mandava `Bearer` e já tratava 401, mas ganhou renovação silenciosa —
 > a peça mais fácil de quebrar do milestone, e a única que exige aparelho para se ter certeza.
+
+> **A alíquota de imposto mora em dois lugares.** Desde o M12 ela é `fonte_renda.imposto_bps`,
+> com `perfil.imposto_bps` como fallback de quem não declarou na fonte (ADR 0021, decisão 1). O
+> fallback é o que tornou a mudança aditiva — nenhum dado migrou, e quem tinha uma alíquota só
+> continua com o número idêntico, campo a campo. O custo é que a pergunta "qual é a alíquota
+> desta renda?" tem duas respostas possíveis, e quem ler só uma das colunas erra. Mover de vez
+> (copiar o valor para cada fonte e apagar o global) é migração de dado em produção, e foi
+> recusada nesta feature por não entregar nada além da limpeza.
+>
+> Um efeito aritmético anda junto: com **alguma** fonte declarando, o imposto vira somatório
+> fonte a fonte; sem nenhuma, segue a multiplicação sobre a renda somada. Os dois diferem por
+> centavos de arredondamento, e é de propósito que quem não declarou nada continue no segundo
+> caminho — ninguém pode mudar de número por causa de uma feature que não usou.
 
 > **Recuperação de senha depende de SMTP configurado.** Sem `DEVONADA_SMTP_HOST` e
 > `DEVONADA_SMTP_REMETENTE`, `POST /v1/auth/senha/recuperacao` continua respondendo `202` — ela
