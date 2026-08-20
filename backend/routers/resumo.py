@@ -10,6 +10,7 @@ import schemas
 from auth import tenant_atual
 from config import Settings, get_settings
 from db import get_db
+from domain.marcos import marcos_atingidos
 from domain.minimo_existencial import margem_disponivel, minimo_existencial
 from domain.parcelas import situacao_da_parcela
 from domain.resumo import (
@@ -22,6 +23,7 @@ from domain.resumo import (
     rota_percorrida_bps,
 )
 from leitura import capacidade_atual
+from routers.marcos import registrar_marcos
 
 router = APIRouter(prefix="/v1/dividas", tags=["Resumo"])
 
@@ -236,6 +238,27 @@ def resumo(
         .order_by(orm.SaldoSnapshot.mes)
     ).all()
 
+    percorrido = rota_percorrida_bps(saldo_inicial_da_rota, total_devido)
+
+    # O MARCO DA ROTA NASCE AQUI, e nasce GRAVADO (ADR 0019, item 4). Sem job e
+    # sem cron, quem percebe que 25%, 50% ou 75% foram cruzados é a leitura que
+    # calculou o número — pelo mesmo motivo de `_registrar_snapshot` escrever
+    # dentro deste GET desde o M2, e da virada do mês do respiro escrever dentro
+    # de `GET /v1/caixa`.
+    #
+    # ESCREVER NUM GET É DELIBERADO, e a trava de assinatura passa por
+    # construção, porque ela é derivada do MÉTODO. É o que o docstring de
+    # `assinatura.py` explica: registrar o que já é do usuário precisa acontecer
+    # também no período somente leitura. Perder um marco atingido porque a
+    # assinatura venceu puniria alguém pelo que ele já tinha. A trava continua
+    # valendo inteira sobre a CELEBRAÇÃO, que é POST.
+    #
+    # `percorrido` ausente não cruza limiar nenhum: `domain/marcos` trata `None`
+    # como ausência, e não como zero. O commit só acontece quando algo nasceu —
+    # esta rota é lida muitas vezes por dia.
+    if registrar_marcos(db, tenant, marcos_atingidos(rota_percorrida_bps=percorrido)):
+        db.commit()
+
     return schemas.RespostaResumo(
         resumo=schemas.ResumoDividas(
             totalDevido=total_devido,
@@ -267,6 +290,6 @@ def resumo(
                 schemas.PontoEvolucao(mes=s.mes, saldo=s.saldo) for s in evolucao[-12:]
             ],
             saldoInicialDaRota=saldo_inicial_da_rota,
-            rotaPercorridaBps=rota_percorrida_bps(saldo_inicial_da_rota, total_devido),
+            rotaPercorridaBps=percorrido,
         )
     )

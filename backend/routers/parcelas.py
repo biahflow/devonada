@@ -8,7 +8,9 @@ import orm
 import schemas
 from auth import tenant_atual
 from db import get_db
+from domain.marcos import marcos_atingidos
 from domain.parcelas import gerar_cronograma, situacao_da_parcela
+from routers.marcos import registrar_marcos
 
 router = APIRouter(prefix="/v1", tags=["Parcelas"])
 
@@ -126,6 +128,14 @@ def pagar(
         if d is not None and d.situacao == "ativa":
             d.situacao = "quitada"
             d.data_quitacao = entrada.pagoEm
+            # A quitação é marco, e ele é gravado onde ela ACONTECE — não numa
+            # varredura depois, que seria o predicado que a ADR 0019 recusa.
+            # Este é um dos DOIS pontos em que a quitação é detectada hoje (o
+            # outro é `dividas.quitar`); a duplicação é preexistente e não é
+            # alvo desta tarefa. O que impede a conquista dobrada é a
+            # idempotência de `registrar_marcos`. Sem commit próprio: a
+            # conquista é salva na mesma transação da quitação que a produziu.
+            registrar_marcos(db, tenant, marcos_atingidos(houve_quitacao=True))
 
     db.commit()
     db.refresh(p)
@@ -173,6 +183,11 @@ def renegociar(
             observacao=entrada.observacao,
         )
     )
+
+    # Acordo fechado é o primeiro marco da rota, e ele nasce ao lado do INSERT
+    # do próprio acordo. Idempotente: renegociar de novo não produz uma segunda
+    # "primeira negociação".
+    registrar_marcos(db, tenant, marcos_atingidos(houve_renegociacao=True))
 
     d.valor_cobrado = entrada.novoValor
     d.total_parcelas = entrada.novoTotalParcelas

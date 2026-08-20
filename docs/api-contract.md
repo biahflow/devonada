@@ -1462,7 +1462,10 @@ pessoa parou de viver — e o mês 4 é onde ela desiste.*
 - [~] `POST`/`DELETE /v1/caixa/respiro/uso` e `POST /v1/caixa/respiro/destinacao`, mais a rolagem
       idempotente do saldo na virada do mês. Implementados e cobertos por teste (T2); falta ver no
       app
-- [ ] `GET /v1/marcos` e `POST /v1/marcos/{tipo}/celebracao`
+- [~] `GET /v1/marcos` e `POST /v1/marcos/{tipo}/celebracao`, mais a gravação do evento nos quatro
+      gatilhos: renegociação, quitação pelos dois caminhos que a detectam, e a rota cruzando
+      2500/5000/7500 em `GET /v1/dividas/resumo`. Implementados e cobertos por teste (T4); a
+      `MarcoScreen` que consome é T7
 - [~] `saldoInicialDaRota` e `rotaPercorridaBps` em `GET /v1/dividas/resumo` — tira do
       `CardSaldo.tsx` a única conta derivada que o app ainda faz, e troca a linha de base móvel pelo
       maior saldo já registrado. Implementado e coberto por teste (T3); o consumo pelo app
@@ -1471,7 +1474,9 @@ pessoa parou de viver — e o mês 4 é onde ela desiste.*
       fonte de renda a painel preenchido — e que faltava justamente quando o defeito passou por
       quatro gates verdes. Em `tests/test_caixa_integracao.py::TestRespiroNoSimulador`, com
       `custoEmMeses` conferido contra as duas simulações feitas pela rota pública
-- [ ] Teste que cadastra dívida nova depois de um marco e prova que o marco **não se desfaz**
+- [x] Teste que cadastra dívida nova depois de um marco e prova que o marco **não se desfaz**. Em
+      `tests/test_marcos_api.py::TestMarcoNaoSeDesfaz`, com `rotaPercorridaBps` caindo de 3000 para
+      0 na mesma leitura em que o marco continua atingido
 - [ ] Teste de regressão: tenant sem respiro declarado tem cascata byte a byte idêntica à de hoje
 
 ### Estado observado em device

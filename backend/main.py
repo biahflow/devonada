@@ -17,6 +17,7 @@ from routers import (
     contratos,
     dividas,
     lembretes,
+    marcos,
     metas,
     parcelas,
     perfil,
@@ -97,6 +98,7 @@ app.include_router(contratos.router)
 app.include_router(chat.router)
 app.include_router(caixa.router)
 app.include_router(metas.router)
+app.include_router(marcos.router)
 app.include_router(auth.router)
 app.include_router(conta.router)
 app.include_router(assinatura.router)

@@ -9,7 +9,9 @@ import schemas
 from auth import tenant_atual
 from db import get_db
 from domain.correcao import valor_corrigido
+from domain.marcos import marcos_atingidos
 from domain.prescricao import possivel_prescricao
+from routers.marcos import registrar_marcos
 from routers.parcelas import criar_parcelas
 
 router = APIRouter(prefix="/v1/dividas", tags=["Dividas"])
@@ -176,6 +178,13 @@ def quitar(
     d.situacao = "quitada"
     d.valor_pago = entrada.valorPago
     d.data_quitacao = entrada.dataQuitacao
+
+    # O outro ponto em que a quitação é detectada — o primeiro é
+    # `parcelas.pagar`, quando a última parcela pendente cai. Os dois gravam o
+    # mesmo marco, e `registrar_marcos` é idempotente por `(tenant_id, tipo)`:
+    # quem quita a segunda dívida não ganha uma segunda "primeira quitação".
+    registrar_marcos(db, tenant, marcos_atingidos(houve_quitacao=True))
+
     db.commit()
     db.refresh(d)
     return schemas.RespostaDivida(divida=_para_schema(d))

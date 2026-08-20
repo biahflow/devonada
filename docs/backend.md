@@ -57,7 +57,7 @@ assinatura.py   a trava de escrita: GET livre, write exige assinatura (ADR 0013)
 domain/         REGRAS DE NEGÓCIO puras, com fonte citada
 leitura.py      adaptadores persistência → domínio, compartilhados entre routers
 routers/        dividas · resumo · simulacoes · parcelas · perfil · lembretes · contratos · chat
-                caixa · metas · revisao · auth · conta · assinatura
+                caixa · metas · marcos · revisao · auth · conta · assinatura
 llm/            ÚNICO lugar que conhece SDK de modelo (ADR 0007)
 correio/        ÚNICO lugar que fala SMTP — mesmo desenho da camada llm/
 loja/           ÚNICO lugar que fala com App Store e Google Play — mesmo desenho
@@ -112,6 +112,7 @@ varre `app.openapi()` e falha se `LIVRES` crescer sem decisão explícita.
 | `economiaVsMinimo` | Juros do cenário mínimo − juros do cenário com aporte | — (diferença entre dois resultados do mesmo motor) | `domain/simulacao.py` |
 | `respiro` na cascata | Subtraído **antes** de `capacidade_maxima`; valor **declarado pelo usuário**, sem default nem faixa | — (dado do usuário, não regra derivada de lei; ADR 0019) | `domain/caixa.py` |
 | `respiroInvadeOPiso` | `líquida − essenciais − respiro < mínimo existencial` | Decreto 11.150/2022, art. 3º, **na redação do Decreto 11.567/2023** | `domain/caixa.py` |
+| Gatilho de marco | Acordo fechado, dívida quitada e a rota cruzando **2500/5000/7500 bps** | — (escolha de método; os cinco pontos vêm da ADR 0019, item 3, e do verbete `marco` de `domain.md`. **Nenhum valor em dinheiro sai daí:** o marco celebra e libera o acumulado, e não altera o respiro declarado) | `domain/marcos.py` |
 | Multa de atraso acima do teto | Teto de **2% do valor da prestação** | CDC, art. 52, §1º (redação da Lei 9.298/1996) | `domain/revisao.py` |
 | Tarifa de cadastro repetida | Devida **no início do relacionamento** | STJ, Súmula 566 | `domain/revisao.py` |
 | Seguro prestamista embutido | Consumidor não pode ser **compelido** a contratar | CDC, art. 39, I; STJ, Tema 972 | `domain/revisao.py` |

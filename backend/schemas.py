@@ -786,6 +786,46 @@ class RespostaDestinacaoDeRespiro(Camel):
     respiroSaldoAcumulado: int
 
 
+# --- Marcos (M11, ADR 0019, item 4) ------------------------------------------
+#
+# A lista dos tipos é ESPELHO de `domain/marcos.TIPOS`, no mesmo desenho de
+# `StatusMeta` logo abaixo: o contrato de API não importa do domínio, e o
+# domínio não conhece o Pydantic. Há um teste em `test_domain_marcos.py` que
+# falha se os dois divergirem — duplicar sem guarda é como um tipo novo entraria
+# no domínio e ficaria de fora da resposta.
+
+TipoDeMarco = Literal[
+    "primeira_negociacao",
+    "primeira_quitacao",
+    "rota_25",
+    "rota_50",
+    "rota_75",
+]
+
+
+class Marco(Camel):
+    """
+    Uma conquista e seus dois instantes.
+
+    OS DOIS SÃO SEPARADOS DE PROPÓSITO. `atingidoEm` é quando o gatilho ocorreu;
+    `celebradoEm`, quando a `MarcoScreen` foi exibida. Sem essa separação a tela
+    reapareceria a cada abertura do app — e um marco atingido com o app fechado,
+    ou durante o período somente leitura da assinatura, se perderia em vez de
+    esperar.
+
+    `atingidoEm` nulo é marco não atingido: a rota devolve os cinco tipos sempre,
+    e a ausência é dita, não omitida.
+    """
+
+    tipo: TipoDeMarco
+    atingidoEm: date | None = None
+    celebradoEm: date | None = None
+
+
+class ListaMarcos(Camel):
+    marcos: list[Marco]
+
+
 # --- Metas nomeadas (/v1/metas) ---
 #
 # COISA DIFERENTE DE `MetasCaixa` LOGO ACIMA, e o nome colidir é dívida assumida
