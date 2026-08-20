@@ -213,6 +213,16 @@ class ResumoDividas(Camel):
     proximosVencimentos: list[VencimentoProximo]
     evolucaoSaldo: list[PontoEvolucao]
 
+    # O MAIOR saldo já registrado em `saldo_snapshot` para o tenant — não
+    # `evolucaoSaldo[0]`, que é recortada pelo mês selecionado e pelos últimos
+    # 12 pontos. É a base que não anda para trás quando o usuário cadastra uma
+    # dívida nova ou troca o mês consultado (ADR 0019, item 4). `None` sem
+    # histórico.
+    saldoInicialDaRota: int | None = None
+    # `saldoInicialDaRota` percorrido, em basis points, com piso em zero.
+    # `None` sem histórico; nunca negativo (`domain/resumo.rota_percorrida_bps`).
+    rotaPercorridaBps: int | None = None
+
 
 class RespostaResumo(Camel):
     resumo: ResumoDividas

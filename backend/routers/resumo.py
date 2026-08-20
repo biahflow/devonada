@@ -2,7 +2,7 @@ from collections import defaultdict
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 import orm
@@ -19,6 +19,7 @@ from domain.resumo import (
     custo_diario_juros,
     custo_medio_juros_mensal,
     dividas_sem_taxa,
+    rota_percorrida_bps,
 )
 from leitura import capacidade_atual
 
@@ -195,6 +196,40 @@ def resumo(
 
     _registrar_snapshot(db, tenant, mes_alvo, total_devido)
 
+    # A BASE DA ROTA NÃO É `evolucao[0]`. `evolucao` é recortada por
+    # `mes <= mes_alvo` e depois por `[-12:]` para a série que a tela desenha;
+    # a base é o MAIOR saldo já registrado em TODA a `saldo_snapshot` do
+    # tenant, sem os dois recortes — senão o mês consultado moveria a linha de
+    # base (ADR 0019, item 4; docs/api-contract.md 3.13).
+    #
+    # HISTÓRICO É MÊS ANTERIOR, e não "existe alguma linha na tabela". Sem esta
+    # distinção o número seria INSTÁVEL entre duas leituras seguidas: a primeira
+    # do mês não vê o snapshot de hoje e devolve ausente; a segunda vê o que a
+    # primeira acabou de gravar e devolveria "0% percorrido" — para quem acabou
+    # de chegar, que é justamente o que o `design-system.md` proíbe na barra do
+    # `CardSaldo`. A pessoa não deixou de andar; ela ainda não teve mês nenhum.
+    #
+    # A leitura vem DEPOIS de `_registrar_snapshot` de propósito: assim duas
+    # chamadas no mesmo dia devolvem o mesmo número, em vez de depender de qual
+    # delas gravou a foto de hoje.
+    #
+    # Isto NÃO resolve a PF-3 do plano F-010, e não deve: dentro do mês
+    # corrente a foto é reescrita a cada leitura, então cadastrar dívida nova
+    # nessa janela ainda move a própria base. É limitação conhecida e aceita, e
+    # a proteção real é o marco ser evento persistido (T4).
+    tem_mes_anterior = db.scalar(
+        select(func.count())
+        .select_from(orm.SaldoSnapshot)
+        .where(orm.SaldoSnapshot.tenant_id == tenant, orm.SaldoSnapshot.mes < _mes_atual())
+    )
+    saldo_inicial_da_rota = None
+    if tem_mes_anterior:
+        saldo_inicial_da_rota = db.scalar(
+            select(func.max(orm.SaldoSnapshot.saldo)).where(
+                orm.SaldoSnapshot.tenant_id == tenant
+            )
+        )
+
     evolucao = db.scalars(
         select(orm.SaldoSnapshot)
         .where(orm.SaldoSnapshot.tenant_id == tenant, orm.SaldoSnapshot.mes <= mes_alvo)
@@ -231,5 +266,7 @@ def resumo(
             evolucaoSaldo=[
                 schemas.PontoEvolucao(mes=s.mes, saldo=s.saldo) for s in evolucao[-12:]
             ],
+            saldoInicialDaRota=saldo_inicial_da_rota,
+            rotaPercorridaBps=rota_percorrida_bps(saldo_inicial_da_rota, total_devido),
         )
     )

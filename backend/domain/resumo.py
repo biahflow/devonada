@@ -164,3 +164,40 @@ def comprometimento_renda_bps(comprometido_mensal: int, renda_mensal: int) -> in
     if renda_mensal <= 0:
         return None
     return decimal_para_bps(Decimal(comprometido_mensal) / Decimal(renda_mensal))
+
+
+def rota_percorrida_bps(saldo_inicial: int | None, total_devido: int) -> int | None:
+    """
+    Quanto da rota de quitação já foi percorrido, em basis points, com piso em zero.
+
+    ESCOLHA DE MÉTODO, não regra de lei: `saldo_inicial` é o MAIOR saldo já
+    registrado em `saldo_snapshot` para o tenant — não o primeiro ponto da série
+    que `evolucaoSaldo` exibe (ADR 0019, item 4). A série de exibição é
+    recortada pelo mês selecionado e pelos últimos 12 pontos (docs/api-contract.md
+    3.13); usar o mesmo recorte aqui faria a linha de base andar para trás
+    quando o usuário troca o mês consultado — o defeito que esta função existe
+    para corrigir. É a mesma disciplina de `custo_diario_juros`: a escolha é
+    nossa, e fica declarada para não ser lida como regra financeira do usuário.
+
+    None SEM HISTÓRICO (`saldo_inicial` ausente ou zero): "0% percorrido" no
+    primeiro dia seria desanimador e falso — a pessoa não deixou de andar, ela
+    acabou de chegar. Quem decide o que conta como histórico é o chamador, e a
+    régua dele é MÊS ANTERIOR, não "existe linha na tabela": a foto do mês
+    corrente é reescrita a cada leitura, e tratá-la como histórico faria a
+    segunda leitura do dia devolver 0% a quem acabou de cadastrar a primeira
+    dívida.
+
+    NUNCA NEGATIVO: cadastrar uma dívida nova pode fazer `total_devido` superar
+    a base histórica — a rota não anda para trás, ela para em zero. Isso inclui
+    a limitação conhecida e aceita (PF-3 do plano F-010): `saldo_snapshot` tem
+    PK composta `(tenant_id, mes)` e o mês corrente é reescrito a cada leitura,
+    então `MAX(saldo)` só é monotônico ENTRE meses, não dentro do mês corrente.
+    A proteção real contra essa janela é o marco ser evento persistido (T4), não
+    esta função.
+    """
+    if saldo_inicial is None or saldo_inicial <= 0:
+        return None
+    if total_devido >= saldo_inicial:
+        return 0
+    andado = Decimal(saldo_inicial - total_devido)
+    return decimal_para_bps(andado / Decimal(saldo_inicial))

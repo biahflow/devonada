@@ -1,6 +1,8 @@
 from datetime import date, timedelta
 
+import orm
 import schemas
+from config import get_settings
 from extracao.base import limpar_campos_sem_evidencia
 
 HOJE = date.today()
@@ -15,6 +17,24 @@ def _nova(**over):
     }
     base.update(over)
     return base
+
+
+def _mes(deslocamento: int = 0) -> str:
+    """`YYYY-MM` de hoje deslocado `deslocamento` meses (negativo = passado)."""
+    ano, mes = HOJE.year, HOJE.month
+    total = (ano * 12 + (mes - 1)) + deslocamento
+    ano, mes = divmod(total, 12)
+    return f"{ano}-{mes + 1:02d}"
+
+
+def _semear_saldo_snapshot(sessao, mes: str, saldo: int) -> None:
+    """Grava um ponto de `saldo_snapshot` direto na tabela, fora de `_registrar_snapshot`.
+
+    Usado para simular histórico de meses PASSADOS, que a rota nunca escreve
+    sozinha (`_registrar_snapshot` só grava o mês corrente).
+    """
+    sessao.add(orm.SaldoSnapshot(tenant_id=get_settings().tenant_id, mes=mes, saldo=saldo))
+    sessao.commit()
 
 
 class TestAuth:
@@ -424,6 +444,72 @@ class TestResumo:
         assert resumo["custoMedioJurosMensal"] == 300
         # 3% de R$ 1.000,00 no mês, o mesmo R$ 1.000,00 que a média ponderou.
         assert resumo["custoDiarioJuros"] == 100
+
+    def test_saldo_inicial_da_rota_e_null_com_um_unico_ponto_de_historico(self, client, auth):
+        # T3-AC1. "0% percorrido" no primeiro dia seria desanimador e falso: a
+        # pessoa não deixou de andar, ela acabou de chegar.
+        client.post("/v1/dividas", json=_nova(valorCobrado=100000), headers=auth)
+        resumo = client.get("/v1/dividas/resumo", headers=auth).json()["resumo"]
+        assert resumo["saldoInicialDaRota"] is None
+        assert resumo["rotaPercorridaBps"] is None
+
+    def test_duas_leituras_seguidas_devolvem_o_mesmo_numero(self, client, auth):
+        # REGRESSÃO. A primeira leitura do mês não vê a foto de hoje; a segunda
+        # vê a que a primeira gravou. Sem a régua de "mês anterior", a segunda
+        # devolvia `rotaPercorridaBps: 0` para quem acabou de chegar — e o teste
+        # de AC1 não pegava, porque chama o endpoint uma vez só. O app abre a
+        # tela várias.
+        client.post("/v1/dividas", json=_nova(valorCobrado=100000), headers=auth)
+        leituras = [
+            client.get("/v1/dividas/resumo", headers=auth).json()["resumo"] for _ in range(3)
+        ]
+        for r in leituras:
+            assert r["saldoInicialDaRota"] is None
+            assert r["rotaPercorridaBps"] is None
+
+    def test_o_mes_corrente_sozinho_nao_conta_como_historico(self, client, auth, sessao):
+        # O outro lado: com um mês anterior na tabela, a rota passa a existir.
+        client.post("/v1/dividas", json=_nova(valorCobrado=70000), headers=auth)
+        assert client.get("/v1/dividas/resumo", headers=auth).json()["resumo"][
+            "rotaPercorridaBps"
+        ] is None
+
+        _semear_saldo_snapshot(sessao, _mes(-1), 100000)
+        assert client.get("/v1/dividas/resumo", headers=auth).json()["resumo"][
+            "rotaPercorridaBps"
+        ] == 3000
+
+    def test_rota_percorrida_nunca_fica_negativa(self, client, auth, sessao):
+        # T3-AC2. Saldo atual maior que a base histórica devolve 0, nunca negativo.
+        _semear_saldo_snapshot(sessao, _mes(-1), 100000)
+        client.post("/v1/dividas", json=_nova(valorCobrado=150000), headers=auth)
+        resumo = client.get("/v1/dividas/resumo", headers=auth).json()["resumo"]
+        assert resumo["rotaPercorridaBps"] == 0
+
+    def test_mes_selecionado_nao_move_a_base_da_rota(self, client, auth, sessao):
+        # T3-AC3. É o defeito que esta tarefa existe para corrigir: a base é o
+        # maior saldo já registrado em TODA a saldo_snapshot, não o recorte
+        # `mes <= mes_alvo` que `evolucaoSaldo` usa para a série exibida.
+        _semear_saldo_snapshot(sessao, _mes(-3), 80000)
+        _semear_saldo_snapshot(sessao, _mes(-2), 100000)
+        _semear_saldo_snapshot(sessao, _mes(-1), 90000)
+        client.post("/v1/dividas", json=_nova(valorCobrado=70000), headers=auth)
+
+        de_um_mes_anterior = client.get(
+            f"/v1/dividas/resumo?mes={_mes(-2)}", headers=auth
+        ).json()["resumo"]
+        do_mes_corrente = client.get("/v1/dividas/resumo", headers=auth).json()["resumo"]
+
+        assert de_um_mes_anterior["saldoInicialDaRota"] == 100000
+        assert do_mes_corrente["saldoInicialDaRota"] == 100000
+
+    def test_rota_percorrida_bps_em_basis_points(self, client, auth, sessao):
+        # T3-AC4. 27,40% percorrido devolve 2740, no padrão de comprometimentoRenda.
+        _semear_saldo_snapshot(sessao, _mes(-1), 100000)
+        client.post("/v1/dividas", json=_nova(valorCobrado=72600), headers=auth)
+        resumo = client.get("/v1/dividas/resumo", headers=auth).json()["resumo"]
+        assert resumo["saldoInicialDaRota"] == 100000
+        assert resumo["rotaPercorridaBps"] == 2740
 
 
 class TestExtracaoGuardrail:

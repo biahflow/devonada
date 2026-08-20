@@ -1414,9 +1414,10 @@ pessoa parou de viver — e o mês 4 é onde ela desiste.*
       conta nova, a existente rodada duas vezes
 - [ ] `POST`/`DELETE /v1/caixa/respiro/uso` e `POST /v1/caixa/respiro/destinacao`
 - [ ] `GET /v1/marcos` e `POST /v1/marcos/{tipo}/celebracao`
-- [ ] `saldoInicialDaRota` e `rotaPercorridaBps` em `GET /v1/dividas/resumo` — tira do
+- [~] `saldoInicialDaRota` e `rotaPercorridaBps` em `GET /v1/dividas/resumo` — tira do
       `CardSaldo.tsx` a única conta derivada que o app ainda faz, e troca a linha de base móvel pelo
-      maior saldo já registrado
+      maior saldo já registrado. Implementado e coberto por teste (T3); o consumo pelo app
+      (`CardSaldo.tsx`) é T6 e ainda não foi exercitado em device
 - [ ] Teste que cruza respiro declarado × teto do simulador. É o gêmeo do teste de M7.2 que ligou
       fonte de renda a painel preenchido — e que faltava justamente quando o defeito passou por
       quatro gates verdes
