@@ -614,6 +614,25 @@ estado planejado, estado real, impacto e resolução — não se corrige o plano
   `Out of Scope` por pasta inteira colide com `Scope` escrito por comportamento — quando o
   comportamento exige um ponto de escrita, o contrato precisa nomear o arquivo.
 
+### PD-3 — uma segunda migração no milestone, fora de T1
+
+- **Tarefa:** T4 (correção pós-revisão).
+- **Planejado:** "Só T1 escreve migração neste milestone" (`assumptions` deste plano).
+- **Real:** a revisão de T4 encontrou uma corrida real — `registrar_marcos` garantia uma linha por
+  `(tenant_id, tipo)` com SELECT seguido de INSERT, e o boot do app dispara várias leituras
+  concorrentes do resumo, que é onde o marco de rota nasce. Fechar na raiz exige `UNIQUE`, e
+  portanto migração. Aprovado pelo dono do repositório em 20/08/2026; migração `116f2181bdda`.
+- **Impacto:** maior do que parecia. O `UNIQUE` sozinho teria trocado um defeito cosmético (linha
+  órfã, escondida pela agregação de `listar`) por um grave: `registrar_marcos` não commita, e em
+  três dos quatro pontos de disparo o marco é gravado na mesma transação da mutação que o
+  produziu — um `IntegrityError` de corrida abortaria a quitação da dívida que o gerou. Por isso a
+  inserção passou a rodar dentro de um `SAVEPOINT`. Round-trip verificado contra o Postgres local.
+- **Resolução:** ratificado. A premissa "só T1 escreve migração" existia para evitar migrações
+  concorrentes entre tarefas paralelas; com execução sequencial e uma correção de defeito
+  encontrada em revisão, ela deixou de proteger alguma coisa. **Lição:** premissa de plano escrita
+  contra um risco (paralelismo) não deve ser lida como proibição quando o risco não existe na
+  execução real.
+
 ### PD-2 — `EntradaCaixa` ganhou um quarto campo, `respiro_ativo`
 
 - **Tarefa:** T1.

@@ -1,8 +1,15 @@
 from datetime import date
+from unittest.mock import patch
+
+import pytest
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import sessionmaker
 
 import orm
 from config import get_settings
 from domain.marcos import TIPOS
+from routers.marcos import registrar_marcos
 
 HOJE = date.today()
 
@@ -385,3 +392,103 @@ class TestMarcoNaoSeDesfaz:
 
         client.post("/v1/dividas", json=_nova(credor="Banco Novo"), headers=auth)
         assert _marcos(client, auth)["primeira_quitacao"]["atingidoEm"] == atingido_em
+
+
+class TestUniqueConstraint:
+    """
+    M11.1 (ADR 0019) — a idempotência de `(tenant_id, tipo)` deixa de morar só
+    em código e passa a ser imposta pelo banco (`uq_marco_tenant_tipo`).
+    """
+
+    def test_a_constraint_existe_e_morde(self, sessao):
+        # Duas linhas com o MESMO (tenant_id, tipo), inseridas direto na
+        # sessão — sem passar por `registrar_marcos` — precisam ser recusadas
+        # pelo banco, não apenas evitadas por disciplina de aplicação.
+        tenant = get_settings().tenant_id
+        sessao.add(orm.Marco(tenant_id=tenant, tipo="rota_25"))
+        sessao.commit()
+
+        sessao.add(orm.Marco(tenant_id=tenant, tipo="rota_25"))
+        with pytest.raises(IntegrityError):
+            sessao.commit()
+
+
+class TestSavepointNaCorrida:
+    """
+    M11.1 — o teste que importa. Prova que `registrar_marcos` contém a colisão
+    dentro do SAVEPOINT: uma corrida não pode derrubar a transação do
+    chamador, porque em três dos quatro pontos de disparo a gravação do marco
+    é parte da MESMA mutação que a produziu (ex.: `dividas.quitar`).
+
+    Como a suíte não tem duas requisições de verdade rodando ao mesmo tempo,
+    a corrida é simulada como a tarefa autoriza: a linha concorrente é gravada
+    por uma SEGUNDA sessão bem entre o SELECT e o INSERT de
+    `registrar_marcos`, usando o hook de `Session.scalars` para interceptar
+    exatamente esse instante. O ponto não é reproduzir paralelismo real — é
+    exercitar o savepoint.
+    """
+
+    def test_a_corrida_nao_derruba_a_outra_escrita_da_mesma_transacao(self, sessao, engine):
+        tenant = get_settings().tenant_id
+        Local = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+        concorrente = Local()
+
+        # A OUTRA escrita da mesma transação do chamador — no mundo real, é a
+        # quitação da dívida, o pagamento da parcela ou a renegociação que
+        # disparou o marco. Fica pendente, sem commit, exatamente como nos
+        # três routers que chamam `registrar_marcos` sem fechar a transação.
+        sessao.add(orm.Marco(tenant_id=tenant, tipo="primeira_negociacao"))
+
+        scalars_original = sessao.scalars
+
+        def scalars_com_corrida(*args, **kwargs):
+            # Roda o SELECT de verdade primeiro — ele ainda não vê a linha
+            # concorrente, porque ela nasce só agora.
+            resultado = scalars_original(*args, **kwargs)
+            concorrente.add(orm.Marco(tenant_id=tenant, tipo="rota_25"))
+            concorrente.commit()
+            return resultado
+
+        try:
+            with patch.object(sessao, "scalars", side_effect=scalars_com_corrida):
+                novos = registrar_marcos(sessao, tenant, ["rota_25"])
+
+            # (a) não estoura: a colisão foi tratada como "já existe".
+            assert novos == ()
+
+            # (b) a outra escrita da mesma transação é commitada — a corrida
+            # no marco não derrubou a mutação que a produziu.
+            sessao.commit()
+        finally:
+            concorrente.close()
+
+        assert (
+            sessao.query(orm.Marco)
+            .filter_by(tenant_id=tenant, tipo="primeira_negociacao")
+            .count()
+            == 1
+        )
+
+        # (c) continua havendo uma linha só do marco que colidiu — a da
+        # concorrente, sem duplicata.
+        linhas_rota_25 = (
+            sessao.query(orm.Marco).filter_by(tenant_id=tenant, tipo="rota_25").all()
+        )
+        assert len(linhas_rota_25) == 1
+
+    def test_registrar_marcos_segue_idempotente_sem_corrida(self, sessao):
+        # Sanidade: sem colisão, o comportamento pré-existente continua —
+        # devolve o tipo como "novo" e grava uma linha só.
+        tenant = get_settings().tenant_id
+        novos = registrar_marcos(sessao, tenant, ["rota_50"])
+        sessao.commit()
+
+        assert novos == ("rota_50",)
+        assert (
+            sessao.scalars(
+                select(orm.Marco.tipo).where(
+                    orm.Marco.tenant_id == tenant, orm.Marco.tipo == "rota_50"
+                )
+            ).all()
+            == ["rota_50"]
+        )

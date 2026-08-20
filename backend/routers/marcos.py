@@ -3,6 +3,7 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import orm
@@ -47,23 +48,28 @@ def registrar_marcos(db: Session, tenant: str, tipos: Sequence[str]) -> tuple[st
     """
     Grava os marcos que ainda não existem, e devolve os que nasceram agora.
 
-    IDEMPOTENTE POR `(tenant_id, tipo)`, e a idempotência é ESCRITA AQUI porque
-    o banco não a impõe: não há UNIQUE nessa dupla — nenhuma tabela deste banco
-    tem. Sem esta checagem, um marco gravado duas vezes vira conquista duplicada
-    e tela que reaparece. Ela vale por três caminhos que chegam ao mesmo tipo: a
-    quitação é detectada em dois lugares (`parcelas.pagar` e `dividas.quitar`) e
-    a rota é reavaliada em toda leitura do resumo.
+    IDEMPOTENTE POR `(tenant_id, tipo)`, com dois níveis de garantia. O SELECT
+    abaixo é o caminho normal e barato: cobre o caso sequencial e os três
+    caminhos que chegam ao mesmo tipo (a quitação é detectada em
+    `parcelas.pagar` e `dividas.quitar`, e a rota é reavaliada em toda leitura
+    do resumo). A rede é `uq_marco_tenant_tipo` (banco) — duas requisições do
+    mesmo tenant que passem juntas pelo SELECT já não conseguem gravar a mesma
+    linha duas vezes: a segunda inserção esbarra na UNIQUE.
 
-    NÃO COMMITA. Quem chama fecha a transação, porque nos três routers de
-    escrita a gravação do marco faz parte da MESMA mutação que o disparou — um
-    commit aqui gravaria a conquista antes de a quitação estar salva. `resumo`,
-    que só lê, commita explicitamente quando esta função devolve algo.
+    CADA INSERÇÃO VAI DENTRO DO PRÓPRIO SAVEPOINT (`db.begin_nested()`), e por
+    um motivo que não é estético: esta função NÃO COMMITA. Quem chama fecha a
+    transação, e em três dos quatro pontos de disparo (`parcelas.pagar`,
+    `parcelas.renegociar`, `dividas.quitar`) a gravação do marco é parte da
+    MESMA mutação que o disparou. Sem savepoint, um `IntegrityError` de corrida
+    subiria até o commit do chamador e abortaria a transação inteira — a
+    quitação da dívida cairia junto com a corrida que ela mesma produziu, o
+    que trocaria um defeito cosmético por um grave. O savepoint contém o dano:
+    reverte só a inserção que colidiu, e a transação externa segue intacta.
+    `IntegrityError` dentro do savepoint é tratado como "esse marco já
+    existe" — que é a verdade.
 
-    LIMITAÇÃO CONHECIDA: duas requisições simultâneas do mesmo tenant podem
-    passar juntas pelo SELECT e inserir a mesma linha duas vezes. Sem UNIQUE não
-    há como travar isso na gravação, e por isso `listar` agrega por tipo — a
-    resposta continua com uma entrada por marco, e `atingidoEm` continua sendo a
-    data mais antiga. A dupla vira linha órfã, nunca conquista dobrada.
+    Savepoint, não `ON CONFLICT DO NOTHING`: a suíte roda em SQLite e o alvo é
+    Postgres, e `begin_nested()` é portável nos dois sem ramo por dialeto.
     """
     if not tipos:
         return ()
@@ -76,10 +82,20 @@ def registrar_marcos(db: Session, tenant: str, tipos: Sequence[str]) -> tuple[st
         ).all()
     )
 
-    novos = tuple(dict.fromkeys(t for t in tipos if t not in ja_gravados))
-    for tipo in novos:
-        db.add(orm.Marco(tenant_id=tenant, tipo=tipo))
-    return novos
+    candidatos = tuple(dict.fromkeys(t for t in tipos if t not in ja_gravados))
+    novos = []
+    for tipo in candidatos:
+        try:
+            with db.begin_nested():
+                db.add(orm.Marco(tenant_id=tenant, tipo=tipo))
+                db.flush()
+        except IntegrityError:
+            # Corrida: outra requisição gravou este (tenant, tipo) entre o
+            # SELECT acima e este INSERT. O savepoint já desfez a inserção
+            # colidida; a transação externa não sofre nada.
+            continue
+        novos.append(tipo)
+    return tuple(novos)
 
 
 @router.get("", response_model=schemas.ListaMarcos)
@@ -94,11 +110,13 @@ def listar(db: Session = Depends(get_db), tenant: str = Depends(tenant_atual)):
     LEITURA PURA. Nenhuma conta, nenhum limiar, nenhuma comparação com o estado
     atual: o que veio da tabela é a resposta.
 
-    A AGREGAÇÃO POR TIPO não é enfeite. Como o banco não tem UNIQUE em
-    `(tenant_id, tipo)`, uma corrida entre duas requisições poderia deixar duas
-    linhas do mesmo marco; `MIN(atingido_em)` mantém a data da conquista original
-    e `MIN(celebrado_em)` — que em SQL ignora nulos — mantém a primeira
-    celebração. O contrato fica igual com uma linha ou com duas.
+    A AGREGAÇÃO POR TIPO é defesa em profundidade, não a garantia primária.
+    Desde `uq_marco_tenant_tipo` (M11.1) o banco impõe uma linha por
+    `(tenant_id, tipo)`, e `registrar_marcos` trata a corrida com savepoint —
+    então na prática nunca há duas linhas para agregar. `MIN(atingido_em)`
+    mantém a data da conquista original e `MIN(celebrado_em)` — que em SQL
+    ignora nulos — mantém a primeira celebração; o contrato fica igual com uma
+    linha ou, num cenário que a UNIQUE já não deveria permitir, com duas.
     """
     gravados = {
         tipo: (atingido_em, celebrado_em)

@@ -1,7 +1,17 @@
 import uuid
 from datetime import date, datetime, timezone
 
-from sqlalchemy import BigInteger, Boolean, Date, DateTime, Integer, String, Text, func
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    Date,
+    DateTime,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -576,9 +586,19 @@ class Marco(Base):
     `tipo` é `primeira_negociacao` | `primeira_quitacao` | `rota_25` | `rota_50`
     | `rota_75`. Linha ausente é marco não atingido; a rota devolve os cinco
     tipos com nulos, e não é este arquivo que decide quando o gatilho ocorre.
+
+    UMA LINHA POR `(tenant_id, tipo)`, E AGORA A GARANTIA É DO BANCO. Até este
+    ponto (M11) a idempotência morava só em `registrar_marcos`, que consultava
+    e inserta em passos separados — uma corrida entre duas requisições do
+    mesmo tenant podia passar as duas pelo SELECT e gravar a mesma linha duas
+    vezes. `uq_marco_tenant_tipo` fecha essa janela: a segunda inserção
+    concorrente levanta `IntegrityError` em vez de virar linha órfã, e
+    `registrar_marcos` trata esse erro dentro de um SAVEPOINT como "esse marco
+    já existe" — que é a verdade.
     """
 
     __tablename__ = "marco"
+    __table_args__ = (UniqueConstraint("tenant_id", "tipo", name="uq_marco_tenant_tipo"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=novo_id)
     tenant_id: Mapped[str] = mapped_column(String(36), index=True)
