@@ -2,12 +2,25 @@
 
 ## Status
 
-`READY_FOR_PLANNING`
+`PLANNING`
+
+O plano de execução existe em [`plan.md`](plan.md) desde 20/08/2026, com **seis tarefas** e
+resultado `PLAN_VALID`. Ele **não tem gate de planejamento aberto** e está pronto para
+congelamento assim que a aprovação humana chegar — momento em que o estado passa a
+`READY_FOR_BUILD`.
 
 As duas decisões de produto de 20/08/2026 estão em *Decisions*, e as três incógnitas que faltavam
 foram fechadas pela [**ADR 0021**](../../adr/0021-renda-tipada-por-adicao-e-o-canal-decide-quando-a-oferta-e-dita.md),
 aceita no mesmo dia — ver *Unknowns*. Entre elas, o **conflito já existente entre `docs/domain.md`
 e o código em produção**, que a ADR resolve alterando o código.
+
+**O planejamento fechou duas coisas que o contrato deixava em aberto.** `PF-1`: o canal default da
+rota é `email`, porque o texto único de hoje já é uma mensagem formal e estruturada — qualquer
+outro default trocaria o formato **e** o momento da oferta de uma vez. `PF-2`: o alerta anti-golpe
+alcança quem cadastrou a dívida na mão **pela tela de revisão**, não pelo chat — `chat.py:137`
+continua filtrando o card quando `valorJusto` é `null`, porque é a ADR 0008 e a regra de forma do
+`api-contract.md`, e um card chamado "valor justo" sem valor justo é o modo de falha do
+guardrail 7.1.
 
 ## Priority
 

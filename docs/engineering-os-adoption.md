@@ -14,7 +14,13 @@ repositório; não declara ausência de bugs, dívida técnica ou validação pe
 - **Contexto do projeto:** `docs/agent-guidelines.md` e seus documentos canônicos.
 - **Roadmap do produto/front:** `roadmap.md`.
 - **Fila do backend:** `docs/api-contract.md`, seção 4.
-- **Feature Contracts:** `docs/features/`; F-010 está em `READY_FOR_HUMAN_REVIEW` desde
+- **Feature Contracts:** `docs/features/`; **F-011 e F-012 estão em `PLANNING` desde 20/08/2026**,
+  cada uma com `plan.md` de seis tarefas e seis Task Contracts em `tasks/`. O plano do F-012 é
+  `PLAN_VALID` e espera só a aprovação humana; o do F-011 é `PLAN_VALID` com um
+  `ARCHITECTURE_DECISION_REQUIRED` registrado — o `PF-4` do plano nomeia que a ADR 0021 não
+  desempata entre renda bruta e líquida como base do compromisso percentual, e a cascata não pode
+  ser escrita sobre uma escolha que ninguém tomou. O Planner nomeia a decisão; não a toma.
+  F-010 está em `READY_FOR_HUMAN_REVIEW` desde
   20/08/2026 — as oito tarefas foram executadas em sequência e os sete perfis passam. Antes disso
   ele foi `READY_FOR_BUILD` em 19/08/2026, quando a ADR 0019 fechou as quatro incógnitas que o
   prendiam em `SPEC_IN_PROGRESS` e as duas decisões restantes (PF-1 e PF-2) mais a aprovação do
@@ -39,6 +45,12 @@ repositório; não declara ausência de bugs, dívida técnica ou validação pe
 
 Medida no fechamento do M11 (F-010, T8), com a árvore em `main` e as duas suítes de teste da
 própria T8 já dentro do número. É esta linha que vale como baseline do próximo milestone.
+
+**Remedida em 20/08/2026 ao planejar F-011 e F-012**, com a árvore limpa em `38a69d3`: `npx jest`
+deu **45 suítes / 539 testes** e `venv/bin/pytest` deu **620 testes com 23 avisos** — idêntico à
+tabela abaixo, campo a campo. Ao contrário do que aconteceu ao planejar o F-010 (`PF-9` daquele
+plano), a baseline documentada **não** estava defasada e não precisou de correção. A cabeça da
+cadeia Alembic foi confirmada em `116f2181bdda` por `alembic heads`.
 
 | Perfil | Resultado |
 |---|---|

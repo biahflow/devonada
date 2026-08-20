@@ -765,17 +765,31 @@ três números idênticos aos de antes do M11, e há teste de regressão dos doi
 ## M12 — Renda tipada, negociação por canal e a Rota de Chegada
 
 **Feature Contracts:** o que resta do M12 foi partido em dois, em 20/08/2026, porque renda tipada
-e negociação por canal não têm interseção de código — uma mora em `domain/caixa.py` e `leitura.py`,
-a outra em `routers/revisao.py` e `orm.Renegociacao`. Executáveis em paralelo.
+e negociação por canal não têm interseção de **arquivos** — uma mora em `domain/caixa.py` e
+`leitura.py`, a outra em `routers/revisao.py` e `orm.Renegociacao`. Executáveis em paralelo.
+Elas **têm** interseção de efeito, descoberta no planejamento: ver o quarto consumidor, abaixo.
 
 - [F-011 — Renda tipada e compromisso percentual](docs/features/F-011-renda-tipada/feature.md) ·
-  `READY_FOR_PLANNING`
+  `PLANNING` · [plano](docs/features/F-011-renda-tipada/plan.md), seis tarefas, `PLAN_VALID`
+  com um `ARCHITECTURE_DECISION_REQUIRED` aberto
 - [F-012 — Negociação por canal e registro de resultado](docs/features/F-012-negociacao-por-canal/feature.md) ·
-  `READY_FOR_PLANNING`
+  `PLANNING` · [plano](docs/features/F-012-negociacao-por-canal/plan.md), seis tarefas, `PLAN_VALID`
 
 A [**ADR 0021**](docs/adr/0021-renda-tipada-por-adicao-e-o-canal-decide-quando-a-oferta-e-dita.md)
 fechou as sete incógnitas de modelagem em 20/08/2026, e com ela os dois contratos subiram para
-planejamento. O eixo das sete: **nada muda por conversão, tudo entra por adição** — alíquota por
+planejamento. Os dois planos foram escritos em 20/08/2026, com seis tarefas cada. O do
+F-012 está válido e à espera de aprovação; o do F-011 tem **um gate de planejamento aberto** — a
+ADR diz que o compromisso percentual incide sobre "a renda típica" e não desempata entre bruta e
+líquida (`PF-4` do plano), e a cascata não pode ser escrita sobre uma escolha que ninguém tomou.
+
+**O planejamento também achou um quarto consumidor de `leitura.capacidade_atual`** que nem a ADR
+nem os contratos citavam: `revisao._capacidade_para_oferta` (`backend/routers/revisao.py:176`), que
+monta a oferta do script de negociação. Compromisso percentual declarado vai derrubar **a oferta
+que a pessoa faz ao credor** — aceito em 20/08/2026, porque oferecer o que não cabe no mês é o
+plano quebrado que o produto existe para evitar. O teste cruzado do M12 cobre **quatro**
+consumidores, não três.
+
+O eixo das sete: **nada muda por conversão, tudo entra por adição** — alíquota por
 fonte com o global como fallback, 13º e férias como evento previsível fora da cascata, compromisso
 percentual como pote novo, resultado de negociação como entidade nova. Os potes, o `min()` da renda
 típica e a `Renegociacao` ficam como estão.

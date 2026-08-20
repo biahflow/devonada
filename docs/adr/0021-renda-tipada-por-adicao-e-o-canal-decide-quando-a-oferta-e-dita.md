@@ -204,3 +204,28 @@ renegociar, o que não sustenta benchmark nenhum.
 − **A copy de negociação triplica** — três variantes, cada uma com abertura de segurança e
   fechamento de pagamento. O gate de revisão por advogado, que o roadmap marca como o único item
   capaz de encerrar o produto, passa a ter três vezes mais superfície a cobrir.
+
+---
+
+## Nota de correção — 20/08/2026
+
+Acrescentada ao planejar F-011 e F-012. **Não altera nenhuma das sete decisões**; corrige um fato
+que a seção *Consequências* afirma errado.
+
+Onde esta ADR diz que a ação a distância alcança **três** consumidores — o simulador, a
+`margemDisponivel` do painel e o card `plano_sugerido` do chat —, são **quatro**.
+`grep -rn "capacidade_atual"` encontra também `backend/routers/revisao.py:176`, dentro de
+`_capacidade_para_oferta` (160-185), que lê `caixa.capacidade_hoje` para montar a frase *"consigo
+comprometer até R$ X por mês"* do script de negociação.
+
+A consequência prática é que o compromisso percentual da decisão 4 derruba também **a oferta que o
+usuário faz ao credor**. Decidido em 20/08/2026 aceitar o efeito e prová-lo por teste: oferecer ao
+credor o que não cabe no mês é exatamente o plano quebrado que o produto existe para evitar. O
+teste cruzado obrigatório do M12 cobre os quatro, e não os três.
+
+Isso também qualifica a afirmação de que F-011 e F-012 "não têm interseção": elas não têm
+interseção de **arquivos**, e por isso continuam paralelizáveis. Têm interseção de **efeito** — o
+F-011 muda o número que o script do F-012 recita.
+
+Registrado em `PF-1` de `docs/features/F-011-renda-tipada/plan.md` e em `PF-3` de
+`docs/features/F-012-negociacao-por-canal/plan.md`.

@@ -2,7 +2,15 @@
 
 ## Status
 
-`READY_FOR_PLANNING`
+`PLANNING`
+
+O plano de execução existe em [`plan.md`](plan.md) desde 20/08/2026, com **seis tarefas** e
+resultado `PLAN_VALID` — mas com um `ARCHITECTURE_DECISION_REQUIRED` registrado. Ele **não está
+congelado**, e o que falta é uma decisão: o `PF-4` do plano registra que a ADR 0021 diz que o
+compromisso percentual "incide sobre a renda típica" e **não desempata entre bruta e líquida**.
+T1 escreveria a cascata sobre uma escolha que ninguém tomou.
+
+Decidido o `PF-4` e aprovado o plano, o estado passa a `READY_FOR_BUILD`.
 
 As quatro decisões de produto de 20/08/2026 estão em *Decisions*, e as quatro incógnitas que
 faltavam foram fechadas pela [**ADR 0021**](../../adr/0021-renda-tipada-por-adicao-e-o-canal-decide-quando-a-oferta-e-dita.md),
@@ -10,6 +18,11 @@ aceita no mesmo dia — ver *Unknowns*, que agora registra a decisão de cada um
 
 É o mesmo caminho que o F-010 percorreu: contrato escrito, incógnitas nomeadas, ADR fechando o
 gate humano, e só então o Planner.
+
+**O planejamento acrescentou um fato que o contrato não trazia:** existe um **quarto** consumidor
+de `leitura.capacidade_atual` — `revisao._capacidade_para_oferta` (`backend/routers/revisao.py:176`),
+que monta a oferta do script de negociação. Compromisso percentual declarado derruba também **a
+oferta que o usuário faz ao credor**. Aceito por decisão humana em 20/08/2026; ver `PF-1` do plano.
 
 ## Priority
 
