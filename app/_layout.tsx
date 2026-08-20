@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Redirect, Stack } from 'expo-router';
+import { Redirect, Stack, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -9,6 +9,7 @@ import { ArchivoBlack_400Regular } from '@expo-google-fonts/archivo-black';
 import { ApiError } from '../src/api/client';
 import { carregarSessao, useSessao } from '../src/api/sessao';
 import { SplashDevoNada } from '../src/components/SplashDevoNada';
+import { useMarcoPendente } from '../src/hooks/useMarcos';
 import { useResumo } from '../src/hooks/usePainel';
 import { mesAtual } from '../src/util/mes';
 import { colors } from '../src/theme/theme';
@@ -54,6 +55,9 @@ const queryClient = new QueryClient({
 function PortaDeEntrada() {
   const sessao = useSessao();
   const primeiroAcesso = usePrimeiroAcesso();
+  const segmentos = useSegments();
+  // Sem sessão não se pede marco: seria um 401 que ninguém lê, na tela de login.
+  const marcoPendente = useMarcoPendente(sessao === 'autenticado');
 
   // Sem sessão, nenhuma tela de dado financeiro chega a montar (RF-001).
   if (sessao === 'anonimo') return <Redirect href="/login" />;
@@ -67,6 +71,22 @@ function PortaDeEntrada() {
   // onboarding" mentiria para quem apagou tudo e recomeçou — e essa pessoa
   // merece a mesma acolhida da primeira vez.
   if (primeiroAcesso) return <Redirect href="/(onboarding)/divida" />;
+
+  // MARCO ATINGIDO E AINDA NÃO CELEBRADO ABRE A TELA CHEIA (M11, T7). Ele vem
+  // DEPOIS do onboarding de propósito: quem ainda não cadastrou dívida não tem
+  // marco, e se tivesse, a celebração no lugar do primeiro passo diria à pessoa
+  // que ela já terminou algo que nem começou.
+  //
+  // O SEGMENTO É O QUE IMPEDE O LOOP. Este componente é irmão do `Stack` e
+  // renderiza a cada navegação: sem a checagem, chegar em `(marco)` dispararia
+  // outro `Redirect` para `(marco)`, e a tela nunca terminaria de montar.
+  // `(onboarding)` fica de fora pela mesma razão do parágrafo acima — a rota de
+  // lá não é interrompida no meio.
+  const grupo = segmentos[0];
+  if (marcoPendente && grupo !== '(marco)' && grupo !== '(onboarding)') {
+    return <Redirect href={`/(marco)/${marcoPendente.tipo}`} />;
+  }
+
   return null;
 }
 

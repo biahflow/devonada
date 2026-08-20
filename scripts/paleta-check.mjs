@@ -56,12 +56,29 @@ const pares = [
   { fg: 'primaryDeep', bg: 'primarySurface', intencao: 'texto', nota: 'Badge primario' },
   { fg: 'accent', bg: 'background', intencao: 'texto' },
   { fg: 'accent', bg: 'surface', intencao: 'texto' },
-  { fg: 'accent', bg: 'accentSurface', intencao: 'texto', nota: 'Badge progresso, Feedback success' },
+  {
+    fg: 'accent',
+    bg: 'accentSurface',
+    intencao: 'texto',
+    nota: 'Badge progresso, Feedback success, e o ícone da conquista dentro do halo da MarcoScreen',
+  },
   {
     fg: 'accent',
     bg: 'neutralSurface',
     intencao: 'grafico',
-    nota: 'preenchimento da barra do RespiroCard e do MetaCard (status atingida), sobre o trilho',
+    nota:
+      'preenchimento da barra do RespiroCard e do MetaCard (status atingida), sobre o trilho; ' +
+      'e o respiro liberado da MarcoScreen em display — texto grande (≥26px), que a WCAG mede ' +
+      'por este mesmo piso',
+  },
+  {
+    fg: 'accentSurface',
+    bg: 'background',
+    intencao: 'grafico',
+    excecao:
+      'glow da MarcoScreen: celebração decorativa, nunca portadora de informação. Quem diz que ' +
+      'houve conquista é o título em display ao lado, e no iOS o halo ainda ganha a sombra ' +
+      'colorida que o Android não pinta',
   },
 
   // --- âmbar: negociação em andamento --------------------------------------

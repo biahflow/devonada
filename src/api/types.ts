@@ -724,3 +724,36 @@ export interface SituacaoAssinatura {
   produtoId?: string | null;
   renovacaoAutomatica?: boolean | null;
 }
+
+// --- M11 · marcos (ADR 0019, item 4) ----------------------------------------
+
+/**
+ * Os cinco pontos da rota que disparam celebração. ESPELHO de `TipoDeMarco` em
+ * `backend/schemas.py` — o backend devolve sempre os cinco, na ordem dele.
+ */
+export type TipoDeMarco =
+  | 'primeira_negociacao'
+  | 'primeira_quitacao'
+  | 'rota_25'
+  | 'rota_50'
+  | 'rota_75';
+
+/**
+ * Uma conquista e seus dois instantes.
+ *
+ * OS DOIS SÃO SEPARADOS DE PROPÓSITO, e é a mesma razão escrita no docstring de
+ * `Marco` em `backend/schemas.py`: `atingidoEm` é quando o gatilho ocorreu;
+ * `celebradoEm`, quando a `MarcoScreen` foi exibida. Sem essa separação a tela
+ * reapareceria a cada abertura do app — e um marco atingido com o app fechado,
+ * ou durante o período somente leitura da assinatura, se perderia em vez de
+ * esperar.
+ *
+ * `atingidoEm` nulo é marco NÃO ATINGIDO: a rota devolve os cinco tipos sempre,
+ * e a ausência é dita, não omitida. Nenhum dos dois é opcional na resposta —
+ * eles são nulos, que é coisa diferente de ausentes.
+ */
+export interface Marco {
+  tipo: TipoDeMarco;
+  atingidoEm: IsoDate | null;
+  celebradoEm: IsoDate | null;
+}

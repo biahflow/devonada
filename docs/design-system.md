@@ -174,7 +174,7 @@ justificativa fica ao lado dele. As exceções vigentes estão registradas na AD
 | `primaryDeep` `#7CE8AF` | `primarySurface` `#12251B` <br><sub>Badge primario</sub> | 10,73:1 | 4,5:1 | passa |
 | `accent` `#3FDC8A` | `background` `#101216` | 10,55:1 | 4,5:1 | passa |
 | `accent` `#3FDC8A` | `surface` `#181B21` | 9,70:1 | 4,5:1 | passa |
-| `accent` `#3FDC8A` | `accentSurface` `#132A1F` <br><sub>Badge progresso, Feedback success</sub> | 8,57:1 | 4,5:1 | passa |
+| `accent` `#3FDC8A` | `accentSurface` `#132A1F` <br><sub>Badge progresso, Feedback success, e o ícone da conquista dentro do halo da MarcoScreen</sub> | 8,57:1 | 4,5:1 | passa |
 | `warning` `#F0A31C` | `background` `#101216` | 8,89:1 | 4,5:1 | passa |
 | `warning` `#F0A31C` | `surface` `#181B21` | 8,18:1 | 4,5:1 | passa |
 | `warning` `#F0A31C` | `neutralSurface` `#1F232B` | 7,47:1 | 4,5:1 | passa |
@@ -190,7 +190,8 @@ justificativa fica ao lado dele. As exceções vigentes estão registradas na AD
 
 | Frente | Fundo | Contraste | Piso | Resultado |
 |---|---|---|---|---|
-| `accent` `#3FDC8A` | `neutralSurface` `#1F232B` <br><sub>preenchimento da barra do RespiroCard e do MetaCard (status atingida), sobre o trilho</sub> | 8,86:1 | 3,0:1 | passa |
+| `accent` `#3FDC8A` | `neutralSurface` `#1F232B` <br><sub>preenchimento da barra do RespiroCard e do MetaCard (status atingida), sobre o trilho; e o respiro liberado da MarcoScreen em display — texto grande (≥26px), que a WCAG mede por este mesmo piso</sub> | 8,86:1 | 3,0:1 | passa |
+| `accentSurface` `#132A1F` | `background` `#101216` | 1,23:1 | 3,0:1 | **exceção** — glow da MarcoScreen: celebração decorativa, nunca portadora de informação. Quem diz que houve conquista é o título em display ao lado, e no iOS o halo ainda ganha a sombra colorida que o Android não pinta |
 | `debtText` `#EC6C65` | `surface` `#181B21` <br><sub>o quadrado da aba ativa, sobre a barra — fase de dívida</sub> | 5,67:1 | 3,0:1 | passa |
 | `debt` `#E5352B` | `background` `#101216` <br><sub>ponto do wordmark, halo da splash, e o saldo devedor em display/displaySm — texto grande (≥26px), que a WCAG mede por este mesmo piso</sub> | 4,35:1 | 3,0:1 | passa |
 | `debt` `#E5352B` | `surface` `#181B21` <br><sub>ponto do wordmark na topbar de toda aba; saldo devedor grande dentro de card</sub> | 4,00:1 | 3,0:1 | passa |
@@ -244,6 +245,14 @@ um objeto com `elevation: 0` mantém esse spread válido sem custo. Não remova 
 **A exceção declarada:** o glow verde da tela de vitória e dos marcos
 (`0 0 60px rgba(31,193,107,.35)`). Ele é celebração pontual, não hierarquia de superfície, e por
 isso vive na própria tela, não no token.
+
+O valor acima é o da **tela de vitória**, que ainda não existe. O do marco é menor de propósito —
+celebração inflacionada esvazia a próxima —, e o implementado em `MarcoScreen` (M11) é
+`shadowColor: primary`, `shadowOpacity: 0.2`, `shadowRadius: 34`, offset zero. **São duas camadas
+porque são duas plataformas:** `shadow*` só pinta halo colorido no iOS, e no Android `elevation`
+não pinta sombra colorida nenhuma; quem faz o brilho lá é o próprio disco em `accentSurface` atrás
+do ícone. O par `accentSurface` × `background` está no `palette:check` como exceção declarada — o
+glow é decorativo, e nenhuma informação depende de alguém enxergá-lo.
 
 ---
 
@@ -652,6 +661,14 @@ coeficiente sem fonte que a ADR 0019 recusou.
 Vive **fora do grupo `(tabs)`**, no molde de `(onboarding)`: barra de abas embaixo de uma tela de
 celebração a transforma em modal decorativo. `gestureEnabled: false` e saída só pelos dois botões,
 que é o que grava `celebradoEm` e impede a tela de reaparecer a cada abertura do app.
+
+Entregue em `app/(marco)/[tipo].tsx` (M11, T7), com o disparo em `PortaDeEntrada`
+(`app/_layout.tsx`): sessão → onboarding → marco pendente, nessa ordem. O container sai da tela
+**sem escrever nada** quando o tipo da rota é desconhecido, o marco não foi atingido, ele já foi
+celebrado, ou a leitura falhou — `celebradoEm` continua nulo e a conquista volta na próxima
+abertura, que é o que o contrato desenhou para o marco que não pôde ser exibido. Nenhuma das duas
+saídas espera a rede: se a escrita falhar, inclusive com o `402` do período somente leitura, o
+usuário sai do mesmo jeito.
 
 **O compartilhamento em formato story fica de fora do M11.** A concepção o previa, e ele volta
 quando estiver decidido o que pode aparecer na imagem — valor absoluto de dívida é o dado mais
