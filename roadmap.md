@@ -770,17 +770,27 @@ e negociação por canal não têm interseção de **arquivos** — uma mora em 
 Elas **têm** interseção de efeito, descoberta no planejamento: ver o quarto consumidor, abaixo.
 
 - [F-011 — Renda tipada e compromisso percentual](docs/features/F-011-renda-tipada/feature.md) ·
-  `PLANNING` · [plano](docs/features/F-011-renda-tipada/plan.md), seis tarefas, `PLAN_VALID`
-  com um `ARCHITECTURE_DECISION_REQUIRED` aberto
+  `READY_FOR_BUILD` · [plano](docs/features/F-011-renda-tipada/plan.md), seis tarefas, `PLAN_VALID`,
+  congelado em 20/08/2026
 - [F-012 — Negociação por canal e registro de resultado](docs/features/F-012-negociacao-por-canal/feature.md) ·
-  `PLANNING` · [plano](docs/features/F-012-negociacao-por-canal/plan.md), seis tarefas, `PLAN_VALID`
+  `READY_FOR_BUILD` · [plano](docs/features/F-012-negociacao-por-canal/plan.md), seis tarefas,
+  `PLAN_VALID`, congelado em 20/08/2026
 
 A [**ADR 0021**](docs/adr/0021-renda-tipada-por-adicao-e-o-canal-decide-quando-a-oferta-e-dita.md)
 fechou as sete incógnitas de modelagem em 20/08/2026, e com ela os dois contratos subiram para
-planejamento. Os dois planos foram escritos em 20/08/2026, com seis tarefas cada. O do
-F-012 está válido e à espera de aprovação; o do F-011 tem **um gate de planejamento aberto** — a
-ADR diz que o compromisso percentual incide sobre "a renda típica" e não desempata entre bruta e
-líquida (`PF-4` do plano), e a cascata não pode ser escrita sobre uma escolha que ninguém tomou.
+planejamento. Os dois planos foram escritos em 20/08/2026, com seis tarefas cada, e **os dois foram
+congelados no mesmo dia**.
+
+O gate que segurava o F-011 caiu com a **Nota de desempate** da ADR: a ADR dizia que o compromisso
+percentual incide sobre "a renda típica" e não desempatava entre bruta e líquida (`PF-4` do plano).
+Decidido em 20/08/2026 — **incide sobre a renda LÍQUIDA típica**, a mesma base sobre a qual o piso
+legal já é medido (`caixa.py:254-276`). Sobre a bruta, o app comprometeria dinheiro que a pessoa
+nunca vê, e para `pj_hora` e `autonomo` — o público desta feature — a diferença é grande.
+
+**As duas executam em paralelo**, com uma coordenação que nenhum dos dois planos tinha visto: ambos
+declaravam encadear sua migração em `116f2181bdda`, e duas migrações do mesmo pai partem a cadeia
+Alembic em dois ramos. Registrado como `PLAN_DEVIATION` nos dois planos — a T1 do F-011 escreve a
+primeira, e a T3 do F-012 encadeia na cabeça que ela deixar.
 
 **O planejamento também achou um quarto consumidor de `leitura.capacidade_atual`** que nem a ADR
 nem os contratos citavam: `revisao._capacidade_para_oferta` (`backend/routers/revisao.py:176`), que

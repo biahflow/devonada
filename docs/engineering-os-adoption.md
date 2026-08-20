@@ -14,12 +14,13 @@ repositório; não declara ausência de bugs, dívida técnica ou validação pe
 - **Contexto do projeto:** `docs/agent-guidelines.md` e seus documentos canônicos.
 - **Roadmap do produto/front:** `roadmap.md`.
 - **Fila do backend:** `docs/api-contract.md`, seção 4.
-- **Feature Contracts:** `docs/features/`; **F-011 e F-012 estão em `PLANNING` desde 20/08/2026**,
-  cada uma com `plan.md` de seis tarefas e seis Task Contracts em `tasks/`. O plano do F-012 é
-  `PLAN_VALID` e espera só a aprovação humana; o do F-011 é `PLAN_VALID` com um
-  `ARCHITECTURE_DECISION_REQUIRED` registrado — o `PF-4` do plano nomeia que a ADR 0021 não
-  desempata entre renda bruta e líquida como base do compromisso percentual, e a cascata não pode
-  ser escrita sobre uma escolha que ninguém tomou. O Planner nomeia a decisão; não a toma.
+- **Feature Contracts:** `docs/features/`; **F-011 e F-012 estão em `READY_FOR_BUILD` desde
+  20/08/2026**, cada uma com `plan.md` de seis tarefas congelado e seis Task Contracts em `tasks/`.
+  O `ARCHITECTURE_DECISION_REQUIRED` do F-011 caiu no mesmo dia: o `PF-4` nomeava que a ADR 0021
+  não desempatava entre renda bruta e líquida como base do compromisso percentual, e o usuário
+  decidiu pela **líquida**, registrada na Nota de desempate da ADR. O Planner nomeou a decisão; não
+  a tomou. As duas executam em paralelo, com a coordenação da cadeia Alembic registrada como
+  `PLAN_DEVIATION` nos dois planos.
   F-010 está em `READY_FOR_HUMAN_REVIEW` desde
   20/08/2026 — as oito tarefas foram executadas em sequência e os sete perfis passam. Antes disso
   ele foi `READY_FOR_BUILD` em 19/08/2026, quando a ADR 0019 fechou as quatro incógnitas que o

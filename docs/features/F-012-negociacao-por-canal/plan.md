@@ -411,7 +411,7 @@ integration_strategy: |
   advogado.
 
 human_gates:
-  - ABERTO — aprovação deste plano, que move F-012 de `PLANNING` para `READY_FOR_BUILD`.
+  - SATISFEITO em 20/08/2026 — aprovação deste plano. F-012 está `READY_FOR_BUILD`.
   - ABERTO e de PRÉ-LANÇAMENTO — **revisão da copy das três variantes por advogado**, antes do
     público. Já está no roadmap como o único item capaz de encerrar o produto em vez de atrasar um
     release, e esta feature triplica a superfície que ele precisa cobrir. Nenhuma tarefa deste
@@ -553,3 +553,20 @@ base de incidência do percentual (o `PF-4` de lá) ainda não foi decidida.
 Nenhum. O plano ainda não foi congelado para execução. A partir do congelamento, mudança em
 dependência ou em trabalho planejado entra aqui com tarefa, estado planejado, estado real, impacto
 e resolução; não se corrige o plano em silêncio.
+
+---
+
+## PLAN_DEVIATION — 20/08/2026 · coordenação da cadeia Alembic entre F-011 e F-012
+
+- **task:** F-011 T1 e F-012 T3.
+- **planned:** cada plano assumiu, isoladamente, ser o único a escrever migração no milestone, e
+  ambos declararam encadear em `116f2181bdda`.
+- **actual:** as duas features foram autorizadas a executar **em paralelo** por decisão humana de
+  20/08/2026. Duas migrações nascidas do mesmo pai partem a cadeia em dois ramos, e
+  `alembic upgrade head` passa a falhar por múltiplas cabeças.
+- **impact:** nenhum no escopo das tarefas; é ordem de execução. Nenhum plano perde tarefa ou
+  critério de aceite.
+- **resolution:** **F-011 T1 escreve a primeira migração**, encadeada em `116f2181bdda`. **F-012 T3
+  encadeia na cabeça que T1 deixar** — confirmada por `venv/bin/alembic heads` no início da tarefa,
+  não presumida. Se `heads` devolver mais de uma cabeça, a tarefa para e reporta. Registrado nos
+  contratos de T1 (F-011) e T3 (F-012).

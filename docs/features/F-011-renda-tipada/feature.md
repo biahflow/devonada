@@ -2,15 +2,19 @@
 
 ## Status
 
-`PLANNING`
+`READY_FOR_BUILD`
 
-O plano de execução existe em [`plan.md`](plan.md) desde 20/08/2026, com **seis tarefas** e
-resultado `PLAN_VALID` — mas com um `ARCHITECTURE_DECISION_REQUIRED` registrado. Ele **não está
-congelado**, e o que falta é uma decisão: o `PF-4` do plano registra que a ADR 0021 diz que o
-compromisso percentual "incide sobre a renda típica" e **não desempata entre bruta e líquida**.
-T1 escreveria a cascata sobre uma escolha que ninguém tomou.
+O plano de execução em [`plan.md`](plan.md), de 20/08/2026, tem **seis tarefas** e resultado
+`PLAN_VALID`. Ele foi **congelado em 20/08/2026**, quando o último gate caiu.
 
-Decidido o `PF-4` e aprovado o plano, o estado passa a `READY_FOR_BUILD`.
+O `ARCHITECTURE_DECISION_REQUIRED` que o segurava era o `PF-4`: a ADR 0021 dizia que o compromisso
+percentual "incide sobre a renda típica" e **não desempatava entre bruta e líquida**. Decidido pelo
+usuário em 20/08/2026 — **incide sobre a renda LÍQUIDA típica**, a mesma base sobre a qual o piso
+legal já é medido —, e registrado na **Nota de desempate** no fim da ADR 0021.
+
+Execução autorizada **em paralelo com F-012**, com uma coordenação registrada como
+`PLAN_DEVIATION` nos dois planos: só T1 escreve a primeira migração do milestone, e a de F-012
+encadeia depois dela.
 
 As quatro decisões de produto de 20/08/2026 estão em *Decisions*, e as quatro incógnitas que
 faltavam foram fechadas pela [**ADR 0021**](../../adr/0021-renda-tipada-por-adicao-e-o-canal-decide-quando-a-oferta-e-dita.md),

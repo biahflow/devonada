@@ -444,11 +444,10 @@ integration_strategy: |
   marca item de device.
 
 human_gates:
-  - ABERTO e BLOQUEANTE — **PF-4: sobre qual base o compromisso percentual incide.** A ADR 0021
-    diz "renda típica" e não desempata entre bruta e líquida. Registrado como
-    `ARCHITECTURE_DECISION_REQUIRED`: o Planner nomeia a decisão, não a toma. Este plano NÃO pode
-    ser congelado antes dela; T1 escreveria a cascata sobre uma escolha que ninguém tomou.
-  - ABERTO — aprovação deste plano, que move F-011 de `PLANNING` para `READY_FOR_BUILD`.
+  - SATISFEITO em 20/08/2026 — **PF-4: sobre qual base o compromisso percentual incide.** Decidido
+    pelo usuário: **renda líquida típica**. O `ARCHITECTURE_DECISION_REQUIRED` está fechado, e a
+    decisão vive na Nota de desempate da ADR 0021, não nesta conversa.
+  - SATISFEITO em 20/08/2026 — aprovação deste plano. F-011 está `READY_FOR_BUILD`.
   - Aprovar a migração e sua estratégia para o dado de `tipo` já existente em produção
     (`Human Gates` do contrato). A estratégia deste plano é: **nenhum dado migra**, todas as
     colunas nascem `nullable`, e quem não declarar nada continua com os números de hoje.
@@ -491,18 +490,18 @@ planning_findings:
       `select(orm.Recebimento.valor)` e **descarta o mês**. A decisão 3 da ADR 0021 promete que "o
       mês que ancorou o valor viaja para a tela", e isso exige mudar a query, não só a tela.
   - id: PF-4
-    severity: ARCHITECTURE_DECISION_REQUIRED — decisão humana ANTES de congelar o plano
+    severity: RESOLVIDO por decisão humana em 20/08/2026
     finding: a ADR 0021, item 4, diz que o compromisso percentual "incide sobre a **renda típica**",
       e não desempata entre `renda_bruta_tipica` e `renda_liquida`. A escolha muda o número para
       todo mundo que declarar: com alíquota de 6%, um compromisso de 10% sobre a bruta reserva ~6,4%
       a mais que sobre a líquida.
-    recommendation: **líquida.** Compromisso é "percentual do que entra", e o que entra é o que
-      sobra depois do imposto reservado; usar a bruta comprometeria dinheiro que a pessoa nunca vê.
-      É também o que mantém a coerência com o piso, que já é medido sobre
-      `liquida − essenciais` (`caixa.py:275` e `:382-384`).
-    impact: T1 não pode começar sem isso. Escrever a cascata sobre a base errada e trocar depois é
-      mudar o número de todo mundo que já tiver declarado — o oposto do que o cuidado aditivo desta
-      feature existe para evitar.
+    decision: **renda LÍQUIDA típica** — a bruta típica menos o imposto reservado, exatamente o
+      `liquida` da cascata. Compromisso é "percentual do que entra", e o que entra é o que sobra
+      depois do imposto; usar a bruta comprometeria dinheiro que a pessoa nunca vê, e para quem é
+      `pj_hora` ou `autonomo` — o público desta feature — a diferença é grande. É também o que
+      mantém a coerência com o piso, já medido sobre `liquida − essenciais` (`caixa.py:254-276` e
+      `:382-384`). Registrada na **Nota de desempate de 20/08/2026** da ADR 0021 e no contrato de T1.
+    impact: nenhum residual. T1 está desbloqueada e escreve a cascata sobre a base decidida.
   - id: PF-5
     severity: RESOLVIDO por decisão humana em 20/08/2026
     finding: os seis tipos de renda não têm desenho pronto. `docs/design-system.md` não tem verbete
@@ -606,3 +605,20 @@ congelado; a partir daí, mudança em dependência ou em trabalho planejado é `
 Nenhum. O plano ainda não foi congelado para execução — falta o `PF-4`. A partir do congelamento,
 mudança em dependência ou em trabalho planejado entra aqui com tarefa, estado planejado, estado
 real, impacto e resolução; não se corrige o plano em silêncio.
+
+---
+
+## PLAN_DEVIATION — 20/08/2026 · coordenação da cadeia Alembic entre F-011 e F-012
+
+- **task:** F-011 T1 e F-012 T3.
+- **planned:** cada plano assumiu, isoladamente, ser o único a escrever migração no milestone, e
+  ambos declararam encadear em `116f2181bdda`.
+- **actual:** as duas features foram autorizadas a executar **em paralelo** por decisão humana de
+  20/08/2026. Duas migrações nascidas do mesmo pai partem a cadeia em dois ramos, e
+  `alembic upgrade head` passa a falhar por múltiplas cabeças.
+- **impact:** nenhum no escopo das tarefas; é ordem de execução. Nenhum plano perde tarefa ou
+  critério de aceite.
+- **resolution:** **F-011 T1 escreve a primeira migração**, encadeada em `116f2181bdda`. **F-012 T3
+  encadeia na cabeça que T1 deixar** — confirmada por `venv/bin/alembic heads` no início da tarefa,
+  não presumida. Se `heads` devolver mais de uma cabeça, a tarefa para e reporta. Registrado nos
+  contratos de T1 (F-011) e T3 (F-012).

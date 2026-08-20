@@ -2,12 +2,15 @@
 
 ## Status
 
-`PLANNING`
+`READY_FOR_BUILD`
 
-O plano de execução existe em [`plan.md`](plan.md) desde 20/08/2026, com **seis tarefas** e
-resultado `PLAN_VALID`. Ele **não tem gate de planejamento aberto** e está pronto para
-congelamento assim que a aprovação humana chegar — momento em que o estado passa a
-`READY_FOR_BUILD`.
+O plano de execução em [`plan.md`](plan.md), de 20/08/2026, tem **seis tarefas** e resultado
+`PLAN_VALID`. Ele não tinha gate de planejamento aberto, e foi **congelado em 20/08/2026** com a
+aprovação humana.
+
+Execução autorizada **em paralelo com F-011**, com uma coordenação registrada como
+`PLAN_DEVIATION` nos dois planos: a migração de T3 encadeia na cabeça que a T1 do F-011 deixar, e
+não em `116f2181bdda` como o plano supunha.
 
 As duas decisões de produto de 20/08/2026 estão em *Decisions*, e as três incógnitas que faltavam
 foram fechadas pela [**ADR 0021**](../../adr/0021-renda-tipada-por-adicao-e-o-canal-decide-quando-a-oferta-e-dita.md),

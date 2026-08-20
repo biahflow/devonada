@@ -229,3 +229,33 @@ F-011 muda o número que o script do F-012 recita.
 
 Registrado em `PF-1` de `docs/features/F-011-renda-tipada/plan.md` e em `PF-3` de
 `docs/features/F-012-negociacao-por-canal/plan.md`.
+
+---
+
+## Nota de desempate — 20/08/2026
+
+Acrescentada ao destravar o planejamento de F-011. **Não altera nenhuma das sete decisões**;
+desempata uma escolha que a decisão 4 deixou em aberto e que o `PF-4` do plano nomeou como
+`ARCHITECTURE_DECISION_REQUIRED`.
+
+A decisão 4 diz que o compromisso percentual "incide sobre a **renda típica**" e não desempata
+entre `renda_bruta_tipica` e a renda líquida. Não é detalhe de implementação: com alíquota de 6%,
+um compromisso de 10% sobre a bruta reserva ~6,4% a mais que sobre a líquida, e trocar a base
+depois mudaria o número de todo mundo que já tivesse declarado.
+
+**Decidido: o percentual incide sobre a renda LÍQUIDA típica** — a bruta típica menos o imposto
+reservado, exatamente o `liquida` da cascata de `domain/caixa.py`.
+
+Dois motivos:
+
+1. Compromisso é percentual **do que entra**, e o que entra é o que sobra depois do imposto
+   reservado. Sobre a bruta, o app comprometeria dinheiro que a pessoa nunca vê — para quem é
+   `pj_hora` ou `autonomo`, justamente o público desta feature, a diferença é grande.
+2. É o critério que o piso legal já usa. `respiro_invade_o_piso` mede sobre
+   `liquida − essenciais` (`backend/domain/caixa.py:254-276`), e `abaixo_do_piso` faz o mesmo.
+   Uma segunda base para "o que a pessoa tem" seria incoerência dentro da mesma cascata.
+
+A alíquota que produz essa líquida é a da decisão 1 — por fonte, com o `Perfil` como fallback.
+Quem não declarar alíquota nenhuma continua com o número de hoje, campo a campo.
+
+Registrado em `PF-4` de `docs/features/F-011-renda-tipada/plan.md` e no contrato de `T1`.
