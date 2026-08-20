@@ -600,8 +600,10 @@ declarando. O que sobrou de aberto aqui é o mesmo que sobra em M1.5–M9: devic
 - [x] `Button` variante `danger` perdeu o fundo vermelho — neste app não existe botão vermelho,
       nem para destruição.
 - [x] Gates verdes depois da troca: 291 Jest em 30 suítes, 452 pytest, typecheck, lint e
-      `bundle:check`. **Em 19/08/2026, depois de fechar os débitos: 441 Jest em 40 suítes e 497
+      `bundle:check`. **Em 19/08/2026, depois de fechar os débitos: 472 Jest em 42 suítes e 497
       pytest**, com dois gates novos — `palette:check` e `digits:check` — que não existiam ali.
+      (O número do Jest ficou registrado como 441 / 40 antes dos últimos commits do próprio M10, e
+      foi remedido ao planejar o F-010, no mesmo dia. Baseline copiada envelhece em silêncio.)
 - [x] **Contrastes remedidos, e a medição virou gate** (ADR 0018). 54 pares declarados em
       `scripts/paleta-check.mjs`, medidos em WCAG 2.1 e CIEDE2000: 48 passam, 6 são exceções
       justificadas, 0 reprovam. A tabela do `design-system.md` é a saída do script, não digitada.
@@ -660,7 +662,11 @@ declarando. O que sobrou de aberto aqui é o mesmo que sobra em M1.5–M9: devic
 
 ## M11 — Respiro — a intervenção anti-desistência
 
-**Feature Contract:** [F-010 — Respiro](docs/features/010-respiro.md) · `READY_FOR_PLANNING`.
+**Feature Contract:** [F-010 — Respiro](docs/features/F-010-respiro/feature.md) · `READY_FOR_BUILD`.
+**Plano de execução:** [plan.md](docs/features/F-010-respiro/plan.md) — oito tarefas, `PLAN_VALID`,
+congelado em 19/08/2026. Os três gates de planejamento estão satisfeitos: PF-1 (a destinação só
+debita e grava o lançamento), PF-2 (`caixa_snapshot` ganha a coluna `respiro`, aditiva e `nullable`)
+e a aprovação do plano.
 **Decisões:** ADR 0019 · **Contrato:** `api-contract.md`, Bloco 13.
 
 O item mais valioso que a concepção trouxe, e o único que nenhum concorrente tem. A justificativa

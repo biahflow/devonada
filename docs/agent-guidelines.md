@@ -23,6 +23,10 @@ As fontes de trabalho deste projeto são deliberadamente separadas:
 - `docs/features/` guarda os **Feature Contracts** (FDDs). Um item só fica
   `READY_FOR_PLANNING` quando seu contrato é suficiente; o plano de execução e a evidência são
   artefatos distintos, nunca seções improvisadas do roadmap.
+  **A partir do F-010, uma feature é uma pasta**, no layout padrão da Engineering OS:
+  `docs/features/F-NNN-slug/` com `feature.md`, `plan.md`, `tasks/` e `evidence.md`. O formato
+  plano `NNN-slug.md` continua valendo para os FDDs de M0 a M9, que não serão migrados — mover
+  documento histórico só para uniformizar quebra link e não entrega nada.
 - `docs/inventario.md` é uma visão **derivada e datada**. Ela não decide prioridade nem estado;
   em divergência, atualize primeiro a fonte canônica e depois o inventário.
 

@@ -14,8 +14,10 @@ repositório; não declara ausência de bugs, dívida técnica ou validação pe
 - **Contexto do projeto:** `docs/agent-guidelines.md` e seus documentos canônicos.
 - **Roadmap do produto/front:** `roadmap.md`.
 - **Fila do backend:** `docs/api-contract.md`, seção 4.
-- **Feature Contracts:** `docs/features/`; F-010 está em `SPEC_IN_PROGRESS`, portanto não é
-  elegível para planejamento ou implementação.
+- **Feature Contracts:** `docs/features/`; F-010 está em `READY_FOR_BUILD` desde 19/08/2026 — a
+  ADR 0019 fechou as quatro incógnitas que o prendiam em `SPEC_IN_PROGRESS`, e as duas decisões
+  restantes (PF-1 e PF-2) mais a aprovação do plano vieram na mesma data. O plano de execução vive
+  em `docs/features/F-010-respiro/plan.md`, congelado, com oito Task Contracts em `tasks/`.
 - **Status derivado:** `docs/inventario.md`; o M10 fechou seus quatro débitos em 19/08/2026 e o
   M13 segue parcialmente entregue, conforme o roadmap.
 
@@ -35,7 +37,7 @@ repositório; não declara ausência de bugs, dívida técnica ou validação pe
 |---|---|
 | `npm run typecheck` | passou |
 | `npm run lint` | passou |
-| `npm test -- --runInBand --watchman=false` | 441 testes / 40 suítes passaram |
+| `npm test -- --runInBand --watchman=false` | 42 suítes / 472 testes passaram |
 | `npm run bundle:check` | passou |
 | `npm run palette:check` | passou — 54 pares, 48 passam, 6 exceções declaradas |
 | `npm run digits:check` | passou |
@@ -45,9 +47,16 @@ Os perfis conhecidos passaram de quatro para **seis** com o fechamento do M10: `
 `digits:check` entraram como gate (ADR 0018). O baseline anterior, de 17/08/2026, era 328 Jest /
 35 suítes e 480 pytest.
 
+A linha do Jest foi **remedida** ao planejar o F-010, ainda em 19/08/2026, e corrigida de 441 / 40
+para 472 / 42: o número anterior fora registrado antes dos últimos commits do M10, que trouxeram
+suítes novas. Baseline copiada é baseline que envelhece em silêncio — e uma baseline errada faz o
+Builder atribuir à própria mudança um teste que já existia.
+
 O Watchman não pôde criar estado local no ambiente de execução; desativá-lo não altera a
 configuração do projeto. Permanecem avisos conhecidos de `act(...)` e handles abertos no Jest, e
-14 avisos no pytest. A suíte contra Postgres e a validação em device continuam obrigatórias antes
+14 avisos no pytest. **Os handles abertos têm efeito visível:** o Jest imprime o resumo em ~11s e
+depois não encerra o processo. Quem não souber disso vai concluir que a suíte travou e matá-la
+antes de ler o resultado. A suíte contra Postgres e a validação em device continuam obrigatórias antes
 de release quando aplicáveis.
 
 ## Política atual de CI

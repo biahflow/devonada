@@ -2,11 +2,22 @@
 
 ## Status
 
-`READY_FOR_PLANNING`
+`READY_FOR_BUILD`
 
 As quatro incógnitas que mantinham este contrato em `SPEC_IN_PROGRESS` foram decididas em
 19/08/2026 e registradas na **ADR 0019**. O gate humano de regra de produto está satisfeito; o de
 device permanece, como em todo milestone.
+
+O plano de execução está em [`plan.md`](plan.md), com oito Task Contracts em [`tasks/`](tasks/).
+Ele é `PLAN_VALID` e está **congelado para execução** desde 19/08/2026: as duas decisões humanas
+que faltavam foram tomadas na mesma data e estão escritas em `planning_findings`.
+
+- **PF-1** — `POST /v1/caixa/respiro/destinacao` só debita `saldo_acumulado` e grava o lançamento
+  em `respiro_destinacao`. Não escreve em parcela, pagamento nem dívida.
+- **PF-2** — `caixa_snapshot` ganha a coluna `respiro`, aditiva e `nullable`, na migração de T1.
+
+O que ainda separa esta feature de `DONE` é execução e, no fim, a **validação em device** de
+`RespiroCard` e `MarcoScreen` — gate humano que nenhum agente pode declarar.
 
 ## Priority
 

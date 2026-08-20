@@ -1,6 +1,8 @@
 # FDD — [Nome da funcionalidade]
 
-> Copie este arquivo para `docs/features/NNN-slug.md` ao iniciar uma feature.
+> Copie este arquivo para `docs/features/F-NNN-slug/feature.md` ao iniciar uma feature — a pasta
+> é onde o plano (`plan.md`), os Task Contracts (`tasks/`) e a evidência (`evidence.md`) vão morar.
+> Os FDDs de M0 a M9 estão no formato plano `NNN-slug.md` e ficam como estão.
 > Preencha a Definition of Ready **antes** de escrever código.
 
 ## Cabeçalho

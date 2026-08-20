@@ -299,7 +299,7 @@ Deep link sempre por campo tipado, nunca por id extraído de texto.
 
 | Suíte | Números |
 |---|---|
-| Jest | **441 testes em 40 suítes**, verdes em 19/08/2026. O ambiente exigiu `--watchman=false`; o processo **conclui a suíte e não encerra**, por handle aberto — a contagem sai antes disso. Há avisos de `act(...)` a investigar. |
+| Jest | **472 testes em 42 suítes**, verdes em 19/08/2026 (remedido ao planejar o F-010; o 441 / 40 anterior era de antes dos últimos commits do M10). O ambiente exigiu `--watchman=false`; o processo **conclui a suíte e não encerra**, por handle aberto — a contagem sai antes disso. Há avisos de `act(...)` a investigar. |
 | pytest | **497 testes**, verdes em SQLite em 19/08/2026; 14 avisos de depreciação/chave curta. A execução contra Postgres continua obrigatória antes de release. |
 
 Gates locais, **seis** desde 19/08/2026: `npm run typecheck`, `npm run lint`, `npm test`,

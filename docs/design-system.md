@@ -669,7 +669,7 @@ que é o que grava `celebradoEm` e impede a tela de reaparecer a cada abertura d
 **O compartilhamento em formato story fica de fora do M11.** A concepção o previa, e ele volta
 quando estiver decidido o que pode aparecer na imagem — valor absoluto de dívida é o dado mais
 sensível do produto e não deveria sair do aparelho por esse caminho sem decisão explícita
-(`docs/features/010-respiro.md`, *Open questions*).
+(`docs/features/F-010-respiro/feature.md`, *Open questions*).
 
 **Pill de status** — fundo translúcido da cor, texto na cor, dot de 7px. Três variantes:
 `debt` (crítica), `warning` (negociando), `primary` (sob controle / quitada). O `Badge` atual cobre
