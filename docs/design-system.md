@@ -34,7 +34,7 @@ E uma regra de voz que atravessa tudo: **vitória se escreve na primeira pessoa 
 | `ink` | `#F2F2ED` | texto principal (paper) |
 | `inkSoft` | `#8A8F98` | texto secundário, legendas, unidades |
 | `background` | `#101216` | fundo de tela (grafite) |
-| `surface` | `#181B21` | cards, campos, bolha do buddy |
+| `surface` | `#181B21` | cards, campos, bolha do Tino |
 | `neutralSurface` | `#1F232B` | input, trilha de barra, área recuada, avatar |
 | `border` | `#262A31` | borda de card e campo, divisor |
 | `primary` | `#1FC16B` | **ação**: botão, link, aba ativa |
@@ -560,7 +560,7 @@ daria os parabéns por uma corrida que a pessoa não começou. O estado sai de
 **`SplashDevoNada`** (`src/components/SplashDevoNada.tsx`) — a abertura. O ponto respira, e essa é
 a única animação de repetição do app: exceção declarada no `guardrails.md`, seção 4.
 
-**`TabBar`** — cinco abas: **Rota · Dívidas · Metas · Buddy · Caixa**. Os nomes de arquivo
+**`TabBar`** — cinco abas: **Rota · Dívidas · Metas · Tino · Caixa**. Os nomes de arquivo
 continuam `painel`, `dividas`, `metas`, `index` e `caixa` (linguagem ubíqua do `domain.md`); muda
 o rótulo e a ordem, não a rota.
 
@@ -592,7 +592,7 @@ segue coberto por teste para a próxima que precisar sumir.
 login e no registro: "Seus dados nunca viram oferta de crédito." Se o produto um dia oferecer
 crédito, **este componente sai antes**.
 
-**`CardSaldo`, `CardBuddy`, `TopbarMarca`** (`src/components/rota/`) — o topo da Rota. A barra do
+**`CardSaldo`, `CardTino`, `TopbarMarca`** (`src/components/rota/`) — o topo da Rota. A barra do
 saldo enche com o que já foi percorrido, nunca com o que falta, e **só aparece quando há histórico
 real** (`evolucaoSaldo` acumula a partir do cadastro): "0% percorrido" no primeiro dia seria
 desanimador e falso.
@@ -799,7 +799,7 @@ Antes de aprovar qualquer tela nova:
 1. O vermelho ocupa menos de ~10% e só marca dívida?
 2. Existe UMA próxima ação clara (no máximo um botão primário)?
 3. O número protagonista está em Archivo Black e a coluna de valores em Inter?
-4. O texto fala como buddy — ativo, concreto, sem culpa?
+4. O texto fala como o Tino — ativo, concreto, sem culpa?
 5. Se algo foi quitado ou melhorou, o verde aparece? A vitória está visível?
 6. A tela encostou duas cores que ainda não estavam na lista de `scripts/paleta-check.mjs`? Se
    sim, o par entra lá **neste commit** — e `npm run palette:check` passa.

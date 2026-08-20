@@ -1,6 +1,6 @@
 # Aula: Construindo a API Backend (FastAPI + Python)
 
-Este documento guarda todo o passo a passo que fizemos para subir o servidor backend falso (Mock) do Buddy Financeiro, que permite ao aplicativo funcionar localmente. Usamos **Python** e **FastAPI**, deixando a estrutura pronta para integrações futuras com Inteligência Artificial (Langchain/LangSmith).
+Este documento guarda todo o passo a passo que fizemos para subir o servidor backend falso (Mock) do devo.nada, que permite ao aplicativo funcionar localmente. Usamos **Python** e **FastAPI**, deixando a estrutura pronta para integrações futuras com Inteligência Artificial (Langchain/LangSmith).
 
 ---
 
@@ -61,7 +61,7 @@ app.include_router(chat.router)
 
 @app.get("/")
 def read_root():
-    return {"status": "ok", "mensagem": "API do Buddy Financeiro rodando!"}
+    return {"status": "ok", "mensagem": "API do devo.nada rodando!"}
 ```
 
 ---

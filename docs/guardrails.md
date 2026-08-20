@@ -165,7 +165,7 @@ em que a pessoa merecer. Ele é linha da cascata, no mesmo nível do aluguel, e 
 - **Gasto de respiro nunca gera alerta, aviso ou contabilização negativa.** O único acompanhamento
   é quanto ainda há disponível. Copy correta: "sobram R$ 70 pra usar sem culpa". Copy proibida:
   "você já gastou R$ 80".
-- **O buddy oferece; o usuário não pede permissão.** Respiro nunca é condicionado a desempenho
+- **O Tino oferece; o usuário não pede permissão.** Respiro nunca é condicionado a desempenho
   ("se você economizar, aí pode") — ele já está no plano, e é justamente essa incondicionalidade
   que faz a culpa morrer.
 - **Respiro não usado não vira cobrança.** Ele acumula para o próximo marco ou vira aporte extra,

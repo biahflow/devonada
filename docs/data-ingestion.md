@@ -77,7 +77,7 @@ A forma mais simples. O usuário exporta o arquivo pelo internet banking e o dep
 ### 4.2 Pipeline n8n + Postgres
 
 Um fluxo no **n8n** escuta o bucket, faz o parse do OFX, categoriza as despesas e insere num
-Postgres. A partir daí o backend do Buddy lê de uma base própria, sem dependência externa em
+Postgres. A partir daí o backend do devo.nada lê de uma base própria, sem dependência externa em
 runtime.
 
 ### 4.3 Webhook de notificação push

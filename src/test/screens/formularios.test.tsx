@@ -94,7 +94,7 @@ describe('rascunho vindo do chat', () => {
 
   it('sem rascunho, o cadastro mantém a descrição de sempre', () => {
     renderizarTela(<NovaDivida />);
-    expect(screen.getByText(/O resto o buddy ajuda a descobrir/)).toBeTruthy();
+    expect(screen.getByText(/O resto o Tino ajuda a descobrir/)).toBeTruthy();
   });
 
   it('na edição, o campo proposto entra por cima e o resto continua salvo', async () => {

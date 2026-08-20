@@ -632,7 +632,7 @@ declarando. O que sobrou de aberto aqui é o mesmo que sobra em M1.5–M9: devic
       virava um círculo vermelho cheio. Ficou em 55% no Android e 62% no iOS: **o ponto precisa de
       moldura para ler como ponto**, e um disco que preenche o quadro não se distingue de qualquer
       outro app de ícone vermelho.
-- [x] **Abas renomeadas e reordenadas** para Rota · Dívidas · Buddy · Caixa. Rótulo e ordem, não
+- [x] **Abas renomeadas e reordenadas** para Rota · Dívidas · Tino · Caixa. Rótulo e ordem, não
       rota: `painel`, `dividas`, `index` e `caixa` continuam sendo o que são no código.
 - [x] **O ponto da marca virou código** — `Brand` mais `estadoDaRota()`, uma função pura com
       teste. Vermelho enquanto há saldo devedor, verde depois de quitar, e `neutro` para conta
@@ -640,10 +640,10 @@ declarando. O que sobrou de aberto aqui é o mesmo que sobra em M1.5–M9: devic
       estado: quando a pessoa zera, o app inteiro muda de fase.
 - [x] **Splash, login e registro com a marca**, mais a `NotaDePrivacidade` — a regra de ouro nº 1
       dita na tela em que a pessoa mais desconfia.
-- [x] **Home "Rota de Fuga"**: topbar com o ponto, saldo devedor em Archivo Black, card do buddy
+- [x] **Home "Rota de Fuga"**: topbar com o ponto, saldo devedor em Archivo Black, card do Tino
       com a próxima ação determinística. O diagnóstico completo continua logo abaixo.
 - [x] **`custoDiarioJuros` no resumo, e ele não viaja sozinho.** A frase que faltava ao card do
-      buddy é conta, então nasceu no servidor (guardrail 1.2), em `domain/resumo.py`, com as três
+      Tino é conta, então nasceu no servidor (guardrail 1.2), em `domain/resumo.py`, com as três
       escolhas de método declaradas no docstring: divisor 30 do mês comercial, base igual à de
       `custo_medio_juros_mensal`, e agregado. Nenhuma vem de lei, e está escrito que não vêm —
       o docstring diz, com todas as letras, que o número **não é valor exigível e não deve ser
@@ -850,6 +850,11 @@ claro e nenhum bloqueia o lançamento:
 - [ ] Divulgar que o contrato é enviado a um provedor de LLM. A ADR 0005 e o guardrail 8 já
       sustentam o texto: o arquivo é **descartado** após a extração. O PDF pode conter CPF e
       dados de terceiros, e isso precisa estar dito.
+- [ ] **E-mail de contato da página pública `GET /exclusao` ainda é da marca anterior**
+      (`contato@buddyfinanceiro.app`, domínio que não é nosso). Precisa ser trocado junto com a
+      definição da URL pública (ver item acima, em "Conta de usuário"). Importa porque é a página
+      por onde alguém exerce o direito de excluir a conta — um endereço morto impede o exercício
+      desse direito. Ver ADR 0020, item 3.
 
 **Cobrança — entregue no M9.**
 

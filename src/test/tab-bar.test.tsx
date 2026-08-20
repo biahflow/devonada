@@ -61,7 +61,7 @@ const ABAS = [
   { name: 'painel', title: 'Rota' },
   { name: 'dividas', title: 'Dívidas' },
   { name: 'metas', title: 'Metas' },
-  { name: 'index', title: 'Buddy' },
+  { name: 'index', title: 'Tino' },
   { name: 'caixa', title: 'Caixa' },
 ];
 
@@ -81,7 +81,7 @@ describe('a barra de abas', () => {
       renderizarTela(<TabBar {...props(ABAS, 0)} />);
 
       await waitFor(() => expect(screen.getByText('Rota')).toBeTruthy());
-      for (const rotulo of ['Rota', 'Dívidas', 'Metas', 'Buddy', 'Caixa']) {
+      for (const rotulo of ['Rota', 'Dívidas', 'Metas', 'Tino', 'Caixa']) {
         expect(screen.getByText(rotulo)).toBeTruthy();
       }
     });
@@ -97,13 +97,13 @@ describe('a barra de abas', () => {
 
     it('esconder uma aba não desloca a marca para a aba errada', async () => {
       comSaldo(500_000);
-      // "Buddy" é o índice 3 na lista COMPLETA e o 2 entre as visíveis. Se a
+      // "Tino" é o índice 3 na lista COMPLETA e o 2 entre as visíveis. Se a
       // barra usar a posição errada, quem acende é outra aba.
       renderizarTela(<TabBar {...props(COM_ESCONDIDA, 3)} />);
 
-      await waitFor(() => expect(screen.getByText('Buddy')).toBeTruthy());
-      const buddy = screen.getByLabelText('Buddy');
-      expect(buddy.props.accessibilityState.selected).toBe(true);
+      await waitFor(() => expect(screen.getByText('Tino')).toBeTruthy());
+      const tino = screen.getByLabelText('Tino');
+      expect(tino.props.accessibilityState.selected).toBe(true);
       expect(screen.getByLabelText('Rota').props.accessibilityState.selected).toBe(false);
     });
   });
@@ -153,7 +153,7 @@ describe('a barra de abas', () => {
       renderizarTela(<TabBar {...props(ABAS, 0)} />);
 
       await waitFor(() => expect(screen.getByText('Rota')).toBeTruthy());
-      for (const rotulo of ['Rota', 'Dívidas', 'Metas', 'Buddy', 'Caixa']) {
+      for (const rotulo of ['Rota', 'Dívidas', 'Metas', 'Tino', 'Caixa']) {
         expect(screen.getByText(rotulo)).toBeTruthy();
       }
     });

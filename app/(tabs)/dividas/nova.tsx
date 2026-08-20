@@ -31,7 +31,7 @@ export default function NovaDivida() {
           description={
             veioDaConversa
               ? 'Preenchi com o que entendi da nossa conversa. Confira antes de salvar.'
-              : 'Só o que você já sabe. O resto o buddy ajuda a descobrir.'
+              : 'Só o que você já sabe. O resto o Tino ajuda a descobrir.'
           }
           onBack={() => router.back()}
         />

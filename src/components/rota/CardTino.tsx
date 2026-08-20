@@ -5,7 +5,7 @@ import { proximaAcao } from '../../util/proximaAcao';
 import { colors, radius, spacing, typography } from '../../theme/theme';
 
 /**
- * O card do buddy — a primeira coisa acionável da Rota.
+ * O card do Tino — a primeira coisa acionável da Rota.
  *
  * Ele existe porque o princípio nº 3 da marca é "ação, não retrovisor": o
  * painel inteiro abaixo dele serve para sustentar esta frase, e não o
@@ -13,14 +13,14 @@ import { colors, radius, spacing, typography } from '../../theme/theme';
  * um dashboard.
  *
  * A frase vem de `proximaAcao()`, determinística. O dot verde é presença, não
- * status de dívida: é o buddy dizendo "estou aqui".
+ * status de dívida: é o Tino dizendo "estou aqui".
  *
  * Desde o M10 a frase pode começar pelo custo diário dos juros. O número vem
  * pronto de `custoDiarioJuros`, no resumo — este componente não calcula, não
  * arredonda e não decide quando a frase aparece; quem decide é `proximaAcao()`,
  * e o docstring de lá diz por quê.
  */
-export function CardBuddy({ resumo }: { resumo: ResumoDividas }) {
+export function CardTino({ resumo }: { resumo: ResumoDividas }) {
   const router = useRouter();
   const acao = proximaAcao(resumo);
 

@@ -159,7 +159,7 @@ cascata, no mesmo nível do aluguel — não é sobra.**
 
 Existe por uma razão de aderência, não de generosidade: austeridade total é a principal causa de
 desistência, e é o que faz uma quitação de dezoito meses virar "perda total" aos olhos de quem a
-vive. Quando o app diz "está no plano", duas coisas acontecem — a culpa morre, e o buddy passa a
+vive. Quando o app diz "está no plano", duas coisas acontecem — a culpa morre, e o Tino passa a
 ser o terceiro que autoriza, o que desarma o policiamento mútuo dentro de casa.
 
 **Quem diz o valor é o usuário** (ADR 0019). O respiro é declarado, como um gasto ou um pote, e o
@@ -291,6 +291,14 @@ central do simulador — trate-o com destaque de acento violeta, não com alarme
 ---
 
 ## 5. Chat
+
+### Tino
+O assistente do produto. Nome próprio — leva artigo ("o Tino sugere", "pergunte ao Tino") e
+flexiona em português, ao contrário do nome anterior, que era substantivo comum em inglês (ADR
+0020). Fala como um amigo que entende de dinheiro: direto, acolhedor, nunca alarmista.
+
+Nunca afirma número que não veio de um [ActionCardData](#actioncarddata) tipado — todo valor
+que ele comunica chega por card, nunca como texto livre (guardrail 7.1).
 
 ### ActionCardData
 União discriminada por `kind` (`src/api/types.ts`). É o mecanismo pelo qual dado estruturado

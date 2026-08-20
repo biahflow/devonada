@@ -50,7 +50,7 @@ jest.mock('expo-iap', () => ({
   initConnection: jest.fn().mockResolvedValue(true),
   endConnection: jest.fn().mockResolvedValue(true),
   fetchProducts: jest.fn().mockResolvedValue([
-    { id: 'devonada.assinatura.mensal', displayPrice: 'R$ 19,90', title: 'Buddy' },
+    { id: 'devonada.assinatura.mensal', displayPrice: 'R$ 19,90', title: 'devo.nada' },
   ]),
   requestPurchase: jest.fn().mockResolvedValue(undefined),
   getAvailablePurchases: jest.fn().mockResolvedValue([]),

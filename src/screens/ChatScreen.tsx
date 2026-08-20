@@ -14,7 +14,7 @@ export function ChatScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.header}>
-        <Text style={styles.title}>Seu buddy financeiro</Text>
+        <Text style={styles.title}>O Tino, seu assistente financeiro</Text>
         <Text style={styles.subtitle}>Um passo de cada vez.</Text>
       </View>
 

@@ -9,7 +9,8 @@ import { colors, radius, spacing, typography } from '../../theme/theme';
  * o oposto: ele ganha dinheiro por assinatura justamente para nunca precisar
  * ganhar oferecendo crédito a quem está endividado.
  *
- * Isso não é copy de marketing, é a promessa que sustenta a confiança de buddy.
+ * Isso não é copy de marketing, é a promessa que sustenta a confiança que o
+ * Tino precisa manter.
  * Se um dia o produto passar a oferecer crédito, ESTE COMPONENTE PRECISA SAIR
  * ANTES — deixá-lo no ar seria mentir para quem acreditou.
  */

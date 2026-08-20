@@ -359,7 +359,7 @@ Unidades, sem exceção:
 se o usuário ainda não informou a renda, vêm ausentes e o painel exibe um convite a preencher,
 não um zero.
 
-> **`custoDiarioJuros` e `quantidadeDividasSemTaxa` andam JUNTOS** (M10). O card do buddy na Rota
+> **`custoDiarioJuros` e `quantidadeDividasSemTaxa` andam JUNTOS** (M10). O card do Tino na Rota
 > diz "essa dívida cresce R$ 41 por dia" — a frase mais concreta que a tela poderia ter, e
 > concretude é o que o `guardrails.md`, seção 4, pede da copy. O número é valor derivado, e o
 > guardrail 1.2 proíbe o cliente produzi-lo: quem calcula é

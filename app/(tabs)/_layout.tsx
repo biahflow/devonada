@@ -28,7 +28,7 @@ export default function TabsLayout() {
         `painel`, `index` e `caixa` continuam sendo o que sempre foram na rota e
         no código — a linguagem ubíqua de docs/domain.md. Renomear a pasta
         quebraria deep link e teste sem entregar nada a quem usa o app. O que a
-        pessoa lê é Rota · Dívidas · Buddy · Caixa.
+        pessoa lê é Rota · Dívidas · Tino · Caixa.
 
         NÃO HÁ `tabBarIcon` AQUI: a barra não desenha ícone nenhum. O rótulo
         escrito diz o que a aba é, e o elemento gráfico guarda a única coisa que
@@ -75,7 +75,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Buddy',
+          title: 'Tino',
         }}
       />
       <Tabs.Screen

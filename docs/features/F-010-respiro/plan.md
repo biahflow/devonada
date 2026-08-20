@@ -363,7 +363,7 @@ tasks:
         abertura seguinte do app.
       T7-AC3 A sugestão contextual é texto e nunca contém valor monetário sugerido.
       T7-AC4 Os quatro estados de tela têm teste.
-      T7-AC5 Nenhuma escrita é disparada pelo Buddy sem confirmação explícita.
+      T7-AC5 Nenhuma escrita é disparada pelo Tino sem confirmação explícita.
       T7-AC6 Nada em vermelho: a tela usa `colors.accent` sobre `colors.neutralSurface`.
     depends_on: [T4, T5]
     validation: npm run typecheck ; npm run lint ; npm test ; npm run bundle:check ;
@@ -589,7 +589,7 @@ Conferido item a item contra a checklist de `agents/planner.md`:
 | Quatro estados em toda tela nova | T5, T7 |
 | Copy de permissão; teste quebra nos cinco termos | T8 |
 | 48pt e `accessibilityLabel` | T5, T7 |
-| Nenhuma escrita disparada pelo Buddy sem confirmação | T7 |
+| Nenhuma escrita disparada pelo Tino sem confirmação | T7 |
 
 ---
 

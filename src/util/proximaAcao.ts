@@ -9,9 +9,9 @@ export interface ProximaAcao {
 }
 
 /**
- * A próxima ação que o buddy sugere na Rota.
+ * A próxima ação que o Tino sugere na Rota.
  *
- * REGRA DETERMINÍSTICA, e ela precisa ser: o card do buddy é a primeira coisa
+ * REGRA DETERMINÍSTICA, e ela precisa ser: o card do Tino é a primeira coisa
  * acionável da tela, e uma sugestão vinda de LLM ali seria conselho financeiro
  * gerado por modelo — exatamente o que o guardrail 7 impede. Aqui não há
  * modelo, não há conta e não há número novo: só escolha de qual fato, dentre os

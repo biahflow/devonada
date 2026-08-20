@@ -21,7 +21,7 @@
  */
 export const colors = {
   background: '#101216', // fundo de tela (grafite)
-  surface: '#181B21', // card, campo, bolha do buddy
+  surface: '#181B21', // card, campo, bolha do Tino
   neutralSurface: '#1F232B', // input, trilha de barra, área recuada, avatar
   border: '#262A31', // divisor e — no escuro — a borda do próprio card
 

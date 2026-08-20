@@ -259,15 +259,15 @@ instrui a não pagar (`docs/guardrails.md`, seção 3).
 
 ## 6. Telas e componentes
 
-### Rotas — `app/`, 4 abas
+### Rotas — `app/`, 5 abas
 
-Os rótulos que o usuário lê são **Rota · Dívidas · Metas · Buddy · Caixa**; os nomes de pasta são os do
+Os rótulos que o usuário lê são **Rota · Dívidas · Metas · Tino · Caixa**; os nomes de pasta são os do
 domínio (`painel`, `dividas`, `index`, `caixa`) e não mudam, para não quebrar deep link nem teste.
 Na **fase verde** a segunda aba vira **Metas** (ADR 0017).
 
 | Aba | Rotas |
 |---|---|
-| **Buddy** (chat) | `(tabs)/index` |
+| **Tino** (chat) | `(tabs)/index` |
 | **Dívidas** | `dividas/index` (lista) · `nova` · `simulador` · `contrato/index` (envio) · `contrato/[id]` (revisão da extração) · `[id]/index` (detalhe) · `[id]/editar` · `[id]/plano` · `[id]/renegociar` · `[id]/revisao` |
 | **Metas** (fase verde) | `metas/index` (Rota de Chegada) · `metas/nova` · `metas/[id]/editar` |
 | **Caixa** | `caixa/index` (a cascata) · `renda` · `gastos` · `provisoes` · `metas` ("Seus potes" — **não** é a aba Metas) |

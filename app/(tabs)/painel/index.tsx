@@ -17,7 +17,7 @@ import { SeletorDeMes } from '../../../src/components/painel/SeletorDeMes';
 import { CardLembretes } from '../../../src/components/painel/CardLembretes';
 import { TopbarMarca } from '../../../src/components/rota/TopbarMarca';
 import { CardSaldo } from '../../../src/components/rota/CardSaldo';
-import { CardBuddy } from '../../../src/components/rota/CardBuddy';
+import { CardTino } from '../../../src/components/rota/CardTino';
 import { useResumo } from '../../../src/hooks/usePainel';
 import { mesAtual } from '../../../src/util/mes';
 import { formatBasisPoints } from '../../../src/util/percent';
@@ -89,11 +89,11 @@ export default function Painel() {
         {cabecalho}
 
         {/* A ordem desta tela É a tese do produto: o saldo diz onde você está,
-            o buddy diz o que fazer hoje, e o resto sustenta a frase dele. O
+            o Tino diz o que fazer hoje, e o resto sustenta a frase dele. O
             diagnóstico completo continua logo abaixo — ele só deixou de ser a
             primeira coisa que a pessoa vê. */}
         <CardSaldo resumo={resumo} />
-        <CardBuddy resumo={resumo} />
+        <CardTino resumo={resumo} />
 
         <View style={styles.duplo}>
           <Card style={styles.metade}>

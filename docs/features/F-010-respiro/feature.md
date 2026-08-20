@@ -101,7 +101,7 @@ Todas em **ADR 0019**. Resumidas aqui porque um contrato precisa ser legível so
 - A UI usa copy de permissão, como "está no plano" e "sem culpa"; o teste de copy falha em
   `você já gastou`, `você mereceu`, `se você economizar`, `desvio` e `extrapolou`.
 - Controles novos têm alvo de toque de 48pt e `accessibilityLabel` quando não houver texto visível.
-- Nenhuma escrita é disparada pelo Buddy sem confirmação explícita.
+- Nenhuma escrita é disparada pelo Tino sem confirmação explícita.
 
 ## Constraints
 
