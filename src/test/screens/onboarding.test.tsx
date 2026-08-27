@@ -2,11 +2,49 @@ import { screen, fireEvent, waitFor } from '@testing-library/react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import EscolhaDaDivida from '../../../app/(onboarding)/divida';
 import EntradaDaDivida from '../../../app/(onboarding)/entrada';
-import { limparMocksDeRede, requestMock } from '../api';
+import { escolherArquivo } from '../../components/ui/SeletorDeArquivo';
+import type { ExtracaoContrato } from '../../api/contratos';
+import { limparMocksDeRede, requestMock, uploadMock } from '../api';
+import { umaExtracao } from '../mocks';
 import { renderizarTela } from '../render';
 import { dateParaIso } from '../../util/date';
 
+// O seletor de arquivo é nativo; sob jest ele não existe. O que os testes
+// verificam é o que a fila FAZ com o arquivo escolhido, não o menu do sistema.
+jest.mock('../../components/ui/SeletorDeArquivo', () => ({ escolherArquivo: jest.fn() }));
+const escolherArquivoMock = escolherArquivo as jest.MockedFunction<typeof escolherArquivo>;
+
 afterEach(limparMocksDeRede);
+afterEach(() => escolherArquivoMock.mockReset());
+
+const UM_ARQUIVO = { uri: 'file://contrato.pdf', nome: 'contrato.pdf', mimeType: 'application/pdf' };
+
+/**
+ * Prepara o caminho do documento inline na fila: o seletor devolve um arquivo, o
+ * upload devolve uma extração em processamento, o polling devolve a extração
+ * pronta, e o POST de dívida devolve ids em sequência.
+ */
+function mockFluxoDocumento(extracao: ExtracaoContrato = umaExtracao()) {
+  let i = 0;
+  escolherArquivoMock.mockResolvedValue(UM_ARQUIVO);
+  uploadMock.mockResolvedValue({
+    extracao: { id: extracao.id, status: 'processando', tipo: 'contrato' },
+  } as never);
+  requestMock.mockImplementation((path: string) => {
+    if (path.startsWith('/v1/contratos/')) return Promise.resolve({ extracao }) as never;
+    if (path === '/v1/dividas') {
+      return Promise.resolve({ divida: { id: `divida-${i++}` } }) as never;
+    }
+    return Promise.reject(new Error(`rota inesperada no teste: ${path}`)) as never;
+  });
+}
+
+/** As chamadas de POST /v1/dividas, na ordem em que saíram. */
+function criacoes(): Record<string, unknown>[] {
+  return requestMock.mock.calls
+    .filter((c) => c[0] === '/v1/dividas' && (c[1] as { method?: string })?.method === 'POST')
+    .map((c) => (c[1] as { body: Record<string, unknown> }).body);
+}
 
 const CARTAO = 'Cartão de crédito / rotativo';
 const EMPRESTIMO = 'Empréstimo ou consignado';
@@ -117,11 +155,17 @@ describe('passo 2 — a fila', () => {
     expect(screen.getByText(/1 de 2/)).toBeTruthy();
   });
 
-  // O UPLOAD NÃO APARECE NA FILA, e é decisão mecânica: `/dividas/contrato` vive
-  // fora do grupo (onboarding), e sair para lá abandonaria o resto da fila.
-  it('não oferece o upload no meio da fila', () => {
+  // A REVERSÃO DA ADR 0016 PONTO 5 (ADR 0022). O upload agora aparece na fila,
+  // OPCIONAL por dívida — mas lido INLINE, sem o `router.push` para
+  // `/dividas/contrato` que abandonaria o resto da fila. O botão que sai do grupo
+  // continua ausente; o que aparece é o de leitura inline.
+  it('oferece o documento inline na fila, sem sair do grupo (onboarding)', () => {
     renderizarTela(<EntradaDaDivida />);
+    expect(screen.getByText('Mandar o documento')).toBeTruthy();
+    // O botão da variante de UMA dívida — que empurra para fora — não aparece.
     expect(screen.queryByText('Mandar a fatura ou o contrato')).toBeNull();
+    // E o aviso de descarte está à vista ANTES do toque (guardrail 8.3).
+    expect(screen.getByText(/lê o arquivo e/)).toBeTruthy();
   });
 
   it('avança para a segunda dívida com os campos limpos', async () => {
@@ -270,6 +314,118 @@ describe('passo 2 — a fila', () => {
 
       expect(global.mockRouter.back).toHaveBeenCalled();
     });
+  });
+});
+
+describe('passo 2 — documento inline na fila (ADR 0022)', () => {
+  beforeEach(() => global.definirParametrosDeRota({ fila: 'cartao,emprestimo' }));
+
+  // A REVISÃO CAMPO-A-COMPO COM O TRECHO À VISTA, antes de a dívida entrar na
+  // fila. É o guardrail 8.1 honrado inline: não bastam os dois campos, tem de
+  // mostrar de onde cada valor veio.
+  it('mostra a revisão com o trecho do documento antes de aceitar', async () => {
+    mockFluxoDocumento();
+    renderizarTela(<EntradaDaDivida />);
+
+    fireEvent.press(screen.getByText('Mandar o documento'));
+
+    await waitFor(() => expect(screen.getByText('Usar estes dados')).toBeTruthy());
+    // O trecho literal aparece, como texto puro (guardrail 8.2).
+    expect(screen.getByText('CREDOR: Banco Teste S/A')).toBeTruthy();
+    expect(screen.getByText('Valor total: R$ 1.500,00')).toBeTruthy();
+  });
+
+  // O "aha" que a ADR 0022 devolve à fila: a dívida com documento nasce LIGADA à
+  // extração (extracaoId no POST), e é isso que faz a triagem dela ter achado.
+  it('lê o documento, pré-preenche e liga o extracaoId; a sem documento segue por valor', async () => {
+    mockFluxoDocumento();
+    renderizarTela(<EntradaDaDivida />);
+
+    // Dívida 1 (cartão): pelo documento.
+    fireEvent.press(screen.getByText('Mandar o documento'));
+    await waitFor(() => expect(screen.getByText('Usar estes dados')).toBeTruthy());
+    fireEvent.press(screen.getByText('Usar estes dados'));
+
+    // De volta ao formulário, já preenchido com o que foi lido.
+    await waitFor(() =>
+      expect(screen.getByLabelText('Pra quem você deve').props.value).toBe('Banco Teste S/A'),
+    );
+    tocar('Continuar');
+
+    // Dívida 2 (empréstimo): só pelo valor.
+    await waitFor(() => expect(screen.getByText(/2 de 2/)).toBeTruthy());
+    preencher('Pra quem você deve', 'Banco do Brasil');
+    preencher('Quanto estão cobrando', '450000');
+    tocar('Cadastrar as 2 dívidas');
+
+    await waitFor(() => expect(criacoes()).toHaveLength(2));
+    const [primeira, segunda] = criacoes();
+    // A do documento carrega o vínculo; a do valor, não.
+    expect(primeira!.extracaoId).toBe('extracao-1');
+    expect(primeira!.credor).toBe('Banco Teste S/A');
+    expect(segunda!.extracaoId).toBeUndefined();
+    expect(segunda!.credor).toBe('Banco do Brasil');
+  });
+
+  // O INVARIANTE QUE NÃO PODE QUEBRAR (ADR 0016 ponto 4, preservado na 0022): a
+  // extração grava linha `extracao`, nunca `divida`. Nada é `divida` antes do
+  // `enviarTudo()` — nem com documento lido e confirmado.
+  it('não grava nenhuma dívida antes do fim, mesmo com documento lido e aceito', async () => {
+    mockFluxoDocumento();
+    renderizarTela(<EntradaDaDivida />);
+
+    fireEvent.press(screen.getByText('Mandar o documento'));
+    await waitFor(() => expect(screen.getByText('Usar estes dados')).toBeTruthy());
+    fireEvent.press(screen.getByText('Usar estes dados'));
+    await waitFor(() =>
+      expect(screen.getByLabelText('Pra quem você deve').props.value).toBe('Banco Teste S/A'),
+    );
+
+    // O upload da extração aconteceu (linha `extracao`)...
+    expect(uploadMock).toHaveBeenCalledTimes(1);
+    // ...mas NENHUM POST de dívida saiu ainda: nada é `divida` antes do fim.
+    expect(criacoes()).toHaveLength(0);
+  });
+
+  it('descartar a leitura volta ao formulário sem gravar nada', async () => {
+    mockFluxoDocumento();
+    renderizarTela(<EntradaDaDivida />);
+
+    fireEvent.press(screen.getByText('Mandar o documento'));
+    await waitFor(() => expect(screen.getByText('Descartar e digitar')).toBeTruthy());
+    fireEvent.press(screen.getByText('Descartar e digitar'));
+
+    await waitFor(() => expect(screen.getByText(/1 de 2/)).toBeTruthy());
+    expect(criacoes()).toHaveLength(0);
+    // O campo continua vazio: descartar não preenche nada.
+    expect(screen.getByLabelText('Pra quem você deve').props.value).toBe('');
+  });
+
+  // Extração que falhou não vira beco: a pessoa segue só pelo valor, e a fila não
+  // trava. Os quatro estados existem inline (enviando/erro/vazio/lido).
+  it('extração que falha oferece seguir só pelo valor', async () => {
+    mockFluxoDocumento(umaExtracao({ status: 'falhou', erro: 'Imagem ilegível.', campos: undefined }));
+    renderizarTela(<EntradaDaDivida />);
+
+    fireEvent.press(screen.getByText('Mandar o documento'));
+
+    await waitFor(() => expect(screen.getByText('Imagem ilegível.')).toBeTruthy());
+    expect(screen.getByText('Seguir só pelo valor')).toBeTruthy();
+    fireEvent.press(screen.getByText('Seguir só pelo valor'));
+    await waitFor(() => expect(screen.getByLabelText('Pra quem você deve')).toBeTruthy());
+  });
+});
+
+describe('passo 2 — uma dívida marcada não muda com a ADR 0022', () => {
+  beforeEach(() => global.definirParametrosDeRota({ fila: 'cartao' }));
+
+  // A variante de UMA dívida segue empurrando para a tela cheia de contrato — lá
+  // ela escolhe o tipo de documento e tem o fluxo completo. O inline é a resposta
+  // ao problema da FILA, que a de uma dívida não tem.
+  it('continua com o documento como caminho primário, não o inline', () => {
+    renderizarTela(<EntradaDaDivida />);
+    expect(screen.getByText('Mandar a fatura ou o contrato')).toBeTruthy();
+    expect(screen.queryByText('Mandar o documento')).toBeNull();
   });
 });
 

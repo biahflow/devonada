@@ -8,46 +8,65 @@ import { FormField } from '../../src/components/ui/FormField';
 import { CurrencyInput } from '../../src/components/ui/CurrencyInput';
 import { DateField } from '../../src/components/ui/DateField';
 import { Feedback } from '../../src/components/ui/Feedback';
+import { LoadingState } from '../../src/components/ui/LoadingState';
 import { Passos } from '../../src/components/onboarding/Passos';
+import { CampoRevisao } from '../../src/components/dividas/CampoRevisao';
+import { escolherArquivo } from '../../src/components/ui/SeletorDeArquivo';
 import { tipoPorId, type TipoDeDivida } from '../../src/components/onboarding/tiposDeDivida';
 import { useCriarDivida } from '../../src/hooks/useDividas';
+import { useEnviarContrato, useExtracao } from '../../src/hooks/useContrato';
+import { extracaoParaProposta } from '../../src/util/extracao';
+import { linhasDeRevisao } from '../../src/util/revisaoExtracao';
 import { ApiError } from '../../src/api/client';
 import { dateParaIso } from '../../src/util/date';
-import type { IsoDate } from '../../src/api/types';
+import type { IsoDate, Uuid } from '../../src/api/types';
 import { colors, spacing, typography } from '../../src/theme/theme';
 
 interface Resposta {
   credor: string;
   valor: number;
   dataOrigem: IsoDate;
+  /**
+   * Liga a dívida à extração que a originou (ADR 0022). Presente só quando a
+   * pessoa mandou o documento nesta dívida da fila. É a CHAVE da leitura, não um
+   * campo lido — por isso viaja mesmo sem trecho (guardrail 8.1). No POST final,
+   * ela faz a dívida nascer com achado e valor justo.
+   */
+  extracaoId?: Uuid;
+  /**
+   * Campo proposto pela extração que a fila NÃO edita em tela. Carregado por
+   * fora do formulário e repassado ao POST — com trecho, senão `extracaoParaProposta`
+   * já o teria descartado.
+   */
+  taxaJurosMensal?: number;
 }
 
 /**
  * A bifurcação, e ela decide o que a triagem vai poder dizer.
  *
  * ESTA É A TELA MAIS IMPORTANTE DO ONBOARDING, e o motivo não é óbvio: só
- * contrato lido produz achado, e sem achado não há valor justo nem script
- * (backend/routers/revisao.py, `montar_script` devolve None sem achados). Quem
- * sai daqui pelo caminho manual recebe uma triagem honesta e mais pobre; quem
- * manda o documento recebe o "aha" inteiro.
+ * documento lido produz achado, e sem achado não há valor justo nem script
+ * (backend/routers/revisao.py, `montar_script` só carrega o mínimo de segurança
+ * sem achados). Quem sai daqui só pelo valor recebe uma triagem honesta e mais
+ * pobre; quem manda o documento recebe o "aha" inteiro.
  *
- * DUAS VARIANTES, decididas pelo tamanho da fila (ADR 0016):
+ * DUAS VARIANTES, decididas pelo tamanho da fila:
  *
  * - UMA DÍVIDA marcada: o documento vem primeiro na tela, e não como
  *   alternativa escondida, justamente por causa do parágrafo acima. O caminho
- *   manual continua existindo porque exigir o papel de quem está em pânico às
+ *   só-valor continua existindo porque exigir o papel de quem está em pânico às
  *   23h é perder a pessoa que mais precisa do app.
- * - VÁRIAS DÍVIDAS: dois campos por dívida, uma por vez. O upload NÃO aparece
- *   aqui, e a razão é mecânica: `/dividas/contrato` vive fora do grupo
- *   `(onboarding)` e sair para lá abandonaria o resto da fila no meio. Em troca,
- *   a triagem no fim oferece "Mandar a fatura" para a primeira dívida — o "aha"
- *   é adiado, não perdido.
+ * - VÁRIAS DÍVIDAS: dois campos por dívida, uma por vez, E o documento
+ *   OPCIONAL por dívida, lido AQUI DENTRO (ADR 0022, que reverte o ponto 5 da
+ *   ADR 0016). A extração roda inline — sem `router.push` para fora do grupo
+ *   `(onboarding)`, que abandonaria o resto da fila. Quem tem o documento de
+ *   uma dívida manda; quem não tem segue só pelo valor.
  *
- * NADA É GRAVADO ANTES DO FIM DA FILA. A pessoa pode voltar e corrigir quantas
- * vezes quiser porque as respostas moram aqui, não no servidor; o POST de todas
- * sai junto, no último passo. Criar dívida a cada passo faria o botão de voltar
- * produzir dívida duplicada ou valor desatualizado — e é dado real do usuário,
- * não rascunho.
+ * NADA É GRAVADO ANTES DO FIM DA FILA — nem com documento. A extração grava uma
+ * linha `extracao` (arquivo lido e descartado, ADR 0005), NUNCA uma `divida`:
+ * nenhuma dívida existe antes do `enviarTudo()`. As respostas moram aqui, não no
+ * servidor; o POST de todas sai junto, no último passo. A pessoa pode voltar e
+ * corrigir quantas vezes quiser.
  */
 export default function EntradaDaDivida() {
   const router = useRouter();
@@ -71,7 +90,21 @@ export default function EntradaDaDivida() {
   const [criadas, setCriadas] = useState<Record<string, string>>({});
   const [manual, setManual] = useState(false);
   const [erro, setErro] = useState<string | undefined>();
+
+  // Documento inline da fila (ADR 0022). `docAberto` liga o painel de leitura;
+  // `extracaoIdAtual` é a extração em andamento — a fila espera o polling.
+  const [docAberto, setDocAberto] = useState(false);
+  const [extracaoIdAtual, setExtracaoIdAtual] = useState<Uuid | undefined>();
+
   const criar = useCriarDivida();
+  const enviarDoc = useEnviarContrato();
+  const {
+    extracao,
+    isPending: lendoExtracao,
+    error: erroExtracao,
+    refetch: reverificarExtracao,
+    excedeuTempo,
+  } = useExtracao(extracaoIdAtual ?? '');
 
   const emFila = fila.length > 1;
   const item = fila[indice];
@@ -102,8 +135,53 @@ export default function EntradaDaDivida() {
   function responder(campo: keyof Resposta, novo: string | number) {
     setRespostas((atuais) => ({
       ...atuais,
-      [item!.id]: { credor, valor, dataOrigem, [campo]: novo },
+      // Espalha o que já existe primeiro para não perder `extracaoId` e a taxa
+      // carregados pelo documento: o formulário edita credor, valor e data; os
+      // campos vindos da leitura viajam ao lado, intocados.
+      [item!.id]: { ...atuais[item!.id], credor, valor, dataOrigem, [campo]: novo },
     }));
+  }
+
+  /** Abre o seletor nativo e dispara a extração inline, sem sair de `(onboarding)`. */
+  async function abrirDocumento() {
+    const arquivo = await escolherArquivo();
+    if (!arquivo) return; // desistiu do seletor: nada muda na fila
+    enviarDoc.reset();
+    setExtracaoIdAtual(undefined);
+    setDocAberto(true);
+    enviarDoc.mutate(
+      { arquivo, tipo: 'contrato' },
+      { onSuccess: ({ extracao: e }) => setExtracaoIdAtual(e.id) },
+    );
+  }
+
+  /** Fecha o painel de documento, preservando o que já estiver no formulário. */
+  function fecharDocumento() {
+    setDocAberto(false);
+    setExtracaoIdAtual(undefined);
+    enviarDoc.reset();
+  }
+
+  /**
+   * A pessoa aceitou o que foi lido. A `Resposta` recebe os campos propostos —
+   * já filtrados por trecho em `extracaoParaProposta` (guardrail 8.1) — e o
+   * `extracaoId`. Nada é gravado: só entra no estado local da fila.
+   */
+  function confirmarDocumento() {
+    if (!extracao || extracao.status !== 'concluida') return;
+    const proposta = extracaoParaProposta(extracao);
+    setRespostas((atuais) => ({
+      ...atuais,
+      [item!.id]: {
+        credor: proposta.credor ?? credor,
+        valor: proposta.valorCobrado ?? valor,
+        dataOrigem: proposta.dataOrigem ?? dataOrigem,
+        extracaoId: proposta.extracaoId,
+        taxaJurosMensal: proposta.taxaJurosMensal,
+      },
+    }));
+    setErro(undefined);
+    fecharDocumento();
   }
 
   /** Ids das dívidas já gravadas, na ordem da fila. */
@@ -139,6 +217,10 @@ export default function EntradaDaDivida() {
           // então cravar "hoje" sem perguntar alertaria cedo demais; coletar a
           // data real acerta o cálculo já na entrada.
           dataOrigem: r.dataOrigem,
+          // Só quando veio de documento: a ligação com a extração e a taxa lida.
+          // É AQUI que a dívida da fila passa a nascer com achado (ADR 0022).
+          ...(r.extracaoId ? { extracaoId: r.extracaoId } : {}),
+          ...(r.taxaJurosMensal ? { taxaJurosMensal: r.taxaJurosMensal } : {}),
         });
         feitas[t.id] = divida.id;
         setCriadas({ ...feitas });
@@ -179,6 +261,12 @@ export default function EntradaDaDivida() {
   // diferentes com o mesmo desenho.
   const semSeta = manual && !emFila;
 
+  const erroDoc = enviarDoc.error ?? erroExtracao;
+  const mensagemErroDoc =
+    erroDoc instanceof ApiError
+      ? erroDoc.message
+      : 'Não deu para ler o documento agora. Você pode tentar de novo ou seguir só pelo valor.';
+
   return (
     <Screen>
       <ScrollView
@@ -189,7 +277,9 @@ export default function EntradaDaDivida() {
       >
         <Passos atual={2} onVoltar={semSeta ? undefined : voltarNaFila} />
 
-        {!mostrarFormulario ? (
+        {docAberto ? (
+          renderDocumento()
+        ) : !mostrarFormulario ? (
           <>
             <View style={styles.chamada}>
               <Text style={styles.titulo}>Tem a fatura{'\n'}ou o contrato aí?</Text>
@@ -229,7 +319,7 @@ export default function EntradaDaDivida() {
               </Text>
               <Text style={styles.ajuda}>
                 {emFila
-                  ? 'Dois campos por dívida. O contrato de cada uma você me manda depois, quando tiver em mãos.'
+                  ? 'Dois campos por dívida. Se tiver o documento de alguma, eu leio e já preencho — inclusive o que dá pra contestar.'
                   : 'Dois campos e a gente já começa. O contrato você me manda quando tiver em mãos.'}
               </Text>
             </View>
@@ -268,11 +358,33 @@ export default function EntradaDaDivida() {
               />
             </View>
 
+            {/* DOCUMENTO OPCIONAL NA FILA (ADR 0022). Só na variante de várias:
+                na de uma, o documento já é o caminho primário da tela anterior.
+                O aviso de descarte aparece ANTES do toque (guardrail 8.3), porque
+                o seletor nativo abre na hora. */}
+            {emFila ? (
+              <Card>
+                <Text style={styles.aviso}>
+                  {resposta?.extracaoId
+                    ? 'Documento lido — os campos acima vieram dele. Quer trocar?'
+                    : 'Tem o documento dessa dívida? Eu leio e já preencho — e procuro o que dá pra contestar.'}
+                </Text>
+                <Text style={styles.aviso}>
+                  A gente lê o arquivo e <Text style={styles.forte}>descarta</Text>: ficam só os
+                  campos e os trechos que os comprovam, nunca o documento.
+                </Text>
+                <Button
+                  label={resposta?.extracaoId ? 'Trocar o documento' : 'Mandar o documento'}
+                  variant="secondary"
+                  onPress={abrirDocumento}
+                  style={styles.botaoDoc}
+                />
+              </Card>
+            ) : null}
+
             <View style={styles.rodape}>
               <Button
-                label={
-                  ultimo && emFila ? `Cadastrar as ${fila.length} dívidas` : 'Continuar'
-                }
+                label={ultimo && emFila ? `Cadastrar as ${fila.length} dívidas` : 'Continuar'}
                 size="lg"
                 onPress={continuar}
                 loading={criar.isPending}
@@ -302,6 +414,105 @@ export default function EntradaDaDivida() {
       </ScrollView>
     </Screen>
   );
+
+  /**
+   * Os quatro estados do documento inline, ali mesmo na fila: enviando, lendo
+   * (com o teto de 2min), falhou/erro e lido. O lido é a REVISÃO campo-a-campo
+   * com o trecho à vista (guardrail 8.1) — espelho da tela `contrato/[id]`,
+   * antes de a dívida entrar na fila.
+   */
+  function renderDocumento() {
+    if (enviarDoc.isPending || (!extracaoIdAtual && !erroDoc)) {
+      return <LoadingState label="Enviando o documento" />;
+    }
+    if (erroDoc) {
+      return (
+        <>
+          <Feedback tone="error" message={mensagemErroDoc} />
+          <View style={styles.rodape}>
+            <Button label="Tentar de novo" variant="secondary" onPress={abrirDocumento} />
+            <Button label="Seguir só pelo valor" variant="ghost" onPress={fecharDocumento} />
+          </View>
+        </>
+      );
+    }
+    if (!extracao || extracao.status === 'processando' || lendoExtracao) {
+      return excedeuTempo ? (
+        <>
+          <Feedback
+            tone="warning"
+            message="A leitura está demorando mais que o normal. Você pode esperar mais um pouco ou seguir só pelo valor — nada foi perdido."
+          />
+          <View style={styles.rodape}>
+            <Button
+              label="Verificar de novo"
+              variant="secondary"
+              onPress={() => reverificarExtracao()}
+            />
+            <Button label="Seguir só pelo valor" variant="ghost" onPress={fecharDocumento} />
+          </View>
+        </>
+      ) : (
+        <LoadingState label="Lendo o documento. Costuma levar menos de um minuto" />
+      );
+    }
+    if (extracao.status === 'falhou') {
+      return (
+        <>
+          <Feedback
+            tone="warning"
+            message={
+              extracao.erro ??
+              'Não deu para ler esse arquivo. Pode ser a qualidade da imagem ou um formato inesperado.'
+            }
+          />
+          <View style={styles.rodape}>
+            <Button label="Tentar outro arquivo" variant="secondary" onPress={abrirDocumento} />
+            <Button label="Seguir só pelo valor" variant="ghost" onPress={fecharDocumento} />
+          </View>
+        </>
+      );
+    }
+
+    const linhas = linhasDeRevisao(extracao);
+    return (
+      <>
+        <View style={styles.chamada}>
+          <Text style={styles.contagem}>
+            {item!.emoji} {item!.rotulo} · {indice + 1} de {fila.length}
+          </Text>
+          <Text style={styles.titulo}>Confere{'\n'}o que eu li?</Text>
+          <Text style={styles.ajuda}>
+            Cada valor vem com o trecho do documento que o sustenta. Nada é salvo até você confirmar
+            a fila inteira no fim.
+          </Text>
+        </View>
+
+        {linhas.length ? (
+          <Card>
+            {linhas.map((linha) => (
+              <CampoRevisao
+                key={linha.rotulo}
+                rotulo={linha.rotulo}
+                campo={linha.campo}
+                valorFormatado={linha.valorFormatado}
+              />
+            ))}
+          </Card>
+        ) : (
+          <Feedback
+            tone="warning"
+            message="Não consegui extrair nada com trecho que comprove. Melhor seguir só pelo valor nessa."
+          />
+        )}
+
+        <View style={styles.rodape}>
+          <Button label="Usar estes dados" size="lg" onPress={confirmarDocumento} />
+          <Button label="Descartar e digitar" variant="ghost" onPress={fecharDocumento} />
+        </View>
+      </>
+    );
+  }
 }
 
 const styles = StyleSheet.create({
@@ -320,4 +531,5 @@ const styles = StyleSheet.create({
   forte: { color: colors.ink, fontFamily: typography.bodyStrong.fontFamily },
   form: { gap: spacing.lg },
   rodape: { gap: spacing.sm, marginTop: spacing.md },
+  botaoDoc: { marginTop: spacing.md },
 });
