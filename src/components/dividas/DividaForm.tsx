@@ -100,6 +100,12 @@ export function DividaForm({ inicial, submitLabel, submitting, onSubmit }: Props
       // taxa zero, que é uma afirmação diferente de ausência.
       ...(taxaJurosMensal > 0 ? { taxaJurosMensal } : {}),
       ...(temParcelas && primeiroVencimento ? { totalParcelas: parcelas, primeiroVencimento } : {}),
+      // A CHAVE DA EXTRAÇÃO VIAJA AO LADO DO SUBMIT, sem virar campo editável: o
+      // formulário edita o que o usuário revisa, e `extracaoId` não é isso — é a
+      // ligação com o documento lido, carregada por fora e só repassada. Sem esta
+      // linha o vínculo dívida→extração morre no formulário e a revisão daquela
+      // dívida nunca acha nada.
+      ...(inicial?.extracaoId ? { extracaoId: inicial.extracaoId } : {}),
     });
   }
 

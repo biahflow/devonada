@@ -42,6 +42,29 @@ describe('extracaoParaProposta', () => {
     expect(proposta.taxaJurosMensal).toBe(1250);
   });
 
+  // A LIGAÇÃO DÍVIDA→EXTRAÇÃO (F-015). O `extracaoId` é a chave da leitura, não um
+  // campo lido: viaja mesmo não sendo campo com trecho. Sem ele, `revisao.py` não
+  // acha a extração e a revisão daquela dívida nunca produz achado.
+  it('carrega o extracaoId, que não é campo extraído e não passa pelo descarte', () => {
+    const proposta = extracaoParaProposta(extracao());
+    expect(proposta.extracaoId).toBe('e1');
+  });
+
+  it('carrega o extracaoId mesmo quando quase todo campo caiu por falta de trecho', () => {
+    // Nenhum campo com trecho sobra, mas a chave da leitura continua ligando a
+    // dívida à extração — é o que a revisão precisa para achar os campos no banco.
+    const proposta = extracaoParaProposta(
+      extracao({
+        credor: campo<string>(null),
+        valorCobrado: campo(999999, undefined),
+        dataOrigem: campo<string>(null),
+        tipo: campo<string>(null) as never,
+        taxaJurosMensal: campo<number>(null),
+      }),
+    );
+    expect(proposta.extracaoId).toBe('e1');
+  });
+
   it('DESCARTA campo com valor mas sem trecho que comprove', () => {
     // Número sem evidência citável é palpite do modelo. Palpite não entra em
     // formulário de dinheiro, nem pré-preenchido.

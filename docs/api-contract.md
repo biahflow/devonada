@@ -141,6 +141,14 @@ como `0` (ausência e "juros zero" são afirmações diferentes):
 { "credor": "Banco Teste S/A", "valorCobrado": 150000, "dataOrigem": "2021-06-01", "tipo": "juros_abusivos", "taxaJurosMensal": 1250 }
 ```
 
+`extracaoId` é **opcional** e liga a dívida à extração que a originou (ver `POST /v1/dividas` com
+vínculo, abaixo). Ausente numa dívida cadastrada por valor; presente quando o cadastro nasceu de um
+documento lido — inclusive na fila do onboarding (ADR 0022). Sem ele, a revisão daquela dívida não
+encontra a extração e não produz achado:
+```json
+{ "credor": "Banco Teste S/A", "valorCobrado": 150000, "dataOrigem": "2021-06-01", "tipo": "juros_abusivos", "extracaoId": "…" }
+```
+
 Response `201`: `{ "divida": Divida }` — com `id`, `valorCorrigido` e `possivelPrescricao`
 já calculados pelo servidor.
 
@@ -283,7 +291,17 @@ formato inesperado, PDF protegido.
 #### `POST /v1/dividas` com vínculo
 
 Ao confirmar a revisão, o front chama o endpoint já existente acrescido de `extracaoId`, para o
-backend ligar a dívida à extração que a originou.
+backend ligar a dívida à extração que a originou. Quem consome: `createDebt()` (o campo
+`extracaoId?` do tipo `NovaDivida` em `src/api/debts.ts`), preenchido por `extracaoParaProposta`
+(`src/util/extracao.ts`) e repassado pelo `DividaForm` ao lado do submit — nunca como campo
+editável. Vale para os dois caminhos que nascem de documento: a tela de revisão
+(`contrato/[id].tsx`) e a fila multi-dívida do onboarding (ADR 0022).
+
+> **Regressão coberta:** o backend sempre aceitou e gravou `extracaoId` (`schemas.NovaDivida`,
+> `routers/dividas.py`), mas até o F-015 **nenhum cliente o enviava** — o tipo `NovaDivida` não
+> tinha o campo. Dívida criada de contrato não ligava a extração, e a triagem/revisão dela nunca
+> mostrava achado. O par de testes que fecha isso vive em `src/util/extracao.test.ts` e
+> `src/test/screens/contrato.test.tsx`.
 
 ---
 
