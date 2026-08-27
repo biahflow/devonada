@@ -112,6 +112,59 @@ class Renegociacao(Base):
     criada_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class ResultadoNegociacao(Base):
+    """
+    O que aconteceu na conversa com o credor — inclusive quando NÃO houve acordo
+    (M12, ADR 0021, item 6).
+
+    ENTIDADE NOVA, e não colunas afrouxadas em `Renegociacao`. Aquela tabela só
+    nasce do acordo fechado: ela reescreve as parcelas e guarda o antes e o
+    depois do CONTRATO. Recusa, contraproposta e silêncio do credor não mudam o
+    contrato, mas são metade da informação do benchmark — e misturar "o que
+    mudou no contrato" com "o que aconteceu na conversa" numa tabela só custaria
+    afrouxar os `NOT NULL` de dado em produção, o que a ADR recusou.
+
+    APPEND-ONLY, no molde de `Renegociacao`: registro de conversa não se apaga.
+
+    `canal` é ENUMERADO (`telefone` · `chat` · `email`), não texto livre — texto
+    livre é o que o `observacao` da renegociação já faz hoje, e o que esta
+    feature existe para substituir: sem canal tipado não há benchmark por canal.
+
+    `desfecho` é `acordo` · `recusa` · `contraproposta` · `sem_resposta`.
+
+    `renegociacao_id` só é preenchido quando `desfecho == "acordo"`, ligando o
+    registro da conversa ao acordo que ela produziu; nos demais desfechos fica
+    nulo, porque não houve acordo a apontar. `valor_proposto` e `valor_obtido`
+    são opcionais: registrar uma recusa não pode exigir preencher valor de
+    acordo — obrigar valor recriaria o viés que esta tabela existe para desfazer.
+
+    `tenant_id` é o que faz esta tabela entrar SOZINHA na exclusão de conta: a
+    varredura de `routers/conta.tabelas_do_tenant()` é derivada de
+    `Base.metadata`, e o teste que falha quando uma tabela fica de fora já a
+    cobre — como cobriu as quatro do M11.
+    """
+
+    __tablename__ = "resultado_negociacao"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=novo_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+    divida_id: Mapped[str] = mapped_column(String(36), index=True)
+
+    canal: Mapped[str] = mapped_column(String(20))
+    desfecho: Mapped[str] = mapped_column(String(20))
+
+    valor_proposto: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    valor_obtido: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+
+    # Preenchido só no acordo, ligando a conversa ao registro do contrato.
+    renegociacao_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    observacao: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    registrado_em: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
 class Perfil(Base):
     """Renda, dependentes e preferências de lembrete. Uma linha por tenant."""
 

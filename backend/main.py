@@ -19,6 +19,7 @@ from routers import (
     lembretes,
     marcos,
     metas,
+    negociacoes,
     parcelas,
     perfil,
     resumo,
@@ -90,6 +91,7 @@ async def erro_validacao(_: Request, exc: RequestValidationError):
 app.include_router(resumo.router)
 app.include_router(simulacoes.router)
 app.include_router(parcelas.router)
+app.include_router(negociacoes.router)
 app.include_router(revisao.router)
 app.include_router(dividas.router)
 app.include_router(perfil.router)
