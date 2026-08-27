@@ -1,8 +1,10 @@
 import { screen, fireEvent, waitFor } from '@testing-library/react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import EscolhaDaDivida from '../../../app/(onboarding)/divida';
 import EntradaDaDivida from '../../../app/(onboarding)/entrada';
 import { limparMocksDeRede, requestMock } from '../api';
 import { renderizarTela } from '../render';
+import { dateParaIso } from '../../util/date';
 
 afterEach(limparMocksDeRede);
 
@@ -15,6 +17,18 @@ function tocar(nome: string | RegExp) {
 
 function preencher(rotulo: string, valor: string) {
   fireEvent.changeText(screen.getByLabelText(rotulo), valor);
+}
+
+/** Abre o seletor "Quando começou?" e confirma uma data — como o picker nativo faria. */
+function escolherData(quando: Date) {
+  fireEvent.press(screen.getByLabelText('Quando começou?'));
+  fireEvent(screen.UNSAFE_getByType(DateTimePicker), 'change', { type: 'set' }, quando);
+}
+
+/** O corpo do POST /v1/dividas da n-ésima criação. */
+function corpoDaCriacao(n: number): Record<string, unknown> {
+  const chamada = requestMock.mock.calls[n];
+  return (chamada?.[1] as { body: Record<string, unknown> }).body;
 }
 
 /** Uma dívida criada por vez, com id previsível, na ordem das chamadas. */
@@ -153,6 +167,45 @@ describe('passo 2 — a fila', () => {
       }),
     );
     expect(requestMock).toHaveBeenCalledTimes(2);
+  });
+
+  // A DATA DE ORIGEM VEM PRÉ-PREENCHIDA COM HOJE. Quem não sabe a data de cabeça
+  // só confirma, e a fila não trava por isso.
+  it('grava com a data de hoje quando a pessoa não ajusta', async () => {
+    criaDividasEmSequencia(['divida-cartao', 'divida-emprestimo']);
+    renderizarTela(<EntradaDaDivida />);
+
+    preencher('Pra quem você deve', 'Nubank');
+    preencher('Quanto estão cobrando', '987000');
+    tocar('Continuar');
+    await waitFor(() => expect(screen.getByText(/2 de 2/)).toBeTruthy());
+    preencher('Pra quem você deve', 'Banco do Brasil');
+    preencher('Quanto estão cobrando', '450000');
+    tocar('Cadastrar as 2 dívidas');
+
+    await waitFor(() => expect(requestMock).toHaveBeenCalledTimes(2));
+    expect(corpoDaCriacao(0).dataOrigem).toBe(dateParaIso(new Date()));
+  });
+
+  // ...MAS QUANDO ELA AJUSTA, é a data dela que vai — não mais "hoje" cravado.
+  // A prescrição (CC art. 206) conta a partir daqui, então isso muda o cálculo.
+  it('grava a data que a pessoa escolheu, não hoje', async () => {
+    criaDividasEmSequencia(['divida-cartao', 'divida-emprestimo']);
+    renderizarTela(<EntradaDaDivida />);
+
+    preencher('Pra quem você deve', 'Nubank');
+    preencher('Quanto estão cobrando', '987000');
+    escolherData(new Date(2021, 5, 15));
+    tocar('Continuar');
+    await waitFor(() => expect(screen.getByText(/2 de 2/)).toBeTruthy());
+    preencher('Pra quem você deve', 'Banco do Brasil');
+    preencher('Quanto estão cobrando', '450000');
+    tocar('Cadastrar as 2 dívidas');
+
+    await waitFor(() => expect(requestMock).toHaveBeenCalledTimes(2));
+    expect(corpoDaCriacao(0).dataOrigem).toBe('2021-06-15');
+    // A segunda, intocada, segue com hoje: a data de uma não contamina a outra.
+    expect(corpoDaCriacao(1).dataOrigem).toBe(dateParaIso(new Date()));
   });
 
   /**

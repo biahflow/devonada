@@ -6,17 +6,20 @@ import { Button } from '../../src/components/ui/Button';
 import { Card } from '../../src/components/ui/Card';
 import { FormField } from '../../src/components/ui/FormField';
 import { CurrencyInput } from '../../src/components/ui/CurrencyInput';
+import { DateField } from '../../src/components/ui/DateField';
 import { Feedback } from '../../src/components/ui/Feedback';
 import { Passos } from '../../src/components/onboarding/Passos';
 import { tipoPorId, type TipoDeDivida } from '../../src/components/onboarding/tiposDeDivida';
 import { useCriarDivida } from '../../src/hooks/useDividas';
 import { ApiError } from '../../src/api/client';
 import { dateParaIso } from '../../src/util/date';
+import type { IsoDate } from '../../src/api/types';
 import { colors, spacing, typography } from '../../src/theme/theme';
 
 interface Resposta {
   credor: string;
   valor: number;
+  dataOrigem: IsoDate;
 }
 
 /**
@@ -88,14 +91,18 @@ export default function EntradaDaDivida() {
     );
   }
 
+  // Data de origem pré-preenchida com hoje, no espírito "pré-preenchido, confirmar":
+  // a pessoa não precisa saber a data de cabeça, mas pode corrigir com um toque.
+  const hoje = dateParaIso(new Date());
   const resposta = respostas[item.id];
   const credor = resposta?.credor ?? '';
   const valor = resposta?.valor ?? 0;
+  const dataOrigem = resposta?.dataOrigem ?? hoje;
 
   function responder(campo: keyof Resposta, novo: string | number) {
     setRespostas((atuais) => ({
       ...atuais,
-      [item!.id]: { credor, valor, [campo]: novo },
+      [item!.id]: { credor, valor, dataOrigem, [campo]: novo },
     }));
   }
 
@@ -127,12 +134,11 @@ export default function EntradaDaDivida() {
           credor: r.credor.trim(),
           valorCobrado: r.valor,
           tipo: t.tipo,
-          // Hoje como origem: o onboarding não pergunta a data porque quase
-          // ninguém sabe de cabeça, e travar a entrada nisso custaria a pessoa.
-          // A consequência é conhecida — a prescrição (5 anos, CC art. 206)
-          // conta a partir daqui, então ela só vai alertar cedo demais, nunca
-          // tarde. Corrigir a data na tela de edição acerta o cálculo.
-          dataOrigem: dateParaIso(new Date()),
+          // A data que a pessoa confirmou no passo — pré-preenchida com hoje, mas
+          // corrigível. A prescrição (5 anos, CC art. 206) conta a partir daqui,
+          // então cravar "hoje" sem perguntar alertaria cedo demais; coletar a
+          // data real acerta o cálculo já na entrada.
+          dataOrigem: r.dataOrigem,
         });
         feitas[t.id] = divida.id;
         setCriadas({ ...feitas });
@@ -252,6 +258,13 @@ export default function EntradaDaDivida() {
                 value={valor}
                 onChangeValue={(v) => responder('valor', v)}
                 error={erro && credor.trim() ? erro : undefined}
+              />
+              <DateField
+                label="Quando começou?"
+                value={dataOrigem}
+                onChangeValue={(iso) => responder('dataOrigem', iso)}
+                hint="Já preenchi com hoje. Se souber a data certa, é só ajustar."
+                maximumDate={new Date()}
               />
             </View>
 

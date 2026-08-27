@@ -901,8 +901,10 @@ tem de vir antes do esforço. O M7 já tinha provado isso com o "Nível 0" do ca
       sustente — é a ADR 0008 aplicada à tela que mais teria tentação de inventar.
 - [x] "Devo pra uma pessoa" como escolha de entrada. É enorme no Brasil, nenhum app trata, e o
       peso emocional é diferente do de uma dívida bancária.
-- [ ] Data de origem no onboarding. Hoje entra como "hoje", e a consequência é conhecida: a
-      prescrição (CC art. 206) conta a partir daí, então ela alerta cedo demais, nunca tarde.
+- [x] Data de origem no onboarding. O passo 2 da fila agora pergunta "Quando começou?", pré-
+      preenchido com hoje e confirmável, `maximumDate` = hoje. A prescrição (CC art. 206) passa a
+      contar da data real, não de "hoje" cravado. Código e testes prontos; falta confirmar o
+      seletor nativo em aparelho.
 - [ ] **Documento durante a fila multi-dívida.** Quem marca duas ou mais cadastra por valor e
       recebe triagem sem achado: `/dividas/contrato` vive fora do grupo `(onboarding)` e sair para
       lá abandonaria o resto da fila. Resolver pede uma tela de upload dentro do grupo, ou a fila
