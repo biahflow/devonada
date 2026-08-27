@@ -5,10 +5,13 @@ import {
   confirmarFechamento,
   atualizarGasto,
   atualizarProvisao,
+  atualizarEventoPrevisivel,
+  criarEventoPrevisivel,
   criarFonte,
   criarGasto,
   criarProvisao,
   destinarRespiro,
+  excluirEventoPrevisivel,
   excluirFonte,
   excluirGasto,
   excluirProvisao,
@@ -17,6 +20,7 @@ import {
   getFechamento,
   getHistoricoCaixa,
   getMetas,
+  listarEventosPrevisiveis,
   listarFontes,
   listarGastos,
   listarProvisoes,
@@ -26,6 +30,7 @@ import {
   updateMetas,
   type NovaFonteRenda,
   type NovaProvisao,
+  type NovoEventoPrevisivel,
   type NovoGasto,
   type RespiroInput,
 } from '../api/caixa';
@@ -44,6 +49,7 @@ export const caixaKeys = {
   fontes: ['caixa', 'fontes'] as const,
   gastos: ['caixa', 'gastos'] as const,
   provisoes: ['caixa', 'provisoes'] as const,
+  eventosPrevisiveis: ['caixa', 'eventos-previsiveis'] as const,
   metas: ['caixa', 'metas'] as const,
   historico: ['caixa', 'historico'] as const,
   fechamento: (mes?: string) => ['caixa', 'fechamento', mes ?? 'atual'] as const,
@@ -84,6 +90,14 @@ export function useGastos() {
 export function useProvisoes() {
   const query = useQuery({ queryKey: caixaKeys.provisoes, queryFn: listarProvisoes });
   return { ...query, provisoes: query.data?.provisoes ?? [] };
+}
+
+export function useEventosPrevisiveis() {
+  const query = useQuery({
+    queryKey: caixaKeys.eventosPrevisiveis,
+    queryFn: listarEventosPrevisiveis,
+  });
+  return { ...query, eventos: query.data?.eventos ?? [] };
 }
 
 export function useMetas() {
@@ -182,6 +196,36 @@ export function useExcluirProvisao() {
 export function useAtualizarMetas() {
   const invalidar = useInvalidarCaixa();
   return useMutation({ mutationFn: (metas: MetasCaixa) => updateMetas(metas), onSuccess: invalidar });
+}
+
+/**
+ * Eventos previsíveis (13º, férias). Usam o mesmo invalidador dos demais — o
+ * evento não entra na cascata, mas invalidar `['caixa']` mantém a lista fresca
+ * sem um invalidador dedicado.
+ */
+export function useCriarEventoPrevisivel() {
+  const invalidar = useInvalidarCaixa();
+  return useMutation({
+    mutationFn: (evento: NovoEventoPrevisivel) => criarEventoPrevisivel(evento),
+    onSuccess: invalidar,
+  });
+}
+
+export function useAtualizarEventoPrevisivel() {
+  const invalidar = useInvalidarCaixa();
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: Uuid; patch: Partial<NovoEventoPrevisivel> }) =>
+      atualizarEventoPrevisivel(id, patch),
+    onSuccess: invalidar,
+  });
+}
+
+export function useExcluirEventoPrevisivel() {
+  const invalidar = useInvalidarCaixa();
+  return useMutation({
+    mutationFn: (id: Uuid) => excluirEventoPrevisivel(id),
+    onSuccess: invalidar,
+  });
 }
 
 /**
