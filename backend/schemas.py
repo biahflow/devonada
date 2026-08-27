@@ -522,6 +522,10 @@ CategoriaGasto = Literal[
 ]
 OrigemRenda = Literal["informada", "pior_mes_registrado"]
 NivelPreenchimento = Literal["vazio", "nivel_0", "nivel_1"]
+# 13º, férias e o que mais cai uma vez por ano (M12, ADR 0021, decisão 2). Espelho
+# do que o CRUD de evento previsível aceita; `outro` é a saída para o previsível
+# que não é nenhum dos dois nomeados.
+TipoEventoPrevisivel = Literal["decimo_terceiro", "ferias", "outro"]
 
 
 class Caixa(Camel):
@@ -560,6 +564,20 @@ class Caixa(Camel):
     # PERSISTIDO, no molde de `provisao_anual.saldoAcumulado`: respiro não usado
     # acumula em silêncio, sem notificação e sem pergunta (guardrail 4.1).
     respiroSaldoAcumulado: int | None = None
+    # COMPROMISSO PERCENTUAL (M12, ADR 0021, decisão 4). `None` é "nunca
+    # declarou" e não se confunde com `0` (declarou zero). O bps é a escolha; o
+    # valor em centavos é o que ela custa neste mês, derivado da renda LÍQUIDA
+    # típica no servidor — o cliente não multiplica (guardrail 1.2).
+    compromissoPercentualBps: int | None = None
+    compromissoPercentual: int | None = None
+    # AUSÊNCIA TIPADA DE ALÍQUOTA: `True` quando uma fonte `pj_hora` ativa não tem
+    # alíquota própria nem fallback. Anda junto de `impostoReservado == 0`, e a
+    # tela diz "não está reservando imposto" em vez de exibir R$ 0,00 (ADR 0009).
+    impostoNaoDeclarado: bool = False
+    # O mês que ancorou a renda típica (`AAAA-MM`), ou `None` quando a origem é
+    # `informada`. A tela o usa com `origemRenda` para explicar o número em vez
+    # de deixá-lo despencar sem contexto (ADR 0021, decisão 3).
+    mesAncoraRenda: str | None = None
     minimoExistencial: int | None = None
     minimoExistencialVigenteEm: str | None = None
     # `None` quando não há piso configurado: um `False` diria "conferimos e está
@@ -588,6 +606,13 @@ class NovaFonteRenda(Camel):
     valorTipicoInformado: int | None = Field(default=None, ge=0)
     variavel: bool = False
     ativo: bool = True
+    # A ALÍQUOTA DESCE PARA A FONTE (M12, ADR 0021, decisão 1). `None` aplica o
+    # `Perfil.imposto_bps` de fallback, exatamente como hoje. Faixa igual à de
+    # `impostoBps` em `MetasCaixa`.
+    impostoBps: int | None = Field(default=None, ge=0, le=10000)
+    # QUANDO O DINHEIRO CAI, de 1 a 31. `None` é "não informou", o estado de todo
+    # mundo que já usa o app.
+    diaPagamento: int | None = Field(default=None, ge=1, le=31)
 
 
 class FonteRendaPatch(Camel):
@@ -596,6 +621,8 @@ class FonteRendaPatch(Camel):
     valorTipicoInformado: int | None = Field(default=None, ge=0)
     variavel: bool | None = None
     ativo: bool | None = None
+    impostoBps: int | None = Field(default=None, ge=0, le=10000)
+    diaPagamento: int | None = Field(default=None, ge=1, le=31)
 
 
 class FonteRenda(NovaFonteRenda):
@@ -608,6 +635,42 @@ class RespostaFonteRenda(Camel):
 
 class ListaFontesRenda(Camel):
     fontes: list[FonteRenda]
+
+
+# --- Evento previsível (M12, ADR 0021, decisão 2) ----------------------------
+#
+# 13º, férias e o que mais cai uma vez por ano. NÃO ENTRA NA CASCATA nem na
+# janela do `min()`: é munição de negociação à vista. O `valor` é declarado pelo
+# usuário — nenhum 13º é projetado a partir da renda (ADR 0009).
+
+
+class NovoEventoPrevisivel(Camel):
+    tipo: TipoEventoPrevisivel
+    # 1 a 12, como `mesVencimento` da provisão: o evento se repete todo ano.
+    mesPrevisto: int = Field(ge=1, le=12)
+    valor: int = Field(ge=0)
+    # OPCIONAL: quem tem dois contratos sabe de qual veio; quem tem um só não
+    # precisa dizer.
+    fonteId: str | None = None
+
+
+class EventoPrevisivelPatch(Camel):
+    tipo: TipoEventoPrevisivel | None = None
+    mesPrevisto: int | None = Field(default=None, ge=1, le=12)
+    valor: int | None = Field(default=None, ge=0)
+    fonteId: str | None = None
+
+
+class EventoPrevisivel(NovoEventoPrevisivel):
+    id: str
+
+
+class RespostaEventoPrevisivel(Camel):
+    evento: EventoPrevisivel
+
+
+class ListaEventosPrevisiveis(Camel):
+    eventos: list[EventoPrevisivel]
 
 
 class NovoRecebimento(Camel):
@@ -702,6 +765,11 @@ class MetasCaixa(Camel):
     reservaAporte: int | None = Field(default=None, ge=0)
     aposentadoriaAporte: int | None = Field(default=None, ge=0)
     rendimentoEsperadoBps: int | None = Field(default=None, ge=0, le=10000)
+    # POTE PERCENTUAL (M12, ADR 0021, decisão 4), ao lado dos dois de valor fixo.
+    # `None` é "nunca declarou" e mantém a cascata idêntica à de hoje; `0` é
+    # "declarou zero", escolha legítima. Faixa 0–10000 bps como os demais; o `422`
+    # do piso legal é do router, porque depende da renda e não cabe num Field.
+    compromissoPercentualBps: int | None = Field(default=None, ge=0, le=10000)
 
 
 class RespostaMetas(Camel):

@@ -700,6 +700,10 @@ A cascata inteira, calculada no servidor (ADR 0003).
     "capacidadeHoje": 116333,
     "capacidadeMaxima": 206333,
     "aporteMaximo": -63667,
+    "compromissoPercentualBps": null,
+    "compromissoPercentual": null,
+    "impostoNaoDeclarado": false,
+    "mesAncoraRenda": null,
     "minimoExistencial": 60000,
     "minimoExistencialVigenteEm": "2023-06-19",
     "abaixoDoPiso": false,
@@ -710,6 +714,16 @@ A cascata inteira, calculada no servidor (ADR 0003).
 ```
 
 - `origemRenda`: `"informada"` | `"pior_mes_registrado"`. O usuário vê de onde saiu o número.
+- **F-011 (M12, ADR 0021):** `compromissoPercentualBps` é a escolha do usuário em **bps**
+  (`null` para quem nunca declarou; `0` é escolha legítima). `compromissoPercentual` é o que ela
+  custa neste mês, em **centavos**, aplicado sobre a renda **líquida** típica **no servidor** — o
+  cliente não multiplica (guardrail 1.2). Entra na cascata na mesma posição dos potes e do respiro,
+  antes de `capacidadeMaxima`.
+- **F-011:** `impostoNaoDeclarado` é `true` quando existe fonte `pj_hora` ativa sem `impostoBps`
+  próprio e sem `impostoBps` de perfil de fallback. Anda com `impostoReservado == 0`, e a tela diz
+  "não está reservando imposto" em vez de exibir `R$ 0,00` (ADR 0009).
+- **F-011:** `mesAncoraRenda` é o `AAAA-MM` do recebimento que ancorou a renda típica, ou `null`
+  quando `origemRenda` é `"informada"`. A tela o usa para explicar por que a capacidade caiu.
 - `preenchimento`: `"vazio"` | `"nivel_0"` | `"nivel_1"`. É o que a tela usa para escolher entre
   o convite e o conteúdo.
 - `capacidadeHoje` e `capacidadeMaxima` **podem ser negativas** — o negativo é a informação.
@@ -727,10 +741,15 @@ A cascata inteira, calculada no servidor (ADR 0003).
 
 ```json
 { "fonte": { "id": "…", "nome": "Contrato PJ", "tipo": "pj_hora",
-             "valorTipicoInformado": 1200000, "variavel": true, "ativo": true } }
+             "valorTipicoInformado": 1200000, "variavel": true, "ativo": true,
+             "impostoBps": 600, "diaPagamento": 5 } }
 ```
 
 `tipo`: `pj_hora` | `clt` | `autonomo` | `beneficio` | `aluguel` | `outro`.
+
+- **F-011 (M12, ADR 0021):** `impostoBps` é a alíquota **por fonte**, opcional. `null` aplica o
+  `impostoBps` do perfil como fallback, campo a campo como hoje — nenhum dado migra. `diaPagamento`
+  (1–31, opcional) é quando o dinheiro cai; `null` é "não informou".
 
 #### `POST /v1/caixa/fontes/{id}/recebimentos`
 
@@ -739,6 +758,21 @@ O que **de fato** caiu. É daqui que sai a renda típica real.
 ```json
 { "recebimento": { "id": "…", "mes": "2026-07", "valor": 980000 } }
 ```
+
+#### `GET · POST · PATCH · DELETE /v1/caixa/eventos-previsiveis[/{id}]`
+
+**F-011 (M12, ADR 0021, decisão 2).** 13º, férias e o que mais cai uma vez por ano.
+
+```json
+{ "evento": { "id": "…", "tipo": "decimo_terceiro", "mesPrevisto": 12,
+              "valor": 300000, "fonteId": null } }
+```
+
+- `tipo`: `decimo_terceiro` | `ferias` | `outro`. `mesPrevisto`: 1–12. `valor` em **centavos**,
+  **declarado pelo usuário** — nenhum 13º é projetado a partir da renda (ADR 0009). `fonteId` é
+  opcional; informado, precisa ser do tenant (404, nunca 403).
+- **NÃO ENTRA NA CASCATA** nem na janela do `min()` da renda típica: gravar um evento **não muda
+  nenhum número** de `GET /v1/caixa`. É munição de negociação à vista, não renda mensal.
 
 #### `GET · POST · PATCH · DELETE /v1/caixa/gastos[/{id}]`
 
@@ -766,10 +800,16 @@ pelos meses restantes até o vencimento, nunca por 12 fixo.
 ```json
 { "metas": { "impostoBps": 600, "reservaMetaMeses": 6, "reservaSaldo": 150000,
              "reservaAporte": 50000, "aposentadoriaAporte": 30000,
-             "rendimentoEsperadoBps": null } }
+             "rendimentoEsperadoBps": null, "compromissoPercentualBps": 1000 } }
 ```
 
 Todos opcionais, e `null` **grava** ausência — é como o usuário desfaz uma meta.
+
+- **F-011 (M12, ADR 0021):** `compromissoPercentualBps` (0–10000 bps; fora da faixa ⇒ `422`) é o
+  pote percentual. Compromisso que empurre o que sobra **abaixo do mínimo existencial** é recusado
+  com `422`, `campo: "compromissoPercentualBps"`, mensagem em pt-BR **sem valor no corpo**
+  (guardrail 5). Sem caixa preenchido não há o que comparar e a gravação segue — mesma limitação
+  declarada de `_validar_aporte` e do respiro.
 
 Os três campos de reserva são coisas diferentes, e só um entra na cascata: `reservaSaldo` é o
 que já existe, `reservaMetaMeses` é aonde se quer chegar, e **`reservaAporte` é o que sai do

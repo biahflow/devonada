@@ -1359,3 +1359,229 @@ class TestViradaDoMes:
         _fonte(client, auth)
         client.get("/v1/caixa", headers=auth)
         assert sessao.query(orm.Respiro).count() == 0
+
+
+# --- F-011 · T3 · Renda tipada e compromisso percentual pela API --------------
+
+
+class TestCamposNovosDoCaixa:
+    """T3-AC1: os quatro campos do M12 no `GET /v1/caixa`."""
+
+    def test_get_caixa_traz_os_quatro_campos_do_M12(self, client, auth):
+        # `_fonte` é `pj_hora` sem alíquota: o par imposto-zero + sinal ligado.
+        _fonte(client, auth)
+        caixa = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        assert caixa["compromissoPercentualBps"] is None
+        assert caixa["compromissoPercentual"] is None
+        assert caixa["impostoNaoDeclarado"] is True
+        assert caixa["impostoReservado"] == 0
+        assert caixa["mesAncoraRenda"] is None
+
+    def test_com_aliquota_na_fonte_o_sinal_apaga(self, client, auth):
+        _fonte(client, auth, impostoBps=600)
+        caixa = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        assert caixa["impostoNaoDeclarado"] is False
+        assert caixa["impostoReservado"] == 60000
+
+
+class TestCompromissoPercentualNasMetas:
+    def test_grava_e_devolve_o_percentual_aplicado_no_servidor(self, client, auth):
+        _fonte(client, auth, impostoBps=600)
+        r = client.put(
+            "/v1/caixa/metas", json={"compromissoPercentualBps": 1000}, headers=auth
+        )
+        assert r.status_code == 200
+        assert r.json()["metas"]["compromissoPercentualBps"] == 1000
+
+        caixa = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        # 10% da LÍQUIDA (940.000) = 94.000 — o cliente não multiplica.
+        assert caixa["compromissoPercentualBps"] == 1000
+        assert caixa["compromissoPercentual"] == 94000
+        assert caixa["capacidadeMaxima"] == 846000
+
+    def test_zero_declarado_e_diferente_de_ausente(self, client, auth):
+        _fonte(client, auth)
+        client.put("/v1/caixa/metas", json={"compromissoPercentualBps": 0}, headers=auth)
+        caixa = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        assert caixa["compromissoPercentualBps"] == 0
+        assert caixa["compromissoPercentual"] == 0
+
+    def test_bps_negativo_e_rejeitado(self, client, auth):
+        r = client.put(
+            "/v1/caixa/metas", json={"compromissoPercentualBps": -1}, headers=auth
+        )
+        assert r.status_code == 422
+
+    def test_bps_acima_de_10000_e_rejeitado(self, client, auth):
+        r = client.put(
+            "/v1/caixa/metas", json={"compromissoPercentualBps": 10001}, headers=auth
+        )
+        assert r.status_code == 422
+
+    def test_percentual_que_invade_o_piso_legal_devolve_422_sem_valor(self, client, auth):
+        # Renda baixa e essenciais altos: um percentual grande empurra o que
+        # sobra abaixo do piso legal.
+        _fonte(client, auth, valorTipicoInformado=650000)
+        _gasto(client, auth, valorMensal=600000)
+
+        r = client.put(
+            "/v1/caixa/metas", json={"compromissoPercentualBps": 5000}, headers=auth
+        )
+        assert r.status_code == 422
+        corpo = r.json()
+        assert corpo["campo"] == "compromissoPercentualBps"
+        # A mensagem é exibida direto ao usuário: pt-BR, sem valor (guardrail 5).
+        assert "mínimo existencial" in corpo["message"]
+        assert "R$" not in corpo["message"]
+        assert not any(ch.isdigit() for ch in corpo["message"])
+
+    def test_sem_caixa_preenchido_nao_recusa(self, client, auth):
+        # Mesma limitação declarada do respiro e de `_validar_aporte`: sem renda
+        # não há o que comparar, e recusar diria a quem não informou nada que a
+        # escolha dele é ilegal.
+        r = client.put(
+            "/v1/caixa/metas", json={"compromissoPercentualBps": 9000}, headers=auth
+        )
+        assert r.status_code == 200
+
+
+class TestAliquotaPorFonteNaAPI:
+    """T3-AC4: `impostoBps` e `diaPagamento` por fonte, com o `Perfil` de fallback."""
+
+    def test_post_e_patch_aceitam_imposto_bps_e_dia_pagamento(self, client, auth):
+        criada = _fonte(client, auth, impostoBps=600, diaPagamento=5).json()["fonte"]
+        assert criada["impostoBps"] == 600
+        assert criada["diaPagamento"] == 5
+
+        editada = client.patch(
+            f"/v1/caixa/fontes/{criada['id']}",
+            json={"impostoBps": 800},
+            headers=auth,
+        ).json()["fonte"]
+        assert editada["impostoBps"] == 800
+        # Campo não enviado no PATCH permanece.
+        assert editada["diaPagamento"] == 5
+
+    def test_ausentes_a_fonte_continua_como_hoje_com_o_perfil_de_fallback(self, client, auth):
+        _fonte(client, auth, valorTipicoInformado=1000000)  # sem impostoBps próprio
+        client.put("/v1/caixa/metas", json={"impostoBps": 600}, headers=auth)
+
+        caixa = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        # A fonte sem alíquota usa os 6% do perfil: 60.000, campo a campo o de hoje.
+        assert caixa["impostoReservado"] == 60000
+        assert caixa["impostoNaoDeclarado"] is False
+
+
+class TestEventoPrevisivelAPI:
+    def test_crud_completo(self, client, auth):
+        criado = client.post(
+            "/v1/caixa/eventos-previsiveis",
+            json={"tipo": "decimo_terceiro", "mesPrevisto": 12, "valor": 300000},
+            headers=auth,
+        ).json()["evento"]
+        assert criado["tipo"] == "decimo_terceiro"
+        assert len(
+            client.get("/v1/caixa/eventos-previsiveis", headers=auth).json()["eventos"]
+        ) == 1
+
+        client.patch(
+            f"/v1/caixa/eventos-previsiveis/{criado['id']}",
+            json={"valor": 350000},
+            headers=auth,
+        )
+        lista = client.get("/v1/caixa/eventos-previsiveis", headers=auth).json()["eventos"]
+        assert lista[0]["valor"] == 350000
+
+        assert (
+            client.delete(
+                f"/v1/caixa/eventos-previsiveis/{criado['id']}", headers=auth
+            ).status_code
+            == 204
+        )
+        assert client.get(
+            "/v1/caixa/eventos-previsiveis", headers=auth
+        ).json()["eventos"] == []
+
+    def test_nao_muda_nenhum_numero_da_cascata(self, client, auth):
+        # ADR 0021, item 2: o evento previsível NÃO entra na cascata.
+        _fonte(client, auth, impostoBps=600)
+        antes = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        client.post(
+            "/v1/caixa/eventos-previsiveis",
+            json={"tipo": "ferias", "mesPrevisto": 1, "valor": 500000},
+            headers=auth,
+        )
+        depois = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        assert antes == depois
+
+    def test_evento_de_outro_tenant_devolve_404_e_nao_403(self, client, auth, sessao):
+        import orm
+
+        e = orm.EventoPrevisivel(
+            tenant_id="outro-tenant", tipo="ferias", mes_previsto=1, valor=100000
+        )
+        sessao.add(e)
+        sessao.commit()
+
+        r = client.patch(
+            f"/v1/caixa/eventos-previsiveis/{e.id}", json={"valor": 200000}, headers=auth
+        )
+        assert r.status_code == 404
+
+    def test_fonte_de_outro_tenant_no_post_devolve_404(self, client, auth, sessao):
+        import orm
+
+        f = orm.FonteRenda(
+            tenant_id="outro-tenant", nome="Alheia", tipo="clt", valor_tipico_informado=100000
+        )
+        sessao.add(f)
+        sessao.commit()
+
+        r = client.post(
+            "/v1/caixa/eventos-previsiveis",
+            json={"tipo": "outro", "mesPrevisto": 6, "valor": 1000, "fonteId": f.id},
+            headers=auth,
+        )
+        assert r.status_code == 404
+
+
+class TestCompromissoNoSimulador:
+    """
+    T3-AC7: o teto do simulador cai para quem declarou percentual — SEM
+    `backend/routers/simulacoes.py` ter sido tocado. O simulador lê
+    `capacidade_atual`, e a linha nova derruba `aporte_maximo`.
+    """
+
+    def _simular(self, client, auth, aporte):
+        return client.post(
+            "/v1/dividas/simulacoes",
+            json={
+                "aporteExtraMensal": aporte,
+                "estrategias": ["avalanche"],
+                "dividasIds": None,
+            },
+            headers=auth,
+        )
+
+    def test_um_aporte_aceito_passa_a_ser_recusado_apos_o_compromisso(self, client, auth):
+        _fonte(client, auth, valorTipicoInformado=1000000)  # pj_hora, sem imposto
+        _gasto(client, auth, valorMensal=400000)  # essencial
+        client.post(
+            "/v1/dividas",
+            json={
+                "credor": "Banco Teste",
+                "valorCobrado": 100000,
+                "dataOrigem": "2025-01-10",
+                "tipo": "consumo",
+            },
+            headers=auth,
+        )
+
+        # Sem compromisso, `aporte_maximo` é 600.000: 550.000 cabe.
+        assert self._simular(client, auth, 550000).status_code == 200
+
+        # 10% da líquida (1.000.000) = 100.000 → teto cai para 500.000.
+        client.put(
+            "/v1/caixa/metas", json={"compromissoPercentualBps": 1000}, headers=auth
+        )
+        assert self._simular(client, auth, 550000).status_code == 422

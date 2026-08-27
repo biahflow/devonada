@@ -18,9 +18,11 @@ from domain.caixa import (
     calcular_caixa,
     meses_ate_vencimento,
     meses_entre,
+    percentual_invade_o_piso,
     renda_tipica,
     respiro_invade_o_piso,
 )
+from domain.dinheiro import aplicar_percentual
 from domain.simulacao import custo_em_meses
 from leitura import carregar_dividas_simulaveis, montar_entrada_caixa
 
@@ -96,6 +98,10 @@ def _caixa_schema(db: Session, tenant: str, settings: Settings) -> schemas.Caixa
         respiroUsadoNoMes=caixa.respiro_usado_no_mes,
         respiroDisponivelNoMes=caixa.respiro_disponivel_no_mes,
         respiroSaldoAcumulado=caixa.respiro_saldo_acumulado,
+        compromissoPercentualBps=caixa.compromisso_percentual_bps,
+        compromissoPercentual=caixa.compromisso_percentual,
+        impostoNaoDeclarado=caixa.imposto_nao_declarado,
+        mesAncoraRenda=caixa.mes_ancora_renda,
         minimoExistencial=caixa.minimo_existencial,
         minimoExistencialVigenteEm=settings.minimo_existencial_vigente_em or None,
         abaixoDoPiso=caixa.abaixo_do_piso,
@@ -358,6 +364,8 @@ def _fonte_schema(f: orm.FonteRenda) -> schemas.FonteRenda:
         valorTipicoInformado=f.valor_tipico_informado,
         variavel=f.variavel,
         ativo=f.ativo,
+        impostoBps=f.imposto_bps,
+        diaPagamento=f.dia_pagamento,
     )
 
 
@@ -396,6 +404,8 @@ def criar_fonte(
         valor_tipico_informado=entrada.valorTipicoInformado,
         variavel=entrada.variavel,
         ativo=entrada.ativo,
+        imposto_bps=entrada.impostoBps,
+        dia_pagamento=entrada.diaPagamento,
     )
     db.add(f)
     db.commit()
@@ -420,6 +430,8 @@ def editar_fonte(
         ("valorTipicoInformado", "valor_tipico_informado"),
         ("variavel", "variavel"),
         ("ativo", "ativo"),
+        ("impostoBps", "imposto_bps"),
+        ("diaPagamento", "dia_pagamento"),
     ):
         if campo in dados:
             setattr(f, coluna, dados[campo])
@@ -490,6 +502,120 @@ def registrar_recebimento(
     return schemas.RespostaRecebimento(
         recebimento=schemas.Recebimento(id=r.id, mes=r.mes, valor=r.valor)
     )
+
+
+# --- Eventos previsíveis (M12, ADR 0021, decisão 2) --------------------------
+#
+# 13º, férias e o que mais cai uma vez por ano. NÃO ENTRAM NA CASCATA e não
+# ocupam vaga na janela do `min()`: `GET /v1/caixa` não muda nenhum número por
+# causa deles. São munição de negociação à vista — o app reconhece que existem e
+# quando caem, e o valor é declarado pelo usuário.
+
+
+def _evento_schema(e: orm.EventoPrevisivel) -> schemas.EventoPrevisivel:
+    return schemas.EventoPrevisivel(
+        id=e.id,
+        tipo=e.tipo,  # type: ignore[arg-type]
+        mesPrevisto=e.mes_previsto,
+        valor=e.valor,
+        fonteId=e.fonte_id,
+    )
+
+
+def _buscar_evento(db: Session, tenant: str, evento_id: str) -> orm.EventoPrevisivel:
+    e = db.scalar(
+        select(orm.EventoPrevisivel).where(
+            orm.EventoPrevisivel.id == evento_id,
+            orm.EventoPrevisivel.tenant_id == tenant,
+        )
+    )
+    if e is None:
+        raise _nao_encontrado("esse evento previsível")
+    return e
+
+
+@router.get("/eventos-previsiveis", response_model=schemas.ListaEventosPrevisiveis)
+def listar_eventos_previsiveis(
+    db: Session = Depends(get_db), tenant: str = Depends(tenant_atual)
+):
+    linhas = db.scalars(
+        select(orm.EventoPrevisivel)
+        .where(orm.EventoPrevisivel.tenant_id == tenant)
+        .order_by(orm.EventoPrevisivel.mes_previsto)
+    ).all()
+    return schemas.ListaEventosPrevisiveis(eventos=[_evento_schema(e) for e in linhas])
+
+
+@router.post(
+    "/eventos-previsiveis",
+    response_model=schemas.RespostaEventoPrevisivel,
+    status_code=201,
+)
+def criar_evento_previsivel(
+    entrada: schemas.NovoEventoPrevisivel,
+    db: Session = Depends(get_db),
+    tenant: str = Depends(tenant_atual),
+    settings: Settings = Depends(get_settings),
+):
+    # Fonte informada tem de ser do tenant: 404, nunca 403, como o resto do
+    # módulo. Sem `fonteId` o evento é do tenant sem fonte identificada.
+    if entrada.fonteId is not None:
+        _buscar_fonte(db, tenant, entrada.fonteId)
+
+    e = orm.EventoPrevisivel(
+        tenant_id=tenant,
+        tipo=entrada.tipo,
+        mes_previsto=entrada.mesPrevisto,
+        valor=entrada.valor,
+        fonte_id=entrada.fonteId,
+    )
+    db.add(e)
+    db.commit()
+    db.refresh(e)
+    registrar_snapshot(db, tenant, settings)
+    return schemas.RespostaEventoPrevisivel(evento=_evento_schema(e))
+
+
+@router.patch(
+    "/eventos-previsiveis/{evento_id}",
+    response_model=schemas.RespostaEventoPrevisivel,
+)
+def editar_evento_previsivel(
+    evento_id: str,
+    entrada: schemas.EventoPrevisivelPatch,
+    db: Session = Depends(get_db),
+    tenant: str = Depends(tenant_atual),
+    settings: Settings = Depends(get_settings),
+):
+    e = _buscar_evento(db, tenant, evento_id)
+    dados = entrada.model_dump(exclude_unset=True)
+    if dados.get("fonteId") is not None:
+        _buscar_fonte(db, tenant, dados["fonteId"])
+    for campo, coluna in (
+        ("tipo", "tipo"),
+        ("mesPrevisto", "mes_previsto"),
+        ("valor", "valor"),
+        ("fonteId", "fonte_id"),
+    ):
+        if campo in dados:
+            setattr(e, coluna, dados[campo])
+    db.commit()
+    db.refresh(e)
+    registrar_snapshot(db, tenant, settings)
+    return schemas.RespostaEventoPrevisivel(evento=_evento_schema(e))
+
+
+@router.delete("/eventos-previsiveis/{evento_id}", status_code=204)
+def excluir_evento_previsivel(
+    evento_id: str,
+    db: Session = Depends(get_db),
+    tenant: str = Depends(tenant_atual),
+    settings: Settings = Depends(get_settings),
+):
+    e = _buscar_evento(db, tenant, evento_id)
+    db.delete(e)
+    db.commit()
+    registrar_snapshot(db, tenant, settings)
 
 
 # --- Gastos ------------------------------------------------------------------
@@ -702,6 +828,7 @@ def _metas_schema(p: orm.Perfil | None) -> schemas.MetasCaixa:
         reservaAporte=p.reserva_aporte,
         aposentadoriaAporte=p.aposentadoria_aporte,
         rendimentoEsperadoBps=p.rendimento_esperado_bps,
+        compromissoPercentualBps=p.compromisso_percentual_bps,
     )
 
 
@@ -721,7 +848,42 @@ def gravar_metas(
     """
     Renda e metas são dado sensível: não vão para log nem para erro
     (guardrail 5). `None` GRAVA ausência — é como o usuário desfaz uma meta.
+
+    O PISO É DA LEI; A ALOCAÇÃO ACIMA DELE É DO USUÁRIO. Compromisso percentual
+    que empurre o que sobra abaixo do mínimo existencial é recusado com 422, no
+    MESMO registro de `gravar_respiro` acima — a mensagem diz o que aconteceu, em
+    pt-BR, não carrega valor (guardrail 5) e não chama o usuário de nada. Incide
+    sobre a renda LÍQUIDA típica (ADR 0021, Nota de desempate), a mesma base do
+    piso. A faixa 0–10000 bps já é do schema; aqui é só o piso, que depende da
+    renda e por isso não cabe num `Field`.
     """
+    # SEM CAIXA PREENCHIDO NÃO HÁ O QUE COMPARAR — mesma limitação declarada de
+    # `_validar_aporte` e de `gravar_respiro`: com renda e essenciais em zero,
+    # qualquer percentual "invadiria" o piso, e a recusa diria a quem nunca
+    # informou nada que a escolha dele é ilegal.
+    if entrada.compromissoPercentualBps is not None:
+        caixa = calcular_caixa(montar_entrada_caixa(db, tenant, settings))
+        compromisso = aplicar_percentual(
+            caixa.renda_liquida, entrada.compromissoPercentualBps
+        )
+        if caixa.preenchimento != "vazio" and percentual_invade_o_piso(
+            caixa.renda_liquida, caixa.essenciais, compromisso, caixa.minimo_existencial
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={
+                    # Sem valor na mensagem (guardrail 5): renda e custo de vida
+                    # são o dado mais sensível do produto e não vazam em erro.
+                    "message": (
+                        "Com esse compromisso, o que sobra no seu mês fica abaixo do "
+                        "mínimo existencial, que é o piso que a lei protege. Tente um "
+                        "percentual menor: o piso é da lei, e a escolha acima dele "
+                        "continua sendo sua."
+                    ),
+                    "campo": "compromissoPercentualBps",
+                },
+            )
+
     p = db.scalar(select(orm.Perfil).where(orm.Perfil.tenant_id == tenant))
     if p is None:
         p = orm.Perfil(tenant_id=tenant)
@@ -733,6 +895,7 @@ def gravar_metas(
     p.reserva_aporte = entrada.reservaAporte
     p.aposentadoria_aporte = entrada.aposentadoriaAporte
     p.rendimento_esperado_bps = entrada.rendimentoEsperadoBps
+    p.compromisso_percentual_bps = entrada.compromissoPercentualBps
     db.commit()
     db.refresh(p)
     registrar_snapshot(db, tenant, settings)
