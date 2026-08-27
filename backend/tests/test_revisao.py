@@ -226,3 +226,19 @@ class TestCopy:
         for achado in r.achados:
             assert achado.fonte.strip()
             assert achado.como_conferir.strip()
+
+    def test_nenhuma_variante_de_canal_afirma_ilegalidade(self):
+        """
+        T2-AC8: a copy triplicou. O mesmo regex do achado varre agora as TRÊS
+        variantes de script — se uma afirmação de ilegalidade entrar em qualquer
+        canal, este teste falha. É o script que o usuário leva a um credor real.
+        """
+        from domain.script import montar_script
+
+        r = revisar(CONTRATO, TETOS, [100_000], credor_ja_tinha_divida_anterior=True)
+        assert r.achados
+        for canal in ("telefone", "chat", "email"):
+            blocos = montar_script(canal, "Banco Teste S/A", r.achados, 600_000)
+            for bloco in blocos:
+                for texto in (bloco.titulo or "", bloco.texto):
+                    assert not self.PROIBIDO.search(texto), f"{canal}/{bloco.id}: {texto}"

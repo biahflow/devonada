@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
 """
 Contrato de API. Espelha docs/api-contract.md e src/api/types.ts.
@@ -126,6 +126,84 @@ class RenegociacaoInput(Camel):
     novaTaxaJurosMensal: int | None = Field(default=None, ge=0)
     primeiroVencimento: date
     observacao: str | None = Field(default=None, max_length=500)
+
+
+# --- Negociação por canal e registro de resultado (M12, F-012, ADR 0021) -----
+#
+# `Canal` é o mesmo conceito do módulo `domain/script.py`, redeclarado aqui pelo
+# mesmo motivo de `TipoDeMarco` mais abaixo: o contrato de API não importa do
+# domínio, e o domínio não conhece o Pydantic. São três valores e o mesmo motor
+# de valor justo produz os três — muda o formato, nunca o número (docs/domain.md,
+# verbete `canal`).
+Canal = Literal["telefone", "chat", "email"]
+
+# O DESFECHO da conversa, e não do contrato: `acordo` é o único que mexe nas
+# parcelas (por `Renegociacao`); `recusa`, `contraproposta` e `sem_resposta` são
+# metade da informação do benchmark, e hoje não têm onde ser registrados
+# (ADR 0021, item 6).
+DesfechoNegociacao = Literal["acordo", "recusa", "contraproposta", "sem_resposta"]
+
+
+class RegistroNegociacaoInput(Camel):
+    """
+    O que aconteceu na conversa com o credor.
+
+    `valorProposto` e `valorObtido` são OPCIONAIS de propósito: registrar uma
+    recusa ou um silêncio não pode exigir preencher valor de acordo — obrigar
+    valor recriaria o viés que a entidade nova existe para desfazer ("o dado de
+    benchmark nasce enviesado se só o acordo fechado for registrado").
+
+    `renegociacaoId` só faz sentido no `acordo`, ligando esta conversa ao acordo
+    que ela produziu (`POST /v1/dividas/{id}/renegociacao`, que reescreve as
+    parcelas). Nos demais desfechos ele é recusado: apontar um acordo num
+    resultado que não teve acordo seria dado contraditório.
+    """
+
+    canal: Canal
+    desfecho: DesfechoNegociacao
+    valorProposto: int | None = Field(default=None, ge=0)
+    valorObtido: int | None = Field(default=None, ge=0)
+    renegociacaoId: str | None = Field(default=None, max_length=36)
+    observacao: str | None = Field(default=None, max_length=500)
+
+    @model_validator(mode="after")
+    def _renegociacao_so_no_acordo(self) -> "RegistroNegociacaoInput":
+        if self.renegociacaoId is not None and self.desfecho != "acordo":
+            raise ValueError(
+                "renegociacaoId só pode ser informado quando o desfecho é acordo."
+            )
+        return self
+
+
+class ResultadoNegociacao(Camel):
+    """Um resultado de negociação registrado, como sai da rota de leitura."""
+
+    id: str
+    dividaId: str
+    canal: Canal
+    desfecho: DesfechoNegociacao
+    valorProposto: int | None = None
+    valorObtido: int | None = None
+    renegociacaoId: str | None = None
+    observacao: str | None = None
+    registradoEm: datetime
+
+
+class RespostaResultadoNegociacao(Camel):
+    resultado: ResultadoNegociacao
+
+
+class ListaResultadosNegociacao(Camel):
+    """
+    O histórico de negociações — da dívida ou do tenant inteiro.
+
+    É a leitura que hoje NÃO existe: `orm.Renegociacao` nunca teve schema de
+    saída, e sem leitura não há benchmark. Este contrato devolve o dado do
+    PRÓPRIO tenant; agregar entre tenants é decisão de produto e de privacidade
+    que ninguém tomou (fora de escopo por contrato).
+    """
+
+    resultados: list[ResultadoNegociacao]
 
 
 class Lembrete(Camel):
@@ -380,6 +458,44 @@ class Achado(Camel):
     evidencia: str | None = None
 
 
+# --- Script de negociação por canal (M12, F-012, ADR 0021) -------------------
+#
+# O script deixou de ser uma STRING ÚNICA e virou blocos tipados por canal. A
+# forma é espelho de `domain/script.BlocoScript`, redeclarada aqui pelo mesmo
+# motivo de `Canal` e `TipoDeMarco`: o contrato não importa do domínio. O
+# `momento` é o que a tela usa para separar VISUALMENTE segurança de contestação
+# — texto de alerta e texto de argumento mal separados leem como "a dívida tem
+# problema" quando ninguém disse isso.
+MomentoScript = Literal["abertura", "argumento", "oferta", "fechamento"]
+
+
+class BlocoScript(Camel):
+    """
+    Um pedaço do script. `copiavel` é `True` só nos canais escritos, onde cada
+    bloco tem botão de copiar próprio (guardrail 1.2): a tela nunca entrega um
+    texto único que alguém precise fatiar à mão para mandar em mensagens
+    separadas.
+    """
+
+    id: str
+    titulo: str | None = None
+    texto: str
+    momento: MomentoScript
+    copiavel: bool
+
+
+class ScriptNegociacao(Camel):
+    """
+    O script inteiro para um canal: os blocos, na ordem em que se falam ou se
+    mandam, mais o canal que os produziu. O `valorJusto` e os achados são
+    IDÊNTICOS nos três canais — só o formato e o momento da oferta mudam
+    (ADR 0021, item 5).
+    """
+
+    canal: Canal
+    blocos: list[BlocoScript]
+
+
 class RevisaoCobranca(Camel):
     """
     `valorJusto` é `valorCobrado` menos a soma dos achados COM valor.
@@ -388,6 +504,11 @@ class RevisaoCobranca(Camel):
     isso diria "conferimos e está tudo certo", afirmação que não temos como
     fazer. `economia` não viaja: o cliente a calcula, e é a única subtração que
     o guardrail 1.2 lhe permite.
+
+    `script` NÃO é mais nulável: `montar_script` deixou de devolver `None` sem
+    achado, porque a validação de canal é SEGURANÇA, não argumento de negociação
+    — quem cadastrou a dívida na mão recebe o script mínimo de segurança (alerta
+    + regra de pagamento), sem nenhuma afirmação sobre valor (ADR 0021).
     """
 
     dividaId: str
@@ -395,7 +516,7 @@ class RevisaoCobranca(Camel):
     valorCobrado: int
     valorJusto: int | None = None
     achados: list[Achado]
-    script: str | None = None
+    script: ScriptNegociacao
     fundamentos: list[str]
     baseLegalVigenteEm: str | None = None
 
@@ -443,7 +564,7 @@ class ValorJustoCard(Camel):
     credor: str
     valorCobrado: int
     valorJusto: int
-    script: str
+    script: ScriptNegociacao
     fundamentos: list[str]
 
 

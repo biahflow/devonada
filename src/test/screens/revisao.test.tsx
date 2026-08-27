@@ -1,10 +1,86 @@
-import { screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import * as Clipboard from 'expo-clipboard';
 import RevisaoDeCobranca from '../../../app/(tabs)/dividas/[id]/revisao';
 import { ValorJustoCard } from '../../components/cards/ValorJustoCard';
 import { ApiError } from '../../api/client';
-import type { Achado } from '../../api/types';
+import type { Achado, BlocoScript, Canal, ScriptNegociacao } from '../../api/types';
 import { limparMocksDeRede, nuncaResponde, responderPorRota } from '../api';
 import { renderizarTela } from '../render';
+
+jest.mock('expo-clipboard', () => ({ setStringAsync: jest.fn() }));
+
+// A copy vem curada do backend; nos testes basta uma amostra fiel da FORMA
+// (blocos tipados por canal) para exercitar a tela.
+const ALERTA =
+  'Confira o número ou o e-mail do credor no site oficial dele antes de continuar. ' +
+  'Nunca negocie com um contato que procurou você primeiro.';
+const REGRA = 'Pagamento só por boleto ou Pix em nome do credor — confira o CNPJ.';
+const ARGUMENTO = 'Vale contestar a diferença (Código de Defesa do Consumidor, art. 52, §1º).';
+
+function scriptEscrito(canal: Canal, { comAchado = true } = {}): ScriptNegociacao {
+  const blocos: BlocoScript[] = [
+    {
+      id: 'alerta-validacao',
+      titulo: 'Antes de negociar',
+      texto: ALERTA,
+      momento: 'abertura',
+      copiavel: true,
+    },
+    {
+      id: 'saudacao',
+      titulo: null,
+      texto: `Olá, sou cliente e quero revisar meu contrato pelo ${canal}.`,
+      momento: 'abertura',
+      copiavel: true,
+    },
+  ];
+  if (comAchado) {
+    blocos.push({
+      id: 'argumento-multa',
+      titulo: 'Multa de atraso acima do limite do CDC',
+      texto: ARGUMENTO,
+      momento: 'argumento',
+      copiavel: true,
+    });
+  }
+  blocos.push({
+    id: 'pedido-demonstrativo',
+    titulo: null,
+    texto: 'Peço o demonstrativo detalhado do débito.',
+    momento: 'fechamento',
+    copiavel: true,
+  });
+  blocos.push({
+    id: 'regra-pagamento',
+    titulo: 'Como pagar',
+    texto: REGRA,
+    momento: 'fechamento',
+    copiavel: true,
+  });
+  return { canal, blocos };
+}
+
+function scriptTelefone(): ScriptNegociacao {
+  return {
+    canal: 'telefone',
+    blocos: [
+      {
+        id: 'saudacao',
+        titulo: null,
+        texto: 'Olá, sou cliente e quero revisar meu contrato pelo telefone.',
+        momento: 'abertura',
+        copiavel: false,
+      },
+      {
+        id: 'argumento-multa',
+        titulo: 'Multa de atraso acima do limite do CDC',
+        texto: ARGUMENTO,
+        momento: 'argumento',
+        copiavel: false,
+      },
+    ],
+  };
+}
 
 const achadoComValor = (over: Partial<Achado> = {}): Achado => ({
   id: 'multa_acima_do_teto',
@@ -37,7 +113,7 @@ const revisao = (over = {}) => ({
     valorCobrado: 150000,
     valorJusto: 132000,
     achados: [achadoComValor()],
-    script: 'Olá. Sou cliente e gostaria de rever alguns pontos do meu contrato.',
+    script: scriptEscrito('email'),
     fundamentos: ['Código de Defesa do Consumidor, art. 52, §1º'],
     baseLegalVigenteEm: null,
     ...over,
@@ -60,16 +136,22 @@ describe('tela de revisão de cobrança', () => {
     await waitFor(() => expect(screen.getByText('O servidor tropeçou')).toBeTruthy());
   });
 
-  it('sem achado, convida a enviar o contrato em vez de dizer que está tudo certo', async () => {
-    // O vazio é o estado mais importante: "nada encontrado" soaria como
-    // "conferimos e está tudo certo", que é o que NÃO podemos afirmar.
-    responderPorRota({ '/v1/dividas/': revisao({ achados: [], valorJusto: null, script: null }) });
+  it('T4-AC1: sem achado, EXIBE o script de segurança em vez de esconder tudo', async () => {
+    // O critério que dá nome à tarefa. Quem cadastrou a dívida na mão é o alvo
+    // preferencial do golpe, e é exatamente quem receberia tela vazia antes.
+    responderPorRota({
+      '/v1/dividas/': revisao({
+        achados: [],
+        valorJusto: null,
+        script: scriptEscrito('email', { comAchado: false }),
+      }),
+    });
     renderizarTela(<RevisaoDeCobranca />);
 
-    await waitFor(() =>
-      expect(screen.getByText('Ainda não dá para conferir esta cobrança')).toBeTruthy(),
-    );
-    expect(screen.getByText('Enviar contrato')).toBeTruthy();
+    await waitFor(() => expect(screen.getByText(ALERTA)).toBeTruthy());
+    // Alerta abre, regra de pagamento fecha — mesmo sem nenhum achado.
+    expect(screen.getByText(REGRA)).toBeTruthy();
+    // E não afirma que a cobrança está certa.
     expect(screen.queryByText(/tudo certo/i)).toBeNull();
   });
 
@@ -78,12 +160,12 @@ describe('tela de revisão de cobrança', () => {
     renderizarTela(<RevisaoDeCobranca />);
 
     await waitFor(() =>
-      expect(screen.getByText('Multa de atraso acima do limite do CDC')).toBeTruthy(),
+      expect(screen.getAllByText('Multa de atraso acima do limite do CDC').length).toBeGreaterThan(
+        0,
+      ),
     );
     expect(screen.getByText('Código de Defesa do Consumidor, art. 52, §1º')).toBeTruthy();
     expect(screen.getByText('Multa por atraso: 5% sobre o valor da parcela')).toBeTruthy();
-    // Duas ocorrências, e é o esperado: o valor do único achado E a economia
-    // total coincidem quando só há um achado com valor.
     expect(screen.getAllByText('R$ 180,00')).toHaveLength(2);
   });
 
@@ -105,7 +187,6 @@ describe('tela de revisão de cobrança', () => {
       expect(screen.getByText('Juros acima do teto do consignado')).toBeTruthy(),
     );
     expect(screen.getByText(/não mostramos um número aqui/)).toBeTruthy();
-    // O valor cobrado não vira "valor justo" por descuido.
     expect(screen.queryByText('Se acolherem os pontos')).toBeNull();
   });
 
@@ -128,8 +209,9 @@ describe('tela de revisão de cobrança', () => {
     responderPorRota({ '/v1/dividas/': revisao() });
     renderizarTela(<RevisaoDeCobranca />);
 
-    await waitFor(() => expect(screen.getByText('Mensagem para o credor')).toBeTruthy());
-    expect(screen.getByText(/ajuste com suas palavras e envie você mesmo/)).toBeTruthy();
+    await waitFor(() =>
+      expect(screen.getByText(/ajuste com suas palavras e envie você mesmo/)).toBeTruthy(),
+    );
   });
 
   it('carrega o disclaimer junto do número, não em rodapé solto', async () => {
@@ -144,30 +226,84 @@ describe('tela de revisão de cobrança', () => {
   });
 });
 
-describe('postura da copy (guardrail 3)', () => {
-  // Gêmeo do teste que quebra em "recomendada" no simulador. Achado é convite a
-  // investigar; se alguém escrever uma sentença aqui, isto falha.
-  const PROIBIDO = /ilegal|abusiv|é seu direito|você tem direito|com certeza|garantid[ao]/i;
-
-  it('nenhum texto da tela afirma ilegalidade', async () => {
+describe('seletor de canal (T4-AC2)', () => {
+  it('trocar de canal troca a variante, e voltar não devolve o texto anterior', async () => {
     responderPorRota({
-      '/v1/dividas/': revisao({ achados: [achadoComValor(), achadoSemValor()] }),
+      '/v1/dividas/divida-1/revisao?canal=email': revisao({ script: scriptEscrito('email') }),
+      '/v1/dividas/divida-1/revisao?canal=chat': revisao({ script: scriptEscrito('chat') }),
+      '/v1/dividas/divida-1/revisao?canal=telefone': revisao({ script: scriptTelefone() }),
+    });
+    renderizarTela(<RevisaoDeCobranca />);
+
+    // Default é e-mail.
+    await waitFor(() =>
+      expect(screen.getByText(/quero revisar meu contrato pelo email\./)).toBeTruthy(),
+    );
+
+    fireEvent.press(screen.getByText('Chat'));
+    await waitFor(() =>
+      expect(screen.getByText(/quero revisar meu contrato pelo chat\./)).toBeTruthy(),
+    );
+    // Sem chave por canal, o cache do e-mail voltaria aqui.
+    expect(screen.queryByText(/pelo email\./)).toBeNull();
+
+    fireEvent.press(screen.getByText('E-mail'));
+    await waitFor(() =>
+      expect(screen.getByText(/quero revisar meu contrato pelo email\./)).toBeTruthy(),
+    );
+  });
+});
+
+describe('copiar por bloco no canal escrito (T4-AC3 e T4-AC7)', () => {
+  it('copiar um bloco copia só o texto dele, e o botão tem accessibilityLabel', async () => {
+    (Clipboard.setStringAsync as jest.Mock).mockClear();
+    responderPorRota({ '/v1/dividas/': revisao({ script: scriptEscrito('email') }) });
+    renderizarTela(<RevisaoDeCobranca />);
+
+    const botao = await screen.findByLabelText(
+      'Copiar este bloco: Multa de atraso acima do limite do CDC',
+    );
+    fireEvent.press(botao);
+
+    expect(Clipboard.setStringAsync).toHaveBeenCalledTimes(1);
+    expect(Clipboard.setStringAsync).toHaveBeenCalledWith(ARGUMENTO);
+    // Não copiou o alerta nem a regra junto.
+    expect(Clipboard.setStringAsync).not.toHaveBeenCalledWith(ALERTA);
+  });
+});
+
+describe('postura da copy (guardrail 3) — T4-AC5', () => {
+  const PROIBIDO = /ilegal|abusiv|nul[ao]\b|é seu direito|você tem direito|com certeza|garantid[ao]/i;
+
+  it.each<Canal>(['telefone', 'chat', 'email'])(
+    'nenhum texto afirma ilegalidade no canal %s',
+    async (canal) => {
+      const script = canal === 'telefone' ? scriptTelefone() : scriptEscrito(canal);
+      responderPorRota({
+        '/v1/dividas/': revisao({ achados: [achadoComValor(), achadoSemValor()], script }),
+      });
+      const { toJSON } = renderizarTela(<RevisaoDeCobranca />);
+
+      await waitFor(() =>
+        expect(screen.getAllByText('Multa de atraso acima do limite do CDC').length).toBeGreaterThan(
+          0,
+        ),
+      );
+      expect(JSON.stringify(toJSON())).not.toMatch(PROIBIDO);
+    },
+  );
+
+  it('o estado sem achado não afirma que a cobrança está correta', async () => {
+    responderPorRota({
+      '/v1/dividas/': revisao({
+        achados: [],
+        valorJusto: null,
+        script: scriptEscrito('email', { comAchado: false }),
+      }),
     });
     const { toJSON } = renderizarTela(<RevisaoDeCobranca />);
 
-    await waitFor(() =>
-      expect(screen.getByText('Multa de atraso acima do limite do CDC')).toBeTruthy(),
-    );
-    expect(JSON.stringify(toJSON())).not.toMatch(PROIBIDO);
-  });
-
-  it('o estado vazio não afirma que a cobrança está correta', async () => {
-    responderPorRota({ '/v1/dividas/': revisao({ achados: [], valorJusto: null, script: null }) });
-    const { toJSON } = renderizarTela(<RevisaoDeCobranca />);
-
-    await waitFor(() =>
-      expect(screen.getByText('Ainda não dá para conferir esta cobrança')).toBeTruthy(),
-    );
+    await waitFor(() => expect(screen.getByText(REGRA)).toBeTruthy());
     expect(JSON.stringify(toJSON())).not.toMatch(/tudo certo|nada de errado|sem problema/i);
   });
 });
@@ -182,7 +318,7 @@ describe('card valor_justo no chat', () => {
           credor: 'Banco Teste S/A',
           valorCobrado: 150000,
           valorJusto: 132000,
-          script: 'Olá.',
+          script: scriptEscrito('email'),
           fundamentos: ['Código de Defesa do Consumidor, art. 52, §1º'],
         }}
       />,

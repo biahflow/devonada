@@ -124,6 +124,37 @@ concluir que a suíte travou e matá-la antes de ler o resultado; `--forceExit` 
 medição acima. A suíte contra Postgres e a validação em device continuam obrigatórias antes
 de release quando aplicáveis.
 
+## Baseline de validação — F-012 (27/08/2026)
+
+Medida no fechamento do F-012 (negociação por canal), na worktree do agente Builder, ramificada de
+`main` **antes** do merge do F-011 — logo, estes números refletem `main + F-012`, não F-011. Sai de
+execução, não de outro documento.
+
+| Perfil | Resultado |
+|---|---|
+| `npm run typecheck` | passou |
+| `npm run lint` | passou |
+| `npm test` | **48 suítes / 558 testes** passaram |
+| `npm run bundle:check` | passou — bundle iOS exportado |
+| `npm run palette:check` | passou — 0 reprovam |
+| `npm run digits:check` | passou |
+| `backend/venv/bin/pytest` | **685 testes** passaram em SQLite, com 23 avisos (mesmas classes) |
+
+Delta sobre a baseline de 20/08 (45 / 539 Jest e 620 pytest): **+3 suítes, +19 testes Jest** (a
+suíte de `renegociar`, a de copy de negociação, e a expansão da de revisão) e **+65 pytest**
+(`test_script.py` de T1, `test_negociacoes_api.py` de T3, e os testes de canal/copy/regressão em
+`test_revisao*.py` e `test_caixa_integracao.py`). Os 23 avisos do pytest são as mesmas três classes
+da baseline — nenhuma nova.
+
+Cabeça da cadeia Alembic confirmada por `venv/bin/alembic heads` em `75331c212261` no início da
+T3; a migração `a1c2e3f40b5d` encadeou nela. **Ambiente:** o `venv` foi recriado com Python 3.12
+(o `requirements.txt` pina `alembic==1.19.0`, que exige `>=3.10`; o Python do sistema era 3.9), e
+`pysqlite3` foi omitido da instalação por não compilar contra os headers de SQLite da máquina — a
+suíte usa o dialeto `sqlite+pysqlite` do stdlib, que não depende dele. **Postgres indisponível na
+máquina:** o round-trip da migração foi feito contra SQLite, em isolamento (carimbando o pai), com
+o DDL conferido campo a campo contra `orm.ResultadoNegociacao.__table__`. Round-trip contra
+Postgres e validação em device continuam obrigatórios antes de release.
+
 ## Política atual de CI
 
 Não há CI versionado nem evidência de CI externo. Os gates locais e sua evidência no PR são

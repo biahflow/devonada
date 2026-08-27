@@ -8,8 +8,8 @@ from auth import tenant_atual
 from config import get_settings
 from db import get_db
 from domain import revisao as dominio
-from domain.dinheiro import formatar_brl
 from domain.parcelas import situacao_da_parcela
+from domain.script import montar_script
 from extracao.base import limpar_campos_sem_evidencia
 from leitura import capacidade_atual, carregar_dividas_simulaveis
 
@@ -111,50 +111,34 @@ def _houve_divida_anterior(db: Session, tenant: str, divida: orm.Divida) -> bool
     return outra is not None
 
 
-def montar_script(
-    credor: str, achados: list[dominio.Achado], capacidade_mensal: int | None = None
-) -> str | None:
+def _montar_script(
+    canal: schemas.Canal,
+    credor: str,
+    achados: list[dominio.Achado],
+    capacidade_mensal: int | None,
+) -> schemas.ScriptNegociacao:
     """
-    A mensagem de negociação, montada por TEMPLATE.
+    Traduz os blocos tipados de `domain/script.montar_script` para o contrato.
 
-    Não passa por LLM de propósito: o guardrail 3 diz que fundamento legal é
-    curado no backend e que o modelo não improvisa citação. Um parágrafo por
-    achado, na ordem em que aparecem na tela, para o usuário reconhecer o que
-    está mandando.
-
-    `capacidade_mensal` (M7) ancora a proposta no caixa real. É o que muda a
-    conversa com o credor: "quero desconto" é pedido, "consigo pagar R$ X por
-    mês" é oferta — e uma oferta que a pessoa consegue honrar vale mais que um
-    acordo agressivo que quebra no terceiro mês.
-
-    A frase só entra com capacidade CONHECIDA E POSITIVA. Sem caixa preenchido
-    ela não aparece, e capacidade negativa não vira oferta: prometer o que não
-    se tem é pior que não propor valor nenhum.
+    O motor é o módulo PURO (sem sessão, sem LLM): o guardrail 3 manda que
+    fundamento legal e a copy de negociação sejam curados no backend, nunca
+    improvisados por modelo. Aqui só há a conversão dataclass → Pydantic; a
+    decisão de forma e de posicionamento da oferta mora inteira no domínio.
     """
-    if not achados:
-        return None
-
-    linhas = [
-        f"Olá. Sou cliente e gostaria de rever alguns pontos do meu contrato com {credor}.",
-        "",
-    ]
-    for i, a in enumerate(achados, start=1):
-        linhas.append(f"{i}. {a.titulo}. {a.explicacao} ({a.fonte})")
-    linhas += [
-        "",
-        "Peço o demonstrativo detalhado do débito e a revisão desses pontos. "
-        "Fico no aguardo de um retorno.",
-    ]
-
-    if capacidade_mensal is not None and capacidade_mensal > 0:
-        linhas.insert(
-            -1,
-            "Tenho interesse em quitar e consigo comprometer até "
-            f"{formatar_brl(capacidade_mensal)} por mês com este acordo.",
-        )
-        linhas.insert(-1, "")
-
-    return "\n".join(linhas)
+    blocos = montar_script(canal, credor, achados, capacidade_mensal)
+    return schemas.ScriptNegociacao(
+        canal=canal,
+        blocos=[
+            schemas.BlocoScript(
+                id=b.id,
+                titulo=b.titulo,
+                texto=b.texto,
+                momento=b.momento,
+                copiavel=b.copiavel,
+            )
+            for b in blocos
+        ],
+    )
 
 
 def _capacidade_para_oferta(db: Session, tenant: str, divida_id: str) -> int | None:
@@ -185,12 +169,19 @@ def _capacidade_para_oferta(db: Session, tenant: str, divida_id: str) -> int | N
     return caixa.capacidade_hoje - outras
 
 
-def revisar_divida(db: Session, tenant: str, divida: orm.Divida) -> schemas.RevisaoCobranca:
+def revisar_divida(
+    db: Session, tenant: str, divida: orm.Divida, canal: schemas.Canal = "email"
+) -> schemas.RevisaoCobranca:
     """
     Produz a revisão de uma dívida. Usada pela rota E por `montar_cards` no chat.
 
     Um caminho só: o card `valor_justo` da conversa e a tela de revisão não podem
     divergir sobre o mesmo contrato.
+
+    `canal` decide só a FORMA do script — o `valorJusto` e os achados são
+    idênticos nos três. O default é `email` (PF-1), o formato mais próximo do
+    texto único que a rota devolvia antes; o chat, que não escolhe canal, herda
+    esse default.
     """
     campos = _campos(db, tenant, divida.extracao_id)
     resultado = dominio.revisar(
@@ -223,8 +214,11 @@ def revisar_divida(db: Session, tenant: str, divida: orm.Divida) -> schemas.Revi
         valorCobrado=divida.valor_cobrado,
         valorJusto=resultado.valor_justo,
         achados=achados,
-        script=montar_script(
-            divida.credor, resultado.achados, _capacidade_para_oferta(db, tenant, divida.id)
+        script=_montar_script(
+            canal,
+            divida.credor,
+            resultado.achados,
+            _capacidade_para_oferta(db, tenant, divida.id),
         ),
         fundamentos=fundamentos,
         baseLegalVigenteEm=resultado.base_legal_vigente_em,
@@ -234,9 +228,17 @@ def revisar_divida(db: Session, tenant: str, divida: orm.Divida) -> schemas.Revi
 @router.get("/dividas/{divida_id}/revisao", response_model=schemas.RespostaRevisao)
 def revisar(
     divida_id: str,
+    canal: schemas.Canal = "email",
     db: Session = Depends(get_db),
     tenant: str = Depends(tenant_atual),
 ):
+    """
+    `?canal=telefone|chat|email` escolhe a FORMA do script; `email` é o default
+    (PF-1), porque o texto único de antes já era uma mensagem formal e
+    estruturada. O canal é parâmetro de VISUALIZAÇÃO e não persiste — é escolha
+    de leitura, não fato do que aconteceu (ADR 0021, item 7). O `valorJusto` e
+    os achados são idênticos nos três.
+    """
     d = db.scalar(
         select(orm.Divida).where(
             orm.Divida.id == divida_id,
@@ -251,4 +253,4 @@ def revisar(
             detail={"message": "Não encontramos essa dívida."},
         )
 
-    return schemas.RespostaRevisao(revisao=revisar_divida(db, tenant, d))
+    return schemas.RespostaRevisao(revisao=revisar_divida(db, tenant, d, canal))

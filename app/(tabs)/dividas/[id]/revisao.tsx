@@ -1,17 +1,16 @@
 import { useState } from 'react';
 import { ScrollView, View, Text, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import * as Clipboard from 'expo-clipboard';
 import { Screen } from '../../../../src/components/ui/Screen';
 import { PageHeader } from '../../../../src/components/ui/PageHeader';
-import { Button } from '../../../../src/components/ui/Button';
 import { Card } from '../../../../src/components/ui/Card';
 import { MoneyText } from '../../../../src/components/ui/MoneyText';
 import { LoadingState } from '../../../../src/components/ui/LoadingState';
 import { ErrorState } from '../../../../src/components/ui/ErrorState';
-import { EmptyState } from '../../../../src/components/ui/EmptyState';
 import { AchadoCard } from '../../../../src/components/dividas/AchadoCard';
+import { ScriptCard } from '../../../../src/components/cards/ScriptCard';
 import { useRevisao } from '../../../../src/hooks/useRevisao';
+import type { Canal } from '../../../../src/api/types';
 import { isoParaBR } from '../../../../src/util/date';
 import { colors, radius, spacing, typography } from '../../../../src/theme/theme';
 
@@ -26,8 +25,8 @@ import { colors, radius, spacing, typography } from '../../../../src/theme/theme
 export default function RevisaoDeCobranca() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { revisao, isPending, error, refetch } = useRevisao(id);
-  const [copiado, setCopiado] = useState(false);
+  const [canal, setCanal] = useState<Canal>('email');
+  const { revisao, isPending, error, refetch } = useRevisao(id, canal);
 
   const cabecalho = (
     <PageHeader
@@ -56,36 +55,12 @@ export default function RevisaoDeCobranca() {
     );
   }
 
-  // DOIS vazios diferentes, e confundi-los mentiria. Sem contrato lido não
-  // sabemos nada; com contrato lido e sem achado, sabemos algo — e o que
-  // sabemos é limitado ao que este produto consegue conferir.
-  if (revisao.achados.length === 0) {
-    return (
-      <Screen>
-        {cabecalho}
-        <EmptyState
-          icon="file-text"
-          title="Ainda não dá para conferir esta cobrança"
-          description={
-            'A revisão lê o contrato para achar encargos como multa, tarifa de cadastro e ' +
-            'seguro embutido. Envie o contrato desta dívida e a gente confere ponto a ponto.'
-          }
-          actionLabel="Enviar contrato"
-          onAction={() => router.push('/dividas/contrato')}
-          secondaryLabel="Voltar para a dívida"
-          onSecondary={() => router.push(`/dividas/${id}`)}
-        />
-      </Screen>
-    );
-  }
-
-  async function copiarScript() {
-    if (!revisao?.script) return;
-    await Clipboard.setStringAsync(revisao.script);
-    setCopiado(true);
-    setTimeout(() => setCopiado(false), 2000);
-  }
-
+  // DOIS vazios diferentes, e confundi-los mentiria. Sem achado não há número
+  // nem ponto a contestar — mas o SCRIPT DE SEGURANÇA continua aparecendo: quem
+  // cadastrou a dívida na mão é o alvo preferencial do golpe, e é exatamente
+  // quem receberia tela vazia antes (ADR 0021, decisão 2). O alerta anti-golpe
+  // não pode ficar amarrado à existência de achado por nenhum caminho lateral.
+  const temAchados = revisao.achados.length > 0;
   const economia =
     revisao.valorJusto != null ? revisao.valorCobrado - revisao.valorJusto : null;
 
@@ -115,7 +90,7 @@ export default function RevisaoDeCobranca() {
               </Text>
             ) : null}
           </Card>
-        ) : (
+        ) : temAchados ? (
           <Card>
             <Text style={styles.eyebrow}>{revisao.credor}</Text>
             <Text style={styles.semNumero}>
@@ -123,13 +98,24 @@ export default function RevisaoDeCobranca() {
               apurar sozinho. Por isso não mostramos um número aqui.
             </Text>
           </Card>
+        ) : (
+          <Card>
+            <Text style={styles.eyebrow}>{revisao.credor}</Text>
+            <Text style={styles.semNumero}>
+              Ainda não dá para conferir os encargos desta cobrança — para isso, envie o contrato
+              e a gente revisa ponto a ponto. Enquanto isso, use o roteiro abaixo para negociar
+              com segurança.
+            </Text>
+          </Card>
         )}
 
-        <View style={styles.achados}>
-          {revisao.achados.map((achado) => (
-            <AchadoCard key={achado.id} achado={achado} />
-          ))}
-        </View>
+        {temAchados ? (
+          <View style={styles.achados}>
+            {revisao.achados.map((achado) => (
+              <AchadoCard key={achado.id} achado={achado} />
+            ))}
+          </View>
+        ) : null}
 
         {revisao.baseLegalVigenteEm ? (
           <Text style={styles.vigencia}>
@@ -137,22 +123,7 @@ export default function RevisaoDeCobranca() {
           </Text>
         ) : null}
 
-        {revisao.script ? (
-          <Card style={styles.scriptCard}>
-            <Text style={styles.scriptTitulo}>Mensagem para o credor</Text>
-            <Text style={styles.scriptTexto} selectable>
-              {revisao.script}
-            </Text>
-            <Text style={styles.scriptNota}>
-              É uma sugestão. Leia, ajuste com suas palavras e envie você mesmo.
-            </Text>
-            <Button
-              label={copiado ? 'Copiado ✓' : 'Copiar mensagem'}
-              onPress={copiarScript}
-              style={styles.botao}
-            />
-          </Card>
-        ) : null}
+        <ScriptCard script={revisao.script} onSelectCanal={setCanal} />
 
         <Text style={styles.disclaimer}>
           Estimativa educacional. Não é aconselhamento jurídico.
@@ -190,11 +161,6 @@ const styles = StyleSheet.create({
   semNumero: { ...typography.caption, color: colors.ink, fontSize: 14, lineHeight: 20 },
   achados: { gap: spacing.md },
   vigencia: { ...typography.caption, color: colors.inkSoft, fontSize: 11 },
-  scriptCard: { gap: spacing.sm },
-  scriptTitulo: { ...typography.bodyStrong, color: colors.ink },
-  scriptTexto: { ...typography.caption, color: colors.ink, fontSize: 14, lineHeight: 20 },
-  scriptNota: { ...typography.caption, color: colors.inkSoft },
-  botao: { marginTop: spacing.xs },
   disclaimer: {
     ...typography.caption,
     color: colors.inkSoft,

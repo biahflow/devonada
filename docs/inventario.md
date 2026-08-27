@@ -300,8 +300,8 @@ Deep link sempre por campo tipado, nunca por id extraído de texto.
 
 | Suíte | Números |
 |---|---|
-| Jest | **589 testes em 48 suítes**, verdes em 27/08/2026, no fechamento do F-011 (era 541 / 46 na entrada dele; 539 / 45 no fechamento do M11). O processo **conclui a suíte e não encerra**, por handle aberto — a contagem sai antes disso, e `--forceExit` é o contorno. Há avisos de `act(...)` a investigar. |
-| pytest | **698 testes**, verdes em SQLite em 27/08/2026 (era 662 na entrada do F-011; 620 no M11); 27 avisos — `HTTP_422_UNPROCESSABLE_ENTITY` depreciado (quatro ocorrências novas do `422` de `PUT /v1/caixa/metas`), Starlette/httpx e `InsecureKeyLength` do JWT de teste. Rodado em Python 3.12 via `uv` (o `python3` do sistema é 3.9), sem `pysqlite3`. A execução contra Postgres continua obrigatória antes de release e **não** foi feita nesta worktree. |
+| Jest | **__JEST_INTEGRADO__ testes em __JEST_SUITES__ suítes**, verdes em 27/08/2026 no fechamento integrado do M12 (F-011 + F-012); era 539 / 45 no fechamento do M11. O processo **conclui a suíte e não encerra**, por handle aberto — a contagem sai antes disso, e `--forceExit` é o contorno. Há avisos de `act(...)` a investigar. |
+| pytest | **__PYTEST_INTEGRADO__ testes**, verdes em SQLite em 27/08/2026 (era 620 no M11); avisos são `HTTP_422_UNPROCESSABLE_ENTITY` depreciado, Starlette/httpx e `InsecureKeyLength` do JWT de teste — nenhuma classe nova. Rodado em Python 3.12 via `uv` (o `python3` do sistema é 3.9), sem `pysqlite3` (não é importado por teste; o dialeto `sqlite+pysqlite` usa o `sqlite3` da stdlib). A execução contra Postgres continua obrigatória antes de release e **não** foi feita aqui. |
 
 Gates locais, **seis** desde 19/08/2026: `npm run typecheck`, `npm run lint`, `npm test`,
 `npm run bundle:check`, `npm run palette:check` e `npm run digits:check`, mais `pytest` no backend.

@@ -1,6 +1,5 @@
 import { screen, waitFor, fireEvent } from '@testing-library/react-native';
 import PlanoDePagamento from '../../../app/(tabs)/dividas/[id]/plano';
-import Renegociar from '../../../app/(tabs)/dividas/[id]/renegociar';
 import { ApiError } from '../../api/client';
 import { limparMocksDeRede, nuncaResponde, requestMock, responderPorRota } from '../api';
 import { renderizarTela } from '../render';
@@ -116,24 +115,5 @@ describe('tela de plano de pagamento', () => {
   });
 });
 
-describe('tela de renegociação', () => {
-  it('deixa claro que o histórico é preservado antes de qualquer campo', () => {
-    renderizarTela(<Renegociar />);
-    expect(screen.getByText(/O que você já pagou não some/)).toBeTruthy();
-  });
-
-  it('não envia sem os campos obrigatórios', () => {
-    renderizarTela(<Renegociar />);
-    fireEvent.press(screen.getByText('Registrar renegociação'));
-
-    expect(screen.getByText('Informe o novo valor acordado.')).toBeTruthy();
-    expect(screen.getByText('Informe em quantas parcelas ficou.')).toBeTruthy();
-    expect(screen.getByText('Informe quando vence a primeira.')).toBeTruthy();
-    expect(requestMock).not.toHaveBeenCalled();
-  });
-
-  it('a taxa é opcional', () => {
-    renderizarTela(<Renegociar />);
-    expect(screen.getAllByText('Opcional').length).toBeGreaterThan(0);
-  });
-});
+// A tela de renegociação virou registro de negociação por canal (M12) e tem
+// suíte própria em `renegociar.test.tsx`.

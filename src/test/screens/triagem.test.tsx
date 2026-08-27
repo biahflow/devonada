@@ -13,6 +13,9 @@ function umaRevisao(over: Partial<RevisaoCobranca> = {}): RevisaoCobranca {
     credor: 'Banco Teste',
     valorCobrado: 987000,
     achados: [],
+    // O script é sempre presente (M12); a triagem não o exibe, mas o tipo o
+    // exige. Sem achado, o backend devolve o script mínimo de segurança.
+    script: { canal: 'email', blocos: [] },
     fundamentos: [],
     ...over,
   };
