@@ -5,6 +5,7 @@ import {
   getExtracao,
   type ArquivoContrato,
   type ExtracaoContrato,
+  type TipoDocumento,
 } from '../api/contratos';
 import type { Uuid } from '../api/types';
 
@@ -25,7 +26,8 @@ export const MAX_TENTATIVAS = Math.ceil(MAX_ESPERA_MS / INTERVALO_MS);
 
 export function useEnviarContrato() {
   return useMutation({
-    mutationFn: (arquivo: ArquivoContrato) => enviarContrato(arquivo),
+    mutationFn: ({ arquivo, tipo }: { arquivo: ArquivoContrato; tipo: TipoDocumento }) =>
+      enviarContrato(arquivo, tipo),
   });
 }
 

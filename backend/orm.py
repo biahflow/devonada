@@ -287,6 +287,12 @@ class Extracao(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=novo_id)
     tenant_id: Mapped[str] = mapped_column(String(36), index=True)
 
+    # QUE documento foi enviado (contrato, boleto, carta, print). Roteia prompt
+    # e schema na extração (M13). `server_default='contrato'` faz toda leitura
+    # gravada antes desta coluna existir se ler como contrato — que é o que ela
+    # de fato era, quando `contrato` era o único tipo.
+    tipo: Mapped[str] = mapped_column(String(20), default="contrato", server_default="contrato")
+
     status: Mapped[str] = mapped_column(String(20), default="processando")
     erro: Mapped[str | None] = mapped_column(Text, nullable=True)
     # JSON serializado dos campos e alertas. Text em vez de JSONB porque o

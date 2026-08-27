@@ -183,19 +183,30 @@ proximoVencimento?: IsoDate;
 
 ---
 
-### M1.5 — Ingestão de contrato
+### M1.5 — Ingestão de documento
 
-O usuário envia o PDF ou a foto do contrato; o backend extrai e devolve uma **proposta** para
+O usuário envia o PDF ou a foto do documento; o backend extrai e devolve uma **proposta** para
 revisão. Nada é gravado por este fluxo — a criação continua sendo `POST /v1/dividas`, disparada
 pelo usuário depois de conferir.
 
+**Quatro tipos de documento (M13).** A camada de extração nasceu para `contrato` e ganhou
+`boleto`, `carta` e `print` de cobrança. Cada tipo tem **prompt e schema próprios** — escolha de
+método de leitura, não regra financeira —, mas o guardrail 8 vale igual para os quatro: campo sem
+`trecho` citável é descartado, e o arquivo é lido e descartado (ADR 0005).
+
 #### `POST /v1/contratos`
 
-`multipart/form-data`, campo `arquivo`. Aceita `application/pdf`, `image/jpeg` e `image/png`.
+`multipart/form-data`, campos `arquivo` **e `tipo`**. Aceita `application/pdf`, `image/jpeg` e
+`image/png`.
+
+| Campo | Valores | Ausente significa |
+|---|---|---|
+| `arquivo` | pdf/jpeg/png | — obrigatório |
+| `tipo` | `contrato` \| `boleto` \| `carta` \| `print` | **`contrato`** — default de retrocompatibilidade; cliente anterior ao M13 não manda o campo. Valor fora da lista → `422`. |
 
 Response `202`:
 ```json
-{ "extracao": { "id": "…", "status": "processando" } }
+{ "extracao": { "id": "…", "status": "processando", "tipo": "contrato" } }
 ```
 
 Assíncrono de propósito: OCR mais extração levam segundos a minutos, e segurar a conexão desse
@@ -208,12 +219,14 @@ tempo em rede móvel é receita para timeout.
 
 O front faz polling a cada 2,5s, com teto de 2 minutos.
 
-Response `200` com `status: "concluida"`:
+Response `200` com `status: "concluida"`. O campo `tipo` (eco do que foi enviado) diz **quais
+campos** vêm em `campos`. Exemplo de `contrato`:
 ```json
 {
   "extracao": {
     "id": "…",
     "status": "concluida",
+    "tipo": "contrato",
     "campos": {
       "credor":          { "valor": "Banco Teste S/A", "confianca": "alta",  "trecho": "CREDOR: Banco Teste S/A", "pagina": 1 },
       "valorCobrado":    { "valor": 150000,            "confianca": "alta",  "trecho": "Valor total: R$ 1.500,00", "pagina": 1 },
@@ -247,6 +260,22 @@ Regras de forma — **não negociáveis, porque o front depende delas para não 
 | `modalidade` diz que PRODUTO é, não a criticidade | `tipo` classifica pela consequência de não pagar; `modalidade` diz se é consignado, rotativo, financiamento. A revisão (M6) precisa do segundo: teto de consignado só se aplica a consignado. |
 | Os encargos existem para o M6 | `tarifaCadastro`, `seguroPrestamista`, `iof` e `multaMoratoriaMensal` são a matéria-prima dos achados. Sem `trecho`, o campo é zerado e o achado não existe. |
 | `alertas[].explicacao` em tom de investigação | "Pode não ter sido oferecido de forma opcional", nunca "é ilegal". Guardrail 3. |
+
+**Campos por tipo (M13).** Cada tipo entrega o conjunto abaixo; todo campo é o mesmo objeto
+`{ valor, confianca, trecho, pagina }`, e todo campo sem `trecho` é zerado no servidor. As regras
+de forma acima valem para os quatro.
+
+| Tipo | Campos |
+|---|---|
+| `contrato` | `credor`, `valorCobrado`, `dataOrigem`, `tipo`, `taxaJurosMensal`, `totalParcelas`, `cet`, `modalidade`, `tarifaCadastro`, `seguroPrestamista`, `iof`, `multaMoratoriaMensal` |
+| `boleto` | `beneficiario`, `valor`, `vencimento`, `linhaDigitavel`, `nossoNumero` |
+| `carta` | `credor`, `valorCobrado`, `dataVencimento`, `referencia` |
+| `print` | `credor`, `valorCobrado`, `referencia` |
+
+`boleto`, `carta` e `print` trazem menos campos de propósito: um print de cobrança não tem taxa
+de juros a extrair, e a extração não inventa o que o documento não diz. O que o tipo não traz, o
+usuário completa à mão na revisão. Unidades idênticas às do contrato: `valor`/`valorCobrado` em
+centavos, datas em ISO.
 
 `status: "falhou"` acompanha `erro` com mensagem em pt-BR para o usuário — qualidade de imagem,
 formato inesperado, PDF protegido.
@@ -460,7 +489,7 @@ Response `200`:
 {
   "horaLembrete": "09:00",
   "lembretes": [
-    { "id": "...", "dividaId": "...", "parcelaId": "...", "titulo": "Nubank vence em 3 dias", "corpo": "Parcela 3 de 12 — R$ 450,00", "dataLembrete": "2024-03-17" }
+    { "id": "...", "dividaId": "...", "parcelaId": "...", "titulo": "Você tem um passo hoje", "corpo": "Abra o Devo Nada para ver o que você combinou.", "dataLembrete": "2024-03-17" }
   ]
 }
 ```
@@ -473,8 +502,12 @@ Response `200`:
 > A divisão correta: o **backend decide o quê e o qual dia**; o **aparelho compõe a hora**, a
 > partir de `horaLembrete` (preferência do usuário, guardada no perfil).
 
-O texto vem **pronto do backend**, já formatado, para não haver formatação de moeda duplicada
-entre servidor e cliente. Tom obrigatoriamente neutro — ver `guardrails.md`, seção 4.
+O texto vem **pronto do backend**, e é **genérico por contrato**: `titulo` e `corpo` NÃO carregam
+credor, valor, número de parcela, vencimento nem a palavra "dívida". A tela de bloqueio é pública, e
+uma notificação que delata o credor de quem está ao lado é o modo de falha que a **seção 4 de
+`guardrails.md`** (discrição por padrão) existe para proibir. O identificador da parcela viaja em
+`dividaId`/`parcelaId` — payload de dados que o deep link do card usa, invisível na tela de bloqueio,
+nunca no texto visível. Tom obrigatoriamente neutro pela mesma seção.
 
 ---
 

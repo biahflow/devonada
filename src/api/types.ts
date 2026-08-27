@@ -17,6 +17,20 @@ export type CriticidadeTipo =
 
 export type SituacaoDivida = 'ativa' | 'quitada' | 'renegociada';
 
+/**
+ * PRODUTO de crédito — diferente de `CriticidadeTipo`, que classifica pela
+ * consequência de não pagar. A revisão de cobrança (M6) precisa deste: teto de
+ * juros de consignado só se aplica a consignado. Espelha `ModalidadeCredito` do
+ * backend (`backend/schemas.py`).
+ */
+export type ModalidadeCredito =
+  | 'consignado_inss'
+  | 'consignado_privado'
+  | 'cartao_consignado'
+  | 'pessoal'
+  | 'rotativo'
+  | 'financiamento';
+
 export interface Divida {
   id: Uuid;
   credor: string;

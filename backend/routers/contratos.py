@@ -1,6 +1,15 @@
 import json
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    UploadFile,
+    status,
+)
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -9,7 +18,13 @@ import orm
 import schemas
 from auth import tenant_atual
 from db import get_db
-from extracao import ArquivoContrato, ErroDeExtracao, obter_extrator
+from extracao import (
+    TIPOS_DOCUMENTO,
+    ArquivoContrato,
+    ErroDeExtracao,
+    modelo_de_campos,
+    obter_extrator,
+)
 
 router = APIRouter(prefix="/v1/contratos", tags=["Contratos"])
 
@@ -18,7 +33,12 @@ TAMANHO_MAXIMO = 20 * 1024 * 1024  # 20 MB
 
 
 def _para_schema(e: orm.Extracao) -> schemas.ExtracaoContrato:
-    campos = schemas.CamposContrato.model_validate_json(e.campos_json) if e.campos_json else None
+    # Deserializa com o modelo do TIPO gravado. Passar um dict à união de
+    # `ExtracaoContrato.campos` casaria com `CamposContrato` por engano (todos os
+    # campos dela têm default); a instância concreta casa pela classe exata.
+    campos = (
+        modelo_de_campos(e.tipo).model_validate_json(e.campos_json) if e.campos_json else None
+    )
     alertas = (
         [schemas.AlertaContrato.model_validate(a) for a in json.loads(e.alertas_json)]
         if e.alertas_json
@@ -26,6 +46,7 @@ def _para_schema(e: orm.Extracao) -> schemas.ExtracaoContrato:
     )
     return schemas.ExtracaoContrato(
         id=e.id,
+        tipo=e.tipo,  # type: ignore[arg-type]
         status=e.status,  # type: ignore[arg-type]
         erro=e.erro,
         campos=campos,
@@ -74,13 +95,23 @@ def _processar(extracao_id: str, arquivo: ArquivoContrato) -> None:
 async def enviar(
     background: BackgroundTasks,
     arquivo: UploadFile = File(...),
+    # QUE documento é. Default `contrato` para clientes anteriores ao M13, que
+    # não mandam o campo — a rota nasceu lendo só contrato. Campo de texto no
+    # multipart, ao lado do arquivo.
+    tipo: str = Form("contrato"),
     db: Session = Depends(get_db),
     tenant: str = Depends(tenant_atual),
 ):
+    if tipo not in TIPOS_DOCUMENTO:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"message": "Tipo de documento não suportado.", "campo": "tipo"},
+        )
+
     if arquivo.content_type not in MIMES_ACEITOS:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail={"message": "Envie um PDF ou uma foto do contrato.", "campo": "arquivo"},
+            detail={"message": "Envie um PDF ou uma foto do documento.", "campo": "arquivo"},
         )
 
     conteudo = await arquivo.read()
@@ -92,6 +123,7 @@ async def enviar(
 
     e = orm.Extracao(
         tenant_id=tenant,
+        tipo=tipo,
         status="processando",
         nome_arquivo=arquivo.filename,
         mime_type=arquivo.content_type,
@@ -105,7 +137,10 @@ async def enviar(
         _processar,
         e.id,
         ArquivoContrato(
-            conteudo=conteudo, nome=arquivo.filename or "contrato", mime_type=arquivo.content_type
+            conteudo=conteudo,
+            nome=arquivo.filename or "documento",
+            mime_type=arquivo.content_type,
+            tipo=tipo,
         ),
     )
 

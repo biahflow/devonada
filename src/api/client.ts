@@ -182,7 +182,7 @@ interface ArquivoUpload {
 export async function upload<T>(
   path: string,
   arquivo: ArquivoUpload,
-  opts: { signal?: AbortSignal } = {},
+  opts: { signal?: AbortSignal; campos?: Record<string, string> } = {},
 ): Promise<T> {
   const montarCorpo = () => {
     const form = new FormData();
@@ -192,6 +192,11 @@ export async function upload<T>(
       name: arquivo.nome,
       type: arquivo.mimeType,
     } as unknown as Blob);
+    // Campos de texto do multipart — o `tipo` de documento (M13) viaja aqui, ao
+    // lado do arquivo, e é remontado a cada tentativa junto com ele.
+    for (const [chave, valor] of Object.entries(opts.campos ?? {})) {
+      form.append(chave, valor);
+    }
     return form;
   };
 

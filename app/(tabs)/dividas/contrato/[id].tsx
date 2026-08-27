@@ -14,9 +14,7 @@ import { DividaForm } from '../../../../src/components/dividas/DividaForm';
 import { useExtracao } from '../../../../src/hooks/useContrato';
 import { useCriarDivida } from '../../../../src/hooks/useDividas';
 import { extracaoParaProposta } from '../../../../src/util/extracao';
-import { formatBRL } from '../../../../src/util/money';
-import { formatBasisPoints } from '../../../../src/util/percent';
-import { isoParaBR } from '../../../../src/util/date';
+import { linhasDeRevisao } from '../../../../src/util/revisaoExtracao';
 import { colors, spacing, typography } from '../../../../src/theme/theme';
 
 export default function RevisarExtracao() {
@@ -94,7 +92,7 @@ export default function RevisarExtracao() {
     );
   }
 
-  const campos = extracao.campos;
+  const linhas = linhasDeRevisao(extracao);
   const proposta = extracaoParaProposta(extracao);
 
   return (
@@ -103,51 +101,19 @@ export default function RevisarExtracao() {
         <PageHeader
           eyebrow="Revisão"
           title="Confira o que li"
-          description="Nada é salvo até você confirmar. Cada valor vem com o trecho do contrato que o sustenta."
+          description="Nada é salvo até você confirmar. Cada valor vem com o trecho do documento que o sustenta."
         />
 
-        {campos ? (
+        {linhas.length ? (
           <Card>
-            <CampoRevisao
-              rotulo="Credor"
-              campo={campos.credor}
-              valorFormatado={campos.credor.valor ?? undefined}
-            />
-            <CampoRevisao
-              rotulo="Valor"
-              campo={campos.valorCobrado}
-              valorFormatado={
-                campos.valorCobrado.valor !== null
-                  ? formatBRL(campos.valorCobrado.valor)
-                  : undefined
-              }
-            />
-            <CampoRevisao
-              rotulo="Data de origem"
-              campo={campos.dataOrigem}
-              valorFormatado={isoParaBR(campos.dataOrigem.valor ?? undefined)}
-            />
-            <CampoRevisao
-              rotulo="Juros ao mês"
-              campo={campos.taxaJurosMensal}
-              valorFormatado={
-                campos.taxaJurosMensal.valor !== null
-                  ? formatBasisPoints(campos.taxaJurosMensal.valor)
-                  : undefined
-              }
-            />
-            <CampoRevisao
-              rotulo="Custo Efetivo Total"
-              campo={campos.cet}
-              valorFormatado={
-                campos.cet.valor !== null ? formatBasisPoints(campos.cet.valor) : undefined
-              }
-            />
-            <CampoRevisao
-              rotulo="Parcelas"
-              campo={campos.totalParcelas}
-              valorFormatado={campos.totalParcelas.valor?.toString()}
-            />
+            {linhas.map((linha) => (
+              <CampoRevisao
+                key={linha.rotulo}
+                rotulo={linha.rotulo}
+                campo={linha.campo}
+                valorFormatado={linha.valorFormatado}
+              />
+            ))}
           </Card>
         ) : null}
 

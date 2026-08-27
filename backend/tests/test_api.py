@@ -568,6 +568,40 @@ class TestContratos:
         )
         assert r.status_code == 422
 
+    def test_sem_tipo_o_default_e_contrato(self, client, auth):
+        # Cliente anterior ao M13 não manda `tipo`; a leitura nasce como contrato.
+        r = client.post(
+            "/v1/contratos",
+            files={"arquivo": ("c.pdf", b"%PDF-1.4 fake", "application/pdf")},
+            headers=auth,
+        )
+        assert r.status_code == 202
+        assert r.json()["extracao"]["tipo"] == "contrato"
+
+    def test_tipo_valido_viaja_ate_a_resposta(self, client, auth):
+        r = client.post(
+            "/v1/contratos",
+            files={"arquivo": ("b.png", b"\x89PNG fake", "image/png")},
+            data={"tipo": "boleto"},
+            headers=auth,
+        )
+        assert r.status_code == 202
+        extracao_id = r.json()["extracao"]["id"]
+        assert r.json()["extracao"]["tipo"] == "boleto"
+
+        seguinte = client.get(f"/v1/contratos/{extracao_id}", headers=auth).json()["extracao"]
+        assert seguinte["tipo"] == "boleto"
+
+    def test_tipo_desconhecido_e_rejeitado(self, client, auth):
+        r = client.post(
+            "/v1/contratos",
+            files={"arquivo": ("x.pdf", b"%PDF-1.4 fake", "application/pdf")},
+            data={"tipo": "recibo"},
+            headers=auth,
+        )
+        assert r.status_code == 422
+        assert r.json()["campo"] == "tipo"
+
     def test_extracao_inexistente_devolve_404(self, client, auth):
         r = client.get("/v1/contratos/00000000-0000-0000-0000-000000000999", headers=auth)
         assert r.status_code == 404

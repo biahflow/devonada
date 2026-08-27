@@ -901,8 +901,10 @@ tem de vir antes do esforço. O M7 já tinha provado isso com o "Nível 0" do ca
       sustente — é a ADR 0008 aplicada à tela que mais teria tentação de inventar.
 - [x] "Devo pra uma pessoa" como escolha de entrada. É enorme no Brasil, nenhum app trata, e o
       peso emocional é diferente do de uma dívida bancária.
-- [ ] Data de origem no onboarding. Hoje entra como "hoje", e a consequência é conhecida: a
-      prescrição (CC art. 206) conta a partir daí, então ela alerta cedo demais, nunca tarde.
+- [x] Data de origem no onboarding. O passo 2 da fila agora pergunta "Quando começou?", pré-
+      preenchido com hoje e confirmável, `maximumDate` = hoje. A prescrição (CC art. 206) passa a
+      contar da data real, não de "hoje" cravado. Código e testes prontos; falta confirmar o
+      seletor nativo em aparelho.
 - [ ] **Documento durante a fila multi-dívida.** Quem marca duas ou mais cadastra por valor e
       recebe triagem sem achado: `/dividas/contrato` vive fora do grupo `(onboarding)` e sair para
       lá abandonaria o resto da fila. Resolver pede uma tela de upload dentro do grupo, ou a fila
@@ -914,10 +916,21 @@ tem de vir antes do esforço. O M7 já tinha provado isso com o "Nível 0" do ca
       que ofereça qualquer login social, então os dois andam juntos.
 - [ ] **Páginas de Termos e Política de Privacidade.** A linha legal da tela de entrada é texto sem
       link porque as URLs não existem. Item de pré-lançamento, não polimento: as duas lojas pedem.
-- [ ] Extração de **boleto, carta e print de cobrança** — a camada de extração existe para
-      contrato; falta o schema e o prompt destes. Vale integralmente o guardrail 8: campo sem
-      trecho citável é descartado, e o arquivo é lido e descartado.
-- [ ] Notificações discretas: a palavra "dívida" nunca aparece em push (guardrail 4).
+- [x] Extração de **boleto, carta e print de cobrança** (F-013) — a rota `POST /v1/contratos`
+      passou a receber `tipo` no multipart (default `contrato`, retrocompatível), e a camada de
+      extração roteia prompt e schema por tipo: `CamposBoleto`, `CamposCartaCobranca` e
+      `CamposPrintCobranca`, cada um com seu `SYSTEM`. O guardrail 8 vale integralmente para os
+      quatro — campo sem trecho citável é zerado no servidor pela mesma rede que já servia o
+      contrato, e o arquivo continua lido e descartado. A tela de revisão renderiza os campos do
+      tipo lido. Falta validar em aparelho e rodar a migração `tipo` contra Postgres.
+- [x] **Notificações discretas** (F-014). O lembrete de parcela nascia delatando credor e valor —
+      "Nubank vence amanhã" / "Parcela 3 de 12 — R$ 450,00". Agora nasce genérico no backend
+      (`routers/lembretes.py`): "Você tem um passo hoje" / "Abra o devo.nada para ver o que você
+      combinou.", sem credor, valor, vencimento nem a palavra "dívida". O `dividaId`/`parcelaId`
+      segue no payload de dados para o deep link do card, invisível na tela de bloqueio. Guardrail 4
+      (seção 4, discrição por padrão) foi explicitado para enumerar os cinco delatores, e o
+      teste-gêmeo de `test_parcelas_api.py` planta credor e valor reais e prova que não vazam.
+      Ver `docs/features/F-014-push-discreto/`.
 
 ## M14 — Lei do Superendividamento no corpus
 

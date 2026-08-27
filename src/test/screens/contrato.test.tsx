@@ -1,8 +1,9 @@
 import { screen, waitFor } from '@testing-library/react-native';
 import EnviarContrato from '../../../app/(tabs)/dividas/contrato/index';
 import RevisarExtracao from '../../../app/(tabs)/dividas/contrato/[id]';
+import type { CamposContrato } from '../../api/contratos';
 import { limparMocksDeRede, nuncaResponde, responderPorRota } from '../api';
-import { umaExtracao } from '../mocks';
+import { umBoleto, umPrint, umaExtracao } from '../mocks';
 import { renderizarTela } from '../render';
 
 afterEach(limparMocksDeRede);
@@ -24,6 +25,15 @@ describe('tela de envio de contrato', () => {
     renderizarTela(<EnviarContrato />);
     expect(screen.getByText('Escolher arquivo')).toBeTruthy();
     expect(screen.queryByText('Enviar para leitura')).toBeNull();
+  });
+
+  it('deixa escolher o tipo de documento (M13)', () => {
+    renderizarTela(<EnviarContrato />);
+    expect(screen.getByText('Que documento é?')).toBeTruthy();
+    expect(screen.getByText('Contrato')).toBeTruthy();
+    expect(screen.getByText('Boleto')).toBeTruthy();
+    expect(screen.getByText('Carta')).toBeTruthy();
+    expect(screen.getByText('Print')).toBeTruthy();
   });
 });
 
@@ -72,7 +82,7 @@ describe('tela de revisão da extração', () => {
 
   it('campo SEM trecho não propõe valor, mesmo tendo um', async () => {
     const extracao = umaExtracao();
-    extracao.campos!.valorCobrado = { valor: 999999, confianca: 'alta' };
+    (extracao.campos as CamposContrato).valorCobrado = { valor: 999999, confianca: 'alta' };
     responderPorRota({ '/v1/contratos/': { extracao } });
     renderizarTela(<RevisarExtracao />);
 
@@ -82,7 +92,7 @@ describe('tela de revisão da extração', () => {
 
   it('campo não encontrado diz isso, sem inventar zero', async () => {
     const extracao = umaExtracao();
-    extracao.campos!.cet = { valor: null, confianca: 'baixa' };
+    (extracao.campos as CamposContrato).cet = { valor: null, confianca: 'baixa' };
     responderPorRota({ '/v1/contratos/': { extracao } });
     renderizarTela(<RevisarExtracao />);
 
@@ -115,5 +125,26 @@ describe('tela de revisão da extração', () => {
 
     await waitFor(() => expect(screen.getByText(/Nada é salvo até você confirmar/)).toBeTruthy());
     expect(screen.getByText('Salvar dívida')).toBeTruthy();
+  });
+
+  it('revisa um BOLETO com os campos do boleto, não os do contrato (M13)', async () => {
+    responderPorRota({ '/v1/contratos/': { extracao: umBoleto() } });
+    renderizarTela(<RevisarExtracao />);
+
+    await waitFor(() => expect(screen.getByText('Beneficiário')).toBeTruthy());
+    expect(screen.getByText('Sabesp')).toBeTruthy();
+    expect(screen.getByText('Vencimento')).toBeTruthy();
+    // Um boleto não tem taxa de juros a extrair — o campo do contrato não aparece.
+    expect(screen.queryByText('Custo Efetivo Total')).toBeNull();
+  });
+
+  it('num PRINT, campo sem trecho não inventa valor', async () => {
+    // `referencia` vem sem trecho no mock: a tela diz que não encontrou.
+    responderPorRota({ '/v1/contratos/': { extracao: umPrint() } });
+    renderizarTela(<RevisarExtracao />);
+
+    await waitFor(() => expect(screen.getByText('Referência')).toBeTruthy());
+    expect(screen.getByText('R$ 320,00')).toBeTruthy();
+    expect(screen.getByText('não encontramos no contrato')).toBeTruthy();
   });
 });

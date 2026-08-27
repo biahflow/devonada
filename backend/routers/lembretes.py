@@ -8,42 +8,37 @@ import orm
 import schemas
 from auth import tenant_atual
 from db import get_db
-from domain.dinheiro import centavos_para_decimal
 
 router = APIRouter(prefix="/v1/lembretes", tags=["Lembretes"])
 
 
-def _formatar_brl(centavos: int) -> str:
+# Texto ÚNICO, genérico e constante — o padrão aprovado do guardrail 4
+# (`docs/guardrails.md`, seção 4, discrição por padrão). A tela de bloqueio é
+# pública e vergonha é o sentimento central deste público: uma notificação NÃO
+# pode delatar credor, valor, vencimento nem a palavra "dívida" para quem estiver
+# ao lado. "Sua dívida do Nubank vence amanhã" é o modelo PROIBIDO; "Você tem um
+# passo hoje" é o APROVADO.
+#
+# Por isso o identificador da parcela viaja SÓ no payload de dados da notificação
+# (`dividaId`/`parcelaId`, ver `src/notificacoes.ts`), nunca no texto visível: é
+# o que o deep link do card precisa, e é invisível na tela de bloqueio.
+#
+# Não há formatação de moeda neste módulo — de propósito. Sem `_formatar_brl` aqui,
+# valor não tem por onde vazar para o texto. Tom neutro continua obrigatório: nada
+# de "ATENÇÃO", contagem regressiva ou linguagem de cobrança.
+_TITULO = "Você tem um passo hoje"
+_CORPO = "Abra o devo.nada para ver o que você combinou."
+
+
+def _texto() -> tuple[str, str]:
     """
-    Mesma formatação de `src/util/money.ts`, para o texto sair pronto daqui.
+    Título e corpo do lembrete de parcela, discretos e idênticos para toda parcela.
 
-    Formatar no servidor evita a moeda ser montada em dois lugares e divergir —
-    e é por isso que `titulo` e `corpo` viajam prontos no payload.
+    FONTE: `docs/guardrails.md`, seção 4 (discrição por padrão). O texto não
+    depende de credor, valor nem vencimento — é o que garante que nenhum dos três
+    apareça na tela de bloqueio.
     """
-    valor = centavos_para_decimal(abs(centavos))
-    inteiro, _, dec = f"{valor:.2f}".partition(".")
-    milhar = f"{int(inteiro):,}".replace(",", ".")
-    sinal = "-" if centavos < 0 else ""
-    return f"{sinal}R$ {milhar},{dec}"
-
-
-def _texto(credor: str, parcela: orm.Parcela, dias: int) -> tuple[str, str]:
-    """
-    Tom neutro é requisito, não estilo (guardrail 4).
-
-    Nada de "ATENÇÃO", contagem regressiva ou linguagem de cobrança: o app do
-    usuário não pode soar como o credor dele.
-    """
-    if dias == 0:
-        quando = "vence hoje"
-    elif dias == 1:
-        quando = "vence amanhã"
-    else:
-        quando = f"vence em {dias} dias"
-
-    titulo = f"{credor} {quando}"
-    corpo = f"Parcela {parcela.numero} de {parcela.total} — {_formatar_brl(parcela.valor)}"
-    return titulo, corpo
+    return _TITULO, _CORPO
 
 
 @router.get("", response_model=schemas.ListaLembretes)
@@ -77,10 +72,9 @@ def listar(db: Session = Depends(get_db), tenant: str = Depends(tenant_atual)):
 
     lembretes = []
     for parcela, divida in linhas:
-        dias = (parcela.vencimento - hoje).days
         # Avisar no dia da antecedência; se já estamos dentro da janela, hoje.
         data_lembrete = max(hoje, parcela.vencimento - timedelta(days=antecedencia))
-        titulo, corpo = _texto(divida.credor, parcela, dias)
+        titulo, corpo = _texto()
         lembretes.append(
             schemas.Lembrete(
                 id=f"lembrete-{parcela.id}",
