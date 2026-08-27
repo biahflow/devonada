@@ -18,6 +18,13 @@ SituacaoDivida = Literal["ativa", "quitada", "renegociada"]
 StatusExtracao = Literal["processando", "concluida", "falhou"]
 Confianca = Literal["alta", "media", "baixa"]
 
+# QUE documento o usuário enviou. A camada de extração nasceu para `contrato`
+# (M1.5); `boleto`, `carta` e `print` de cobrança entram no M13 com prompt e
+# schema próprios. NÃO é regra financeira — é escolha de MÉTODO de leitura, e
+# por isso vive aqui e não em `domain/`. O guardrail 8 vale igual para os quatro:
+# campo sem trecho citável é descartado, e o arquivo é lido e descartado.
+TipoDocumento = Literal["contrato", "boleto", "carta", "print"]
+
 # A MODALIDADE do crédito, que é coisa diferente de `CriticidadeTipo`: aquele
 # classifica pela consequência de não pagar, este diz que produto é. A revisão
 # de cobrança (M6) precisa do segundo — teto de juros de consignado só se aplica
@@ -418,6 +425,56 @@ class CamposContrato(Camel):
     multaMoratoriaMensal: CampoExtraido[int] = Field(default_factory=CampoExtraido[int])
 
 
+class CamposBoleto(Camel):
+    """
+    O que se extrai de um BOLETO. Só o que tem trecho citável sobrevive — um
+    boleto ruim de imagem devolve `null` em vez de palpite (guardrail 8.1).
+
+    `beneficiario` é o credor tal como impresso; `valor` em centavos; a linha
+    digitável e o nosso número entram porque, quando legíveis, são a prova
+    literal mais forte de que o boleto é daquele credor. Todo campo é
+    `CampoExtraido`, então `limpar_campos_sem_evidencia()` os alcança de graça.
+    """
+
+    beneficiario: CampoExtraido[str]
+    valor: CampoExtraido[int]
+    vencimento: CampoExtraido[date]
+    linhaDigitavel: CampoExtraido[str]
+    nossoNumero: CampoExtraido[str]
+
+
+class CamposCartaCobranca(Camel):
+    """
+    CARTA de cobrança — texto livre. Confia-se inteiramente no descarte de campo
+    sem trecho: uma carta não tem layout fixo, então só o que estiver escrito em
+    letras claras vira dado. `referencia` é o número de contrato ou de dívida que
+    a carta cita, quando cita.
+    """
+
+    credor: CampoExtraido[str]
+    valorCobrado: CampoExtraido[int]
+    dataVencimento: CampoExtraido[date]
+    referencia: CampoExtraido[str]
+
+
+class CamposPrintCobranca(Camel):
+    """
+    PRINT de cobrança — captura de tela de app, SMS ou WhatsApp. O menos
+    estruturado dos quatro: credor e valor quando aparecem, e a referência
+    citada. Nada é deduzido; o print é a entrada mais exposta a fraude, e por
+    isso o descarte de campo sem trecho é o que segura a leitura.
+    """
+
+    credor: CampoExtraido[str]
+    valorCobrado: CampoExtraido[int]
+    referencia: CampoExtraido[str]
+
+
+# União dos quatro conjuntos de campos. `limpar_campos_sem_evidencia()` opera
+# sobre qualquer um — ela varre `type(campos).model_fields`, sem saber o tipo.
+CamposExtraidos = CamposContrato | CamposBoleto | CamposCartaCobranca | CamposPrintCobranca
+
+
 class AlertaContrato(Camel):
     id: str
     titulo: str
@@ -429,8 +486,17 @@ class AlertaContrato(Camel):
 class ExtracaoContrato(Camel):
     id: str
     status: StatusExtracao
+    # QUAL documento foi lido. O front decide por ele quais campos renderizar.
+    # Default `contrato` para as leituras gravadas antes do M13, cuja coluna
+    # nasce com `server_default='contrato'`.
+    tipo: TipoDocumento = "contrato"
     erro: str | None = None
-    campos: CamposContrato | None = None
+    # Union NÃO discriminada: `_para_schema` passa SEMPRE uma instância concreta
+    # (nunca um dict), e o smart-union do Pydantic casa pela classe exata da
+    # instância. Passar um dict aqui casaria com `CamposContrato` por engano —
+    # todos os campos dela têm default —, então a rota deserializa com o modelo
+    # certo ANTES de montar esta resposta.
+    campos: CamposExtraidos | None = None
     alertas: list[AlertaContrato] | None = None
 
 
