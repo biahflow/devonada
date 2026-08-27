@@ -1,10 +1,18 @@
-import { screen, waitFor } from '@testing-library/react-native';
+import { screen, fireEvent, waitFor } from '@testing-library/react-native';
 import EnviarContrato from '../../../app/(tabs)/dividas/contrato/index';
 import RevisarExtracao from '../../../app/(tabs)/dividas/contrato/[id]';
 import type { CamposContrato } from '../../api/contratos';
-import { limparMocksDeRede, nuncaResponde, responderPorRota } from '../api';
+import { limparMocksDeRede, nuncaResponde, requestMock, responderPorRota } from '../api';
 import { umBoleto, umPrint, umaExtracao } from '../mocks';
 import { renderizarTela } from '../render';
+
+/** O corpo do primeiro POST /v1/dividas — a criação disparada pela confirmação. */
+function corpoDaCriacao(): Record<string, unknown> {
+  const chamada = requestMock.mock.calls.find(
+    (c) => c[0] === '/v1/dividas' && (c[1] as { method?: string })?.method === 'POST',
+  );
+  return (chamada?.[1] as { body: Record<string, unknown> }).body;
+}
 
 afterEach(limparMocksDeRede);
 
@@ -125,6 +133,24 @@ describe('tela de revisão da extração', () => {
 
     await waitFor(() => expect(screen.getByText(/Nada é salvo até você confirmar/)).toBeTruthy());
     expect(screen.getByText('Salvar dívida')).toBeTruthy();
+  });
+
+  // A LIGAÇÃO DÍVIDA→EXTRAÇÃO (F-015, Parte 1). Antes do conserto, `NovaDivida` não
+  // tinha `extracaoId`, `extracaoParaProposta` não o carregava e o `DividaForm` o
+  // descartava — a dívida nascia solta e a revisão dela nunca achava nada. Este
+  // teste falha se qualquer um dos três elos voltar a se romper.
+  it('ao confirmar, cria a dívida LIGADA à extração (extracaoId no POST)', async () => {
+    responderPorRota({
+      '/v1/contratos/': { extracao: umaExtracao() },
+      '/v1/dividas': { divida: { id: 'nova-1' } },
+    });
+    renderizarTela(<RevisarExtracao />);
+
+    await waitFor(() => expect(screen.getByText('Salvar dívida')).toBeTruthy());
+    fireEvent.press(screen.getByText('Salvar dívida'));
+
+    await waitFor(() => expect(corpoDaCriacao()).toBeDefined());
+    expect(corpoDaCriacao().extracaoId).toBe('extracao-1');
   });
 
   it('revisa um BOLETO com os campos do boleto, não os do contrato (M13)', async () => {

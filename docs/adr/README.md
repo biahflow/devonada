@@ -68,3 +68,4 @@ quanto o das certas — ele impede que o mesmo caminho seja tentado duas vezes.
 | [0019](0019-respiro-e-linha-da-cascata-e-quem-diz-o-valor-e-o-usuario.md) | O respiro é o piso do corte, e quem diz o valor dele é o usuário | aceito |
 | [0020](0020-o-assistente-se-chama-tino.md) | O assistente se chama Tino, e a marca antiga sai da página pública | aceito (supersede o item 3 da 0014) |
 | [0021](0021-renda-tipada-por-adicao-e-o-canal-decide-quando-a-oferta-e-dita.md) | O tipo da renda ganha efeito por adição, e o canal decide quando a oferta é dita | aceito |
+| [0022](0022-documento-inline-na-fila-multi-divida.md) | Documento lido inline na fila multi-dívida do onboarding, sem sair do grupo | aceito (revoga o ponto 5 da 0016) |

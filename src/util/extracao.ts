@@ -18,6 +18,12 @@ import type { NovaDivida } from '../api/debts';
  *    formulário de dinheiro nem pré-preenchido.
  * 2. Nada aqui calcula. É seleção e cópia; a aritmética já veio do backend.
  *
+ * O `extracaoId` é a EXCEÇÃO à regra 1, e de propósito: ele não é um campo lido
+ * do documento, é a CHAVE da leitura. Viaja sempre que houver campos a propor,
+ * para a dívida criada ligar-se à extração (`revisao.py` a usa para produzir os
+ * achados e o `valorJusto`). Sem ele, a ligação dívida→extração se perde e a
+ * revisão daquela dívida nunca mostra achado.
+ *
  * Cada TIPO de documento (M13) carrega campos diferentes: o contrato traz o
  * núcleo inteiro; boleto, carta e print trazem só credor e valor, quando
  * citáveis. O resto o usuário completa à mão — que é a verdade honesta de um
@@ -27,10 +33,13 @@ export function extracaoParaProposta(extracao: ExtracaoContrato): Partial<NovaDi
   const campos = extracao.campos;
   if (!campos) return {};
 
+  const chave: Partial<NovaDivida> = { extracaoId: extracao.id };
+
   switch (extracao.tipo) {
     case 'boleto': {
       const b = campos as CamposBoleto;
       return {
+        ...chave,
         ...comEvidencia('credor', b.beneficiario),
         ...comEvidencia('valorCobrado', b.valor),
       };
@@ -38,6 +47,7 @@ export function extracaoParaProposta(extracao: ExtracaoContrato): Partial<NovaDi
     case 'carta': {
       const c = campos as CamposCartaCobranca;
       return {
+        ...chave,
         ...comEvidencia('credor', c.credor),
         ...comEvidencia('valorCobrado', c.valorCobrado),
       };
@@ -45,6 +55,7 @@ export function extracaoParaProposta(extracao: ExtracaoContrato): Partial<NovaDi
     case 'print': {
       const p = campos as CamposPrintCobranca;
       return {
+        ...chave,
         ...comEvidencia('credor', p.credor),
         ...comEvidencia('valorCobrado', p.valorCobrado),
       };
@@ -53,6 +64,7 @@ export function extracaoParaProposta(extracao: ExtracaoContrato): Partial<NovaDi
     default: {
       const c = campos as CamposContrato;
       return {
+        ...chave,
         ...comEvidencia('credor', c.credor),
         ...comEvidencia('valorCobrado', c.valorCobrado),
         ...comEvidencia('dataOrigem', c.dataOrigem),

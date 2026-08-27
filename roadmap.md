@@ -905,10 +905,15 @@ tem de vir antes do esforço. O M7 já tinha provado isso com o "Nível 0" do ca
       preenchido com hoje e confirmável, `maximumDate` = hoje. A prescrição (CC art. 206) passa a
       contar da data real, não de "hoje" cravado. Código e testes prontos; falta confirmar o
       seletor nativo em aparelho.
-- [ ] **Documento durante a fila multi-dívida.** Quem marca duas ou mais cadastra por valor e
-      recebe triagem sem achado: `/dividas/contrato` vive fora do grupo `(onboarding)` e sair para
-      lá abandonaria o resto da fila. Resolver pede uma tela de upload dentro do grupo, ou a fila
-      persistida entre rotas.
+- [x] **Documento durante a fila multi-dívida** (F-015, ADR 0022, que revoga o ponto 5 da ADR
+      0016). Cada dívida da fila ganhou um "Mandar o documento" opcional, lido **inline** — sem sair
+      do grupo `(onboarding)`, que abandonaria o resto da fila. A extração roda no lugar (upload +
+      polling de 2min), com os quatro estados e a revisão campo-a-campo com o trecho à vista antes
+      de a dívida entrar na fila. Quem tem o documento manda e recebe a triagem inteira; quem não
+      tem segue só pelo valor. O invariante "nada gravado antes do fim" sobrevive: extração grava
+      linha `extracao`, nunca `divida`. Junto veio o conserto de um bug pré-existente — a ligação
+      dívida→extração estava quebrada no cliente (`extracaoId` nunca era enviado), então até a
+      revisão de contrato de UMA dívida nascia sem achado.
 - [ ] **Login social (Apple e Google).** A tela de entrada já tem os dois botões do desenho da
       tela 11, **desligados**, com legenda dizendo quando chegam. Falta tudo do servidor: troca de
       token, coluna de provedor no usuário, `expo-apple-authentication` e Google Sign-In no app, e

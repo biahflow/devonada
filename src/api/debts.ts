@@ -13,6 +13,13 @@ export type NovaDivida = Pick<
 > & {
   /** Anda junto com `totalParcelas`: o backend rejeita um sem o outro. */
   primeiroVencimento?: IsoDate;
+  /**
+   * Liga a dívida à extração que a originou. NÃO é um campo extraído — é a chave
+   * da leitura —, então não passa pelo descarte do guardrail 8.1: viaja sempre
+   * que a dívida nasceu de um documento. Sem ele, `revisao.py` não acha a
+   * extração e a revisão daquela dívida nunca produz achado nem `valorJusto`.
+   */
+  extracaoId?: Uuid;
 };
 
 /** PATCH aceita qualquer subconjunto dos campos que o usuário informa. */

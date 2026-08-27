@@ -50,7 +50,7 @@ distinção é do `roadmap.md` e este documento não a apaga.
 | M10 | Fork e marca devo.nada: paleta escura, wordmark, splash, ícone (ADR 0014, 0015 e 0018) | Entregue, **sem débito aberto** desde 19/08/2026: contrastes remedidos e virados gate, dígito medido, ícone refeito, `custoDiarioJuros` no resumo. **Falta device.** |
 | M11 | Respiro: a fatia de viver entra na cascata antes do corte, e o marco vira evento que não se desfaz (ADR 0019) | Entregue em 20/08/2026; **falta device** — `RespiroCard`, a tela de declaração e a `MarcoScreen` não foram vistas em aparelho, e é o gate humano que fecha o milestone. |
 | M12 | Metas nomeadas e a aba da fase verde (ADR 0017); **renda tipada e compromisso percentual (F-011)** e **negociação por canal e registro de resultado (F-012)** (ADR 0021) | Entregue; **falta device**. F-011 e F-012 fechados em 27/08/2026 (T1–T6 cada), integrados em `m12-integration`. |
-| M13 | Entrada pelo alívio: onboarding em 3 passos, escolha **múltipla** de dívida e fila de cadastro (ADR 0016) | **Parcialmente entregue**: fluxo central, **data de origem no onboarding**, **extração de boleto/carta/print (F-013)** e **notificação discreta (F-014)** entregues; **documento na fila**, **login social** e **páginas de Termos/Privacidade** continuam pendentes. **Falta device**. |
+| M13 | Entrada pelo alívio: onboarding em 3 passos, escolha **múltipla** de dívida e fila de cadastro (ADR 0016) | **Parcialmente entregue**: fluxo central, **data de origem no onboarding**, **extração de boleto/carta/print (F-013)**, **notificação discreta (F-014)** e **documento inline na fila multi-dívida (F-015, ADR 0022)** entregues; **login social** e **páginas de Termos/Privacidade** continuam pendentes. **Falta device**. |
 | — | Navegação: seta de voltar em toda tela empilhada (ADR 0016) | Entregue; **falta device** |
 
 ## Stack, em uma tabela
@@ -300,7 +300,7 @@ Deep link sempre por campo tipado, nunca por id extraído de texto.
 
 | Suíte | Números |
 |---|---|
-| Jest | **611 testes em 50 suítes**, verdes em 27/08/2026 no fechamento integrado do M13 (data de origem + F-013 + F-014); era 606 / 50 no fechamento do M12. O processo **conclui a suíte e não encerra**, por handle aberto — a contagem sai antes disso, e `--forceExit` é o contorno. Há avisos de `act(...)` a investigar. |
+| Jest | **620 testes em 50 suítes**, verdes em 27/08/2026 no fechamento do F-015 (documento inline na fila + conserto do vínculo `extracaoId`); eram 611 / 50 no fechamento integrado do M13 (data de origem + F-013 + F-014) e 606 / 50 no M12. O processo **conclui a suíte e não encerra**, por handle aberto — a contagem sai antes disso, e `--forceExit` é o contorno. Há avisos de `act(...)` a investigar. |
 | pytest | **733 testes**, verdes em SQLite em 27/08/2026 no fechamento do M13 (era 721 no M12); avisos são `HTTP_422_UNPROCESSABLE_ENTITY` depreciado, Starlette/httpx e `InsecureKeyLength` do JWT de teste — nenhuma classe nova. Rodado em Python 3.12 via `uv` (o `python3` do sistema é 3.9), sem `pysqlite3` (não é importado por teste; o dialeto `sqlite+pysqlite` usa o `sqlite3` da stdlib). A execução contra Postgres continua obrigatória antes de release e **não** foi feita aqui. |
 
 Gates locais, **seis** desde 19/08/2026: `npm run typecheck`, `npm run lint`, `npm test`,
@@ -379,11 +379,14 @@ Estão aqui porque escondê-las inverteria o princípio do projeto. Íntegras em
 14. **`margemDisponivel` muda de definição conforme o caixa** (M7.2): `aporteMaximo` quando o
     caixa conhece a saída, `renda − mínimo existencial − comprometido` quando não. A tela ainda
     não nomeia qual das duas está exibindo.
-15. **Na fila multi-dívida do onboarding, o documento não é pedido durante o cadastro** (M13,
-    ADR 0016). Quem marca duas ou mais dívidas cadastra as duas por valor e recebe uma triagem sem
-    achado — `/dividas/contrato` vive fora do grupo `(onboarding)` e sair para lá abandonaria o
-    resto da fila. A triagem oferece "Mandar a fatura" logo em seguida, mas o "aha" completo fica
-    adiado para quem escolheu esse caminho.
+15. **~~Na fila multi-dívida do onboarding, o documento não é pedido durante o cadastro~~ —
+    RESOLVIDO no F-015 (ADR 0022).** A leitura do documento agora acontece **inline** dentro do
+    grupo `(onboarding)`, sem abandonar a fila: cada dívida marcada pode mandar o documento, a
+    extração roda ali mesmo com revisão campo a campo (trecho à vista, guardrail 8.1) e o
+    `extracaoId` viaja no POST final. O invariante da ADR 0016 (nada gravado antes do fim) sobrevive
+    porque extração grava linha `extracao`, nunca `divida`. O F-015 também consertou um bug
+    pré-existente: o cliente nunca enviava `extracaoId`, então dívida vinda de contrato não ligava a
+    extração e a triagem dela não mostrava achado.
 16. **Não existe login social** (Apple ou Google). A tela de entrada mostra os dois botões do
     desenho da concepção, **desligados**, com legenda dizendo quando chegam. O backend não tem nada
     de Sign in with Apple nem Google Sign-In — o que existe em `backend/` sobre as duas empresas é
