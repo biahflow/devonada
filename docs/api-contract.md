@@ -460,7 +460,7 @@ Response `200`:
 {
   "horaLembrete": "09:00",
   "lembretes": [
-    { "id": "...", "dividaId": "...", "parcelaId": "...", "titulo": "Nubank vence em 3 dias", "corpo": "Parcela 3 de 12 — R$ 450,00", "dataLembrete": "2024-03-17" }
+    { "id": "...", "dividaId": "...", "parcelaId": "...", "titulo": "Você tem um passo hoje", "corpo": "Abra o Devo Nada para ver o que você combinou.", "dataLembrete": "2024-03-17" }
   ]
 }
 ```
@@ -473,8 +473,12 @@ Response `200`:
 > A divisão correta: o **backend decide o quê e o qual dia**; o **aparelho compõe a hora**, a
 > partir de `horaLembrete` (preferência do usuário, guardada no perfil).
 
-O texto vem **pronto do backend**, já formatado, para não haver formatação de moeda duplicada
-entre servidor e cliente. Tom obrigatoriamente neutro — ver `guardrails.md`, seção 4.
+O texto vem **pronto do backend**, e é **genérico por contrato**: `titulo` e `corpo` NÃO carregam
+credor, valor, número de parcela, vencimento nem a palavra "dívida". A tela de bloqueio é pública, e
+uma notificação que delata o credor de quem está ao lado é o modo de falha que a **seção 4 de
+`guardrails.md`** (discrição por padrão) existe para proibir. O identificador da parcela viaja em
+`dividaId`/`parcelaId` — payload de dados que o deep link do card usa, invisível na tela de bloqueio,
+nunca no texto visível. Tom obrigatoriamente neutro pela mesma seção.
 
 ---
 

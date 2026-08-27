@@ -178,8 +178,12 @@ class TestLembretes:
         )
         lembretes = client.get("/v1/lembretes", headers=auth).json()["lembretes"]
         assert len(lembretes) == 1
-        assert "Nubank" in lembretes[0]["titulo"]
-        assert "vence em 2 dias" in lembretes[0]["titulo"]
+        # Discrição por padrão (guardrail 4): o texto é genérico e NÃO delata o
+        # credor nem o vencimento. O identificador viaja fora do texto.
+        assert lembretes[0]["titulo"] == "Você tem um passo hoje"
+        assert "Nubank" not in lembretes[0]["titulo"]
+        assert lembretes[0]["dividaId"]
+        assert lembretes[0]["parcelaId"]
 
     def test_parcela_fora_da_janela_nao_gera(self, client, auth):
         client.post(
@@ -203,15 +207,20 @@ class TestLembretes:
         )
         assert client.get("/v1/lembretes", headers=auth).json()["lembretes"] == []
 
-    def test_texto_vem_pronto_com_moeda_formatada(self, client, auth):
+    def test_texto_nao_delata_valor_nem_vencimento(self, client, auth):
+        # Antes esta rota mandava "Parcela 3 de 12 — R$ 450,00" / "vence amanhã".
+        # Discrição por padrão (guardrail 4): valor e vencimento saem do texto.
         client.post(
             "/v1/dividas",
             json=_nova(valorCobrado=45000, totalParcelas=1, primeiroVencimento=str(HOJE + timedelta(days=1))),
             headers=auth,
         )
         lembrete = client.get("/v1/lembretes", headers=auth).json()["lembretes"][0]
-        assert "R$ 450,00" in lembrete["corpo"]
-        assert "vence amanhã" in lembrete["titulo"]
+        texto = lembrete["titulo"] + lembrete["corpo"]
+        assert "R$ 450,00" not in texto
+        assert "450" not in texto
+        assert "vence" not in texto
+        assert "amanhã" not in texto
 
     def test_tom_neutro_sem_linguagem_de_cobranca(self, client, auth):
         client.post(
@@ -223,6 +232,30 @@ class TestLembretes:
         texto = (lembrete["titulo"] + lembrete["corpo"]).lower()
         for proibido in ("atenção", "urgente", "atraso", "!", "pendência", "regularize"):
             assert proibido not in texto
+
+    def test_notificacao_nao_delata_credor_valor_nem_divida(self, client, auth):
+        # Teste-gêmeo de discrição (guardrail 4, seção 4). Planta credor e valor
+        # REAIS e prova que nenhum dos dois — nem a palavra "dívida" — aparece no
+        # texto visível da notificação. A tela de bloqueio é pública; delatar o
+        # credor de quem está ao lado é o modo de falha que esta regra proíbe.
+        # O identificador continua no payload de dados, para o deep link do card.
+        client.post(
+            "/v1/dividas",
+            json=_nova(
+                credor="Nubank",
+                valorCobrado=45000,
+                totalParcelas=12,
+                primeiroVencimento=str(HOJE + timedelta(days=1)),
+            ),
+            headers=auth,
+        )
+        lembrete = client.get("/v1/lembretes", headers=auth).json()["lembretes"][0]
+        texto = (lembrete["titulo"] + " " + lembrete["corpo"]).lower()
+        for delator in ("nubank", "dívida", "divida", "r$", "450", "parcela", "vence", "vencimento"):
+            assert delator not in texto, f"notificação delatou {delator!r}: {texto!r}"
+        # O identificador sobrevive fora do texto, para o deep link não quebrar.
+        assert lembrete["dividaId"]
+        assert lembrete["parcelaId"]
 
     def test_devolve_a_hora_configurada(self, client, auth):
         client.put("/v1/perfil", json={"horaLembrete": "20:30"}, headers=auth)
