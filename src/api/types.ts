@@ -523,6 +523,20 @@ export interface Caixa {
    * campos do M12 na `Caixa` chegam em T5.
    */
   impostoNaoDeclarado?: boolean;
+  /**
+   * COMPROMISSO PERCENTUAL (F-011, ADR 0021, decisão 4). `compromissoPercentualBps`
+   * é a escolha do usuário em **bps** (`null` = nunca declarou; `0` é escolha
+   * legítima). `compromissoPercentual` é o que ela custa neste mês, em centavos,
+   * aplicado sobre a renda LÍQUIDA típica **no servidor** — o cliente exibe, não
+   * multiplica (guardrail 1.2). Entra na cascata na posição dos potes e do respiro.
+   */
+  compromissoPercentualBps?: number | null;
+  compromissoPercentual?: number | null;
+  /**
+   * O `AAAA-MM` do recebimento que ancorou a renda típica, ou `null` quando a
+   * origem é `informada`. A tela o usa para explicar por que a capacidade caiu.
+   */
+  mesAncoraRenda?: string | null;
   comprometidoDividas: number;
   /**
    * O que sobra sem mudar nada de vida. **Pode ser negativo**, e o negativo é a
@@ -631,6 +645,12 @@ export interface MetasCaixa {
   aposentadoriaAporte?: number | null;
   /** Ausente ⇒ nenhuma comparação dívida × investimento é exibida (ADR 0009). */
   rendimentoEsperadoBps?: number | null;
+  /**
+   * Pote percentual em **bps** (F-011, ADR 0021, decisão 4). Ausente = nunca
+   * declarou (cascata idêntica à de hoje); `0` é escolha legítima. Compromisso
+   * que empurre o mês abaixo do piso legal é recusado com `422` pelo servidor.
+   */
+  compromissoPercentualBps?: number | null;
 }
 
 /* --- Metas nomeadas (/v1/metas) --- */

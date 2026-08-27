@@ -1,6 +1,7 @@
 import { screen, waitFor, fireEvent } from '@testing-library/react-native';
 import CaixaScreen from '../../../app/(tabs)/caixa/index';
 import RespiroScreen from '../../../app/(tabs)/caixa/respiro';
+import CompromissoScreen from '../../../app/(tabs)/caixa/compromisso';
 import { ApiError } from '../../api/client';
 import { limparMocksDeRede, nuncaResponde, requestMock, responderPorRota } from '../api';
 import { umCaixa } from '../mocks';
@@ -303,6 +304,118 @@ describe('tela de declaração do respiro (app/(tabs)/caixa/respiro.tsx)', () =>
     fireEvent.press(screen.getByText('Declarar respiro'));
 
     await waitFor(() => expect(screen.getByText(/mínimo para viver/)).toBeTruthy());
+  });
+});
+
+describe('CompromissoCard (T5, ADR 0021)', () => {
+  it('T5-AC1: sem percentual declarado, convida e não sugere número', async () => {
+    responderPorRota({ '/v1/caixa': { caixa: umCaixa({ compromissoPercentualBps: null }) } });
+    renderizarTela(<CaixaScreen />);
+
+    await waitFor(() => expect(screen.getByText('Declarar compromisso')).toBeTruthy());
+    // Estado de convite: NÃO mostra o valor do estado declarado — nenhum número
+    // sugerido, nenhuma faixa (ADR 0009/0019).
+    expect(screen.queryByText(/reservado por mês sobre o que entra/)).toBeNull();
+  });
+
+  it('T5-AC2: com percentual declarado, mostra o bps e o valor do servidor', async () => {
+    responderPorRota({
+      '/v1/caixa': {
+        caixa: umCaixa({ compromissoPercentualBps: 1000, compromissoPercentual: 94000 }),
+      },
+    });
+    renderizarTela(<CaixaScreen />);
+
+    await waitFor(() => expect(screen.getByText('Compromisso deste mês')).toBeTruthy());
+    // 10,00% e R$ 940,00 vêm PRONTOS — o cliente não multiplica bps por renda.
+    expect(screen.getByText('10,00%')).toBeTruthy();
+    expect(screen.getByText('R$ 940,00')).toBeTruthy();
+  });
+});
+
+describe('mês âncora da renda típica (T5-AC3)', () => {
+  it('mostra a origem e o mês quando a renda veio do pior mês', async () => {
+    responderPorRota({
+      '/v1/caixa': {
+        caixa: umCaixa({ origemRenda: 'pior_mes_registrado', mesAncoraRenda: '2026-03' }),
+      },
+    });
+    renderizarTela(<CaixaScreen />);
+
+    await waitFor(() => expect(screen.getByText(/pior mês registrado/)).toBeTruthy());
+    expect(screen.getByText(/que foi mar\/26/)).toBeTruthy();
+  });
+
+  it('a linha some quando a origem é informada', async () => {
+    responderPorRota({ '/v1/caixa': { caixa: umCaixa({ origemRenda: 'informada' }) } });
+    renderizarTela(<CaixaScreen />);
+
+    await waitFor(() => expect(screen.getByText('Sobra por mês')).toBeTruthy());
+    expect(screen.queryByText(/pior mês registrado/)).toBeNull();
+  });
+});
+
+describe('tela de declaração do compromisso (app/(tabs)/caixa/compromisso.tsx)', () => {
+  it('T5-AC4 carregando: mostra o carregamento', () => {
+    nuncaResponde();
+    renderizarTela(<CompromissoScreen />);
+    expect(screen.getByText('Carregando seu compromisso')).toBeTruthy();
+  });
+
+  it('T5-AC4 erro: mostra erro com retry', async () => {
+    responderPorRota({ '/v1/caixa/metas': new ApiError(500, 'Erro 500.') });
+    renderizarTela(<CompromissoScreen />);
+    await waitFor(() => expect(screen.getByText('O servidor tropeçou')).toBeTruthy());
+  });
+
+  it('T5-AC5: o campo tem accessibilityLabel', async () => {
+    responderPorRota({ '/v1/caixa/metas': { metas: {} } });
+    renderizarTela(<CompromissoScreen />);
+    await waitFor(() => expect(screen.getByLabelText('Percentual do que entra')).toBeTruthy());
+  });
+
+  it('grava mandando as OUTRAS metas de volta — a rota sobrescreve tudo', async () => {
+    responderPorRota({ '/v1/caixa/metas': { metas: { impostoBps: 600 } } });
+    renderizarTela(<CompromissoScreen />);
+
+    await waitFor(() => expect(screen.getByLabelText('Percentual do que entra')).toBeTruthy());
+    fireEvent.changeText(screen.getByLabelText('Percentual do que entra'), '1000');
+    requestMock.mockClear();
+    fireEvent.press(screen.getByText('Declarar compromisso'));
+
+    await waitFor(() =>
+      expect(requestMock).toHaveBeenCalledWith(
+        '/v1/caixa/metas',
+        expect.objectContaining({
+          method: 'PUT',
+          body: expect.objectContaining({ impostoBps: 600, compromissoPercentualBps: 1000 }),
+        }),
+      ),
+    );
+  });
+
+  it('422 do piso legal explica com a frase pronta do servidor', async () => {
+    requestMock.mockImplementation((path: string, opts?: { method?: string }) => {
+      if (path.startsWith('/v1/caixa/metas') && opts?.method === 'PUT') {
+        return Promise.reject(
+          new ApiError(
+            422,
+            'Com esse compromisso, o que sobra no seu mês fica abaixo do mínimo existencial, que é o piso que a lei protege.',
+          ),
+        );
+      }
+      if (path.startsWith('/v1/caixa/metas')) {
+        return Promise.resolve({ metas: {} }) as ReturnType<typeof requestMock>;
+      }
+      return Promise.reject(new Error(`Rota não mockada: ${path}`));
+    });
+    renderizarTela(<CompromissoScreen />);
+
+    await waitFor(() => expect(screen.getByLabelText('Percentual do que entra')).toBeTruthy());
+    fireEvent.changeText(screen.getByLabelText('Percentual do que entra'), '9000');
+    fireEvent.press(screen.getByText('Declarar compromisso'));
+
+    await waitFor(() => expect(screen.getByText(/mínimo existencial/)).toBeTruthy());
   });
 });
 

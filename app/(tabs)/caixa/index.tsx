@@ -12,6 +12,7 @@ import { ErrorState } from '../../../src/components/ui/ErrorState';
 import { EmptyState } from '../../../src/components/ui/EmptyState';
 import { Cascata, type Degrau } from '../../../src/components/caixa/Cascata';
 import { RespiroCard } from '../../../src/components/caixa/RespiroCard';
+import { CompromissoCard } from '../../../src/components/caixa/CompromissoCard';
 import { ErroDeMutacao } from '../../../src/components/ui/ErroDeMutacao';
 import {
   useCaixa,
@@ -165,10 +166,18 @@ export default function CaixaScreen() {
         />
         <ErroDeMutacao error={registrarUso.error} fallback="Não deu para registrar o uso. Tente de novo." />
 
+        <CompromissoCard
+          compromissoPercentualBps={caixa.compromissoPercentualBps ?? null}
+          compromissoPercentual={caixa.compromissoPercentual ?? null}
+          onDeclarar={() => router.push('/caixa/compromisso')}
+        />
+
         {caixa.origemRenda === 'pior_mes_registrado' ? (
           <Feedback
             tone="info"
-            message="Sua renda aqui é a do seu pior mês registrado, não a média. Um plano dimensionado pela média quebra justamente no mês fraco."
+            message={`Sua renda aqui é a do seu pior mês registrado${
+              caixa.mesAncoraRenda ? `, que foi ${formatMesCurto(caixa.mesAncoraRenda)}` : ''
+            }, não a média. Um plano dimensionado pela média quebra justamente no mês fraco.`}
           />
         ) : null}
 
