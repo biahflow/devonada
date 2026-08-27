@@ -106,16 +106,44 @@ O produto fala sobre dívida, prescrição e negociação. Isso é território s
     responde ("você pôde escolher a seguradora?"). O achado nunca conclui no lugar dele.
   - **Achado sem fonte não existe.** Teto que muda por resolução vive em configuração datada, sem
     default: não configurado ⇒ o achado não é produzido. Ver ADR 0008.
-  - Os testes de copy em `backend/tests/test_revisao.py` e `src/test/screens/revisao.test.tsx`
-    **falham** se "ilegal", "abusiv" ou "é seu direito" aparecerem na tela. Regra que não quebra
-    nada quando violada não é guardrail.
-- **O app não redige petição nem instrui a não pagar.** Script de negociação (campo `script` de
-  `ValorJustoCardData`) é gerado no backend, curado, e apresentado como sugestão editável.
+  - Os testes de copy em `backend/tests/test_revisao.py` e `src/test/screens/` **falham** se
+    `ilegal`, `abusiv`, `nul[ao]`, `é seu direito`, `você tem direito`, `com certeza` ou
+    `garantid[ao]` aparecerem na tela. Desde o M12 os dois lados varrem o **mesmo conjunto de
+    termos** (PF-4) e as **três variantes de canal** do script — com um termo proibido plantado em
+    cada variante, os testes quebram nas três. Regra que não quebra nada quando violada não é
+    guardrail.
+- **O app não redige petição nem instrui a não pagar.** O script de negociação (campo `script`,
+  desde o M12 em **blocos tipados por canal** — `ScriptNegociacao`) é gerado no backend por
+  template curado, **sem LLM**, e apresentado como sugestão editável. Fundamento legal não é
+  improvisado por modelo.
 - **Fundamentos legais são texto vindo do backend** (`fundamentos`), curados. O front nunca
   compõe citação de artigo de lei a partir de string local nem deixa o LLM improvisar uma.
 
 **Modo de falha que isso previne:** o usuário leva ao credor um número ou um argumento jurídico
 que o app apresentou com confiança demais, perde a negociação e responsabiliza o produto.
+
+### 3.1 Validação de canal — segurança da negociação (anti-golpe)
+
+Esta regra **não é postura jurídica, é segurança** (M12, F-012, ADR 0021). Ela existia por extenso
+em `docs/domain.md` (verbete `canal`) e **não existia em código** até o M12. Fica com seção própria
+porque é o item de maior retorno por linha do milestone e tem modo de falha próprio — antes vivia
+sem número no `guardrails.md` (PF-7 do plano F-012).
+
+- **Golpe de falsa negociação é epidêmico, e o alvo preferencial é quem está endividado.** Todo
+  script de canal **escrito** (`chat`, `email`) **abre** com o alerta de validação — conferir o
+  número/e-mail no site oficial do credor, nunca negociar com quem procurou primeiro — e **fecha**
+  com a regra de pagamento — boleto ou Pix em nome do credor (CNPJ), jamais CPF de pessoa física.
+- **Segurança não é argumento de negociação.** Por isso `montar_script` **não devolve `None`** sem
+  achado: quem cadastrou a dívida na mão — o mais exposto ao golpe — recebe o script mínimo de
+  segurança, sem nenhuma afirmação sobre valor. E a tela de revisão exibe o script **mesmo quando
+  `valorJusto` é `null`** (o risco que a decisão existe para fechar; não amarre o alerta à
+  existência de achado por nenhum caminho lateral).
+- **A oferta de valor sai do primeiro contato nos canais escritos.** Quem diz primeiro quanto pode
+  pagar entrega a âncora da negociação; a oferta vira bloco separado, para uso **depois** da
+  proposta do credor.
+
+**Modo de falha que isso previne:** o usuário, já em pânico com o próprio extrato, negocia com um
+número que chegou por WhatsApp e paga um golpe no CPF de um estelionatário.
 
 ---
 

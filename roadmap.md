@@ -830,18 +830,30 @@ cede. Atinge a tela de revisão e o card `valor_justo` do chat.
 - [ ] **F-011** · Compromisso **percentual** para renda variável, no lugar de valor fixo. Incide
       sobre a renda típica e sai antes de `capacidade_maxima`, junto aos potes (decisão de
       20/08/2026) — logo, ação a distância nos mesmos três consumidores do M11.
-- [ ] **F-012** · `script` ganha as **três variantes de canal** (`telefone` · `chat` · `email`),
+- [~] **F-012** · `script` ganha as **três variantes de canal** (`telefone` · `chat` · `email`),
       mesmo motor de valor justo, formatos diferentes. Ver `domain.md`, verbete `canal`. Barato do
-      jeito certo: `montar_script` é template curado, sem LLM, por guardrail.
-- [ ] **F-012** · Alerta de validação de canal abrindo o script escrito e regra de pagamento
+      jeito certo: `montar_script` é template curado, sem LLM, por guardrail. **Entregue** (T1–T4):
+      `domain/script.py`, rota com `?canal`, `ScriptCard` com seletor. Não visto em device.
+- [~] **F-012** · Alerta de validação de canal abrindo o script escrito e regra de pagamento
       fechando — **é anti-golpe embutido no próprio script**, e é o item de maior retorno por linha
       do milestone. Decidido em 20/08/2026 que ele **alcança quem não tem achado**: `montar_script`
       deixa de devolver `None`, porque validação de canal é segurança, não argumento de negociação,
-      e quem cadastrou a dívida na mão é justamente o mais exposto ao golpe.
-- [ ] **F-012** · Registro de resultado da negociação em qualquer canal. Coletar isso **desde o
+      e quem cadastrou a dívida na mão é justamente o mais exposto ao golpe. **Entregue** (T1, T4): a
+      tela de revisão exibe o script mesmo com `valorJusto` nulo. Guardrail 3.1, novo.
+- [~] **F-012** · Registro de resultado da negociação em qualquer canal. Coletar isso **desde o
       dia 1** é o que constrói o benchmark de desconto por credor, que é o maior ativo competitivo
       do produto. Hoje `orm.Renegociacao` é grava-e-esquece: **nenhum `GET` a devolve**, e ela só
-      nasce quando houve acordo — recusa e silêncio do credor não cabem nela.
+      nasce quando houve acordo — recusa e silêncio do credor não cabem nela. **Entregue** (T3, T5):
+      `ResultadoNegociacao` com os quatro desfechos, `POST`/`GET /v1/…/negociacoes` e
+      `GET /v1/negociacoes`, e a tela de registro por canal tipado. Não visto em device.
+
+**Mudança de comportamento a declarar:** a **oferta de valor sai do primeiro contato** nos canais
+escritos (`chat`, `email`). Quem copiou o script na semana passada encontra outro texto: a frase
+"consigo comprometer até R$ X por mês" deixa de abrir a conversa e vira bloco separado, marcado para
+uso **depois** da proposta do credor — quem diz primeiro quanto pode pagar entrega a âncora
+(ADR 0021, item 5). Atinge as **duas** superfícies que `revisar_divida` alimenta: a tela de revisão
+e o card `valor_justo` do chat. Deliberado; foi o conflito entre `domain.md` e o código em produção
+que a ADR resolveu **alterando o código**.
 
 ## M13 — Entrada pelo alívio — parcialmente entregue
 

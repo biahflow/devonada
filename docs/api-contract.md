@@ -617,9 +617,15 @@ produtor. Spec em `docs/features/006-revisao-de-cobranca.md`; a decisão, na **A
 `valorJusto` **não é estimativa**: é `valorCobrado` menos a soma dos achados que têm valor, cada
 um com fonte legal própria. Nenhum achado com valor ⇒ `valorJusto: null` ⇒ nenhum card.
 
-#### `GET /v1/dividas/{id}/revisao`
+#### `GET /v1/dividas/{id}/revisao?canal=telefone|chat|email`
 
 Leitura pura. **Nenhuma rota de escrita entrou com este milestone.**
+
+Desde o M12 (F-012) a rota aceita `?canal`, com **`email` como default**, e o campo `script`
+deixou de ser string: virou **blocos tipados por canal** (`{ canal, blocos: [...] }`). O `canal` é
+parâmetro de **visualização** e **não persiste** (ADR 0021, item 7); o `valorJusto` e os `achados`
+são **idênticos** nos três canais — muda só o formato e o momento da oferta. A forma completa está
+na **seção 3.15**.
 
 Response `200`:
 ```json
@@ -640,7 +646,16 @@ Response `200`:
         "evidencia": "Multa por atraso: 5% sobre o valor da parcela"
       }
     ],
-    "script": "Olá. Sou cliente e gostaria de rever alguns pontos…",
+    "script": {
+      "canal": "email",
+      "blocos": [
+        { "id": "alerta-validacao", "titulo": "Antes de negociar", "texto": "Confira o número ou o e-mail do credor…", "momento": "abertura", "copiavel": true },
+        { "id": "saudacao", "titulo": null, "texto": "Prezados, sou cliente e gostaria de rever…", "momento": "abertura", "copiavel": true },
+        { "id": "argumento-multa_acima_do_teto", "titulo": "Multa de atraso acima do limite do CDC", "texto": "… (Código de Defesa do Consumidor, art. 52, §1º)", "momento": "argumento", "copiavel": true },
+        { "id": "pedido-demonstrativo", "titulo": null, "texto": "Peço o demonstrativo detalhado do débito…", "momento": "fechamento", "copiavel": true },
+        { "id": "regra-pagamento", "titulo": "Como pagar", "texto": "Pagamento só por boleto ou Pix em nome do credor…", "momento": "fechamento", "copiavel": true }
+      ]
+    },
     "fundamentos": ["Código de Defesa do Consumidor, art. 52, §1º"],
     "baseLegalVigenteEm": "2025-03-25"
   }
@@ -659,8 +674,11 @@ Regras de forma — **não negociáveis**:
 | Achado que depende de teto não configurado **não é produzido** | Teto do CNPS muda por resolução e vive em `.env`. Sem ele, `None` — nunca um teto chutado. |
 | `baseLegalVigenteEm` só quando algum achado dependeu de teto | A multa do CDC não envelhece; exibir vigência ao lado dela sugeriria que todos os achados envelhecem juntos. |
 | `script` montado por **template**, nunca por LLM | `guardrails.md`, seção 3: fundamento legal é curado no backend. |
+| `script` é **objeto `{ canal, blocos }`**, nunca `null` (M12) | Sem achado, ainda sai o script mínimo de segurança (alerta + regra de pagamento). Validação de canal é proteção, não argumento (ADR 0021). Detalhe na 3.15. |
 
-Dívida de outro tenant: **404, nunca 403**. Dívida sem contrato lido: `200` com `achados: []`.
+Dívida de outro tenant: **404, nunca 403**. Dívida sem contrato lido: `200` com `achados: []` **e
+`script` presente** (só alerta e regra de pagamento, nos canais escritos — nenhuma afirmação sobre
+valor).
 
 #### Card `valor_justo` no chat
 
@@ -1251,6 +1269,80 @@ real contra o efeito cruel disso é o marco ser evento persistido, e não predic
 
 ---
 
+### 3.15 M12 · negociação por canal e resultado (F-012, ADR 0021)
+
+Duas mudanças, uma que **altera contrato existente** e outra **aditiva**.
+
+#### Script por canal — mudança de forma em `GET /v1/dividas/{id}/revisao`
+
+O campo `script` de `RevisaoCobranca` e de `ValorJustoCard` passou de `string | null` para
+`ScriptNegociacao` — **não nulável**. A rota ganha `?canal=telefone|chat|email`, com **`email`
+como default** (PF-1): o texto único de antes já era uma mensagem formal, e outro default trocaria
+formato **e** momento da oferta de uma vez.
+
+```jsonc
+// ScriptNegociacao
+{
+  "canal": "telefone" | "chat" | "email",
+  "blocos": [
+    {
+      "id": "alerta-validacao",                 // chave estável
+      "titulo": "Antes de negociar" | null,
+      "texto": "…",
+      "momento": "abertura" | "argumento" | "oferta" | "fechamento",
+      "copiavel": true                          // false em todo bloco de telefone
+    }
+  ]
+}
+```
+
+Regras de forma — **não negociáveis**:
+
+| Regra | Motivo |
+|---|---|
+| `valorJusto` e `achados` **idênticos** nos três canais | Muda o formato e o momento da oferta, nunca o número. O `?canal` é visualização e **não persiste** (ADR 0021, item 7). |
+| Canais **escritos** (`chat`, `email`) **abrem** com `alerta-validacao` e **fecham** com `regra-pagamento` | Segurança anti-golpe, não argumento. `telefone` não leva as duas — é fala, não mensagem a colar. |
+| Sem achado, `script` **não** é `null` | Sai o script mínimo de segurança, sem nenhuma afirmação sobre valor cobrado, valor justo ou irregularidade. |
+| A oferta de valor **sai do primeiro contato** nos canais escritos | `chat`/`email`: bloco `momento="oferta"` separado, para uso **depois** da proposta do credor. `telefone`: entra na fala. Quem diz primeiro quanto pode pagar entrega a âncora. **Mudança de comportamento em produção.** |
+| `blocos[].copiavel` é `true` só nos canais escritos | Cada bloco tem botão de copiar próprio (guardrail 1.2). |
+
+O card `valor_justo` do chat carrega os blocos do canal **default**; o filtro que o barra quando
+`valorJusto` é `null` **continua** (PF-2): card "valor justo" sem valor justo é o modo de falha do
+guardrail 7.1. O alerta anti-golpe alcança quem não tem achado **pela tela de revisão**.
+
+#### Resultado de negociação — aditivo
+
+`orm.Renegociacao` continua sendo só o acordo (grava-e-esquece do contrato). O **desfecho da
+conversa** — inclusive quando não houve acordo — vira entidade nova, `ResultadoNegociacao`, com
+rota de leitura que antes **não existia** (sem ela não há benchmark).
+
+- `POST /v1/dividas/{id}/negociacoes` → **201**. Body: `RegistroNegociacaoInput`.
+- `GET /v1/dividas/{id}/negociacoes` → histórico da dívida.
+- `GET /v1/negociacoes` → do tenant inteiro (o que constrói o benchmark do **próprio** tenant;
+  agregar entre tenants é fora de escopo).
+
+```jsonc
+// RegistroNegociacaoInput
+{
+  "canal": "telefone" | "chat" | "email",
+  "desfecho": "acordo" | "recusa" | "contraproposta" | "sem_resposta",
+  "valorProposto": 90000 | null,   // opcional: recusa/silêncio não exigem valor
+  "valorObtido":   110000 | null,  // opcional
+  "renegociacaoId": "…" | null,    // só no acordo; nos demais é recusado (422)
+  "observacao": "…" | null
+}
+// ResultadoNegociacao (resposta) acrescenta id, dividaId e registradoEm.
+```
+
+| Regra | Motivo |
+|---|---|
+| Os **quatro** desfechos são aceitos, e três são **sem** acordo | Recusa e silêncio são metade da informação do benchmark. Obrigar valor recriaria o viés. |
+| `renegociacaoId` só com `desfecho: acordo` | Apontar um acordo num resultado sem acordo é dado contraditório → `422`. |
+| Registrar resultado **não** dispara marco | `primeira_negociacao` continua nascendo do acordo em `parcelas.renegociar`. |
+| `tenant_id` na tabela; id alheio devolve **404, nunca 403** | Entra sozinha na exclusão de conta pela varredura derivada do metadata. |
+
+---
+
 ## 4. Fila do backend
 
 > **Esta é a fila de trabalho canônica do backend.** `roadmap.md` aponta para cá e não repete a
@@ -1521,6 +1613,38 @@ pessoa parou de viver — e o mês 4 é onde ela desiste.*
 - [~] **Ver no aparelho.** `RespiroCard`, a tela de declaração e a `MarcoScreen` renderizam, reagem
       e passam os seis gates do front, e nada disso prova leitura, safe area, teclado ou
       acessibilidade em device. É o gate humano que fecha o M11, e nenhum agente o declara
+
+### Bloco 15 — M12 · negociação por canal e resultado (F-012, ADR 0021)
+
+*Destrava: o alerta anti-golpe em código (existia só no `domain.md`), a fala certa por canal, e o
+registro de resultado que vira benchmark. Contrato completo na seção 3.15.*
+
+> Bloco de F-012, executado em paralelo com F-011. `[~]` = implementado, coberto por teste e com o
+> consumo pelo app escrito, mas **não visto em aparelho**.
+
+- [~] `backend/domain/script.py` — `montar_script(canal, credor, achados, capacidade)` puro, blocos
+      tipados por canal, **sem LLM**. Alerta de validação abre e regra de pagamento fecha os canais
+      escritos; sem achado não devolve mais `None` (T1)
+- [~] `GET /v1/dividas/{id}/revisao?canal=…` — `email` default; `script` vira `ScriptNegociacao`
+      (mudança de forma, não aditiva) em `RevisaoCobranca` e `ValorJustoCard`. O card do chat herda
+      o canal default; o filtro por `valorJusto is None` fica intacto (T2)
+- [~] `ResultadoNegociacao` — tabela append-only com `canal` e `desfecho` tipados, migração
+      `a1c2e3f40b5d` encadeada na cabeça vigente `75331c212261` (round-trip verificado contra SQLite;
+      Postgres indisponível na máquina). Entra sozinha na exclusão de conta (T3)
+- [~] `POST /v1/dividas/{id}/negociacoes` (201), `GET /v1/dividas/{id}/negociacoes` e
+      `GET /v1/negociacoes` — a leitura que antes não existia, base do benchmark do próprio tenant.
+      Registrar resultado **não** dispara marco (T3)
+- [~] `ScriptCard` com seletor de canal e copiar por bloco; a tela de revisão exibe o script
+      **mesmo sem `valorJusto`** — é onde o alerta anti-golpe alcança quem cadastrou a dívida na mão
+      (T4)
+- [~] Tela de renegociar com canal e desfecho **tipados** (o placeholder de texto livre saiu), os
+      quatro desfechos registráveis sem exigir valor, e o histórico da dívida (T5)
+- [~] Provas de copy nas três variantes (front e backend, alinhados no mesmo conjunto de termos,
+      PF-4), comparação de número entre canais, script sem achado sem afirmação, e a regressão da
+      oferta contra o simulador (PF-3) (T6)
+- [~] **Ver no aparelho.** O `ScriptCard` com seletor de canal e a tela de registro por canal
+      passam os seis gates do front, e nada disso prova leitura, alvo de toque percebido, teclado ou
+      a separação visual entre segurança e contestação. Gate humano aberto; nenhum agente o declara
 
 ### Estado observado em device
 

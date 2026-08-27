@@ -673,21 +673,30 @@ não escorrega para prestação de contas e que o par `accent`/`neutralSurface` 
 contraste — **piso, não legibilidade**. Leitura, safe area, comportamento de teclado e
 acessibilidade em device são o gate humano que fecha o M11, e ele continua aberto.
 
+**`ScriptCard`** (`src/components/cards/ScriptCard.tsx`, M12, F-012 T4) — a fala de negociação por
+canal, na tela de revisão. Seletor de **canal** no topo (`Telefone · Chat · E-mail`, via
+`OptionGroup`), e abaixo os blocos que o backend devolve tipados por `momento`. O `momento` separa
+**visualmente** segurança de contestação: o `argumento` leva a borda esquerda verde de 2px
+(`colors.primary` sobre `neutralSurface`), enquanto o alerta de validação e a regra de pagamento
+saem com selo de segurança em tom recuado (`colors.background`) — texto de segurança e de
+contestação lado a lado, mal separados, leem como "a dívida tem problema" quando ninguém disse isso.
+
+Props: `{ script, onSelectCanal }`. A fala vai entre aspas; **nos canais escritos cada bloco
+copiável tem botão *copiar* próprio** (guardrail 1.2), com `accessibilityLabel` e alvo de 48pt. No
+`telefone` os blocos são guia de fala, sem botão. **O front nunca compõe citação** (guardrail 3): a
+fonte já vem embutida no texto do bloco de argumento, curada no backend.
+
+A tela de revisão exibe o `ScriptCard` **mesmo quando `valorJusto` é `null`** — é assim que o
+alerta anti-golpe alcança quem cadastrou a dívida na mão, o alvo preferencial do golpe. A chave de
+cache de `useRevisao` inclui o canal, e `keepPreviousData` evita piscar a tela ao trocar de canal.
+**Não visto em aparelho:** leitura dos blocos, alvo de toque percebido, e a separação visual entre
+segurança e contestação são o gate humano de device, aberto.
+
 ### Ainda só especificação
 
-> Estes vieram da concepção (`docs/concepcao/`) e **não existem em `src/`**. Dependem de domínio
-> que o M12 ainda vai trazer. Quando virarem código, sobem para a seção acima — foi o caminho que
-> `RespiroCard` e `MarcoScreen` fizeram no M11.
-
-**`ScriptCard`** — a fala de negociação com a base legal à vista. Fala entre aspas; abaixo, o
-bloco "Por que você pode falar isso", com borda esquerda verde de 2px e a citação em `caption`.
-**Todo script exibe sua fonte** — é o diferencial de confiança do produto, e é também o que o
-mantém do lado certo da fronteira jurídica.
-
-Seletor de **canal** no topo (`telefone · chat · e-mail`, ver `domain.md`). Na variante escrita,
-cada mensagem é um bloco com botão *copiar* próprio, o alerta de validação do número abre o card
-e a regra de pagamento (boleto ou Pix no CNPJ do credor) o fecha. CTA final: "colar print da
-resposta".
+> Este veio da concepção (`docs/concepcao/`) e **não existe em `src/`**. Quando virar código, sobe
+> para a seção acima — foi o caminho que `RespiroCard`, `MarcoScreen` (M11) e `ScriptCard` (M12)
+> fizeram.
 
 **Pill de status** — fundo translúcido da cor, texto na cor, dot de 7px. Três variantes:
 `debt` (crítica), `warning` (negociando), `primary` (sob controle / quitada). O `Badge` atual cobre

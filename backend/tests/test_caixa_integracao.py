@@ -191,6 +191,38 @@ class TestScriptDeNegociacao:
         texto = self._texto_do_script(client, auth, divida_id)
         assert "consigo comprometer" not in texto.lower()
 
+    def test_o_valor_recitado_pelo_script_sai_do_mesmo_motor_que_o_simulador_le(
+        self, client, auth, sessao
+    ):
+        """
+        PF-3 (regressão): o valor que o script recita sai do MESMO motor que o
+        simulador lê — `capacidade_atual`. Com uma dívida só, a oferta é a
+        `capacidade_hoje` daquela leitura (nenhuma outra parcela a descontar).
+
+        A premissa "F-011 e F-012 não têm interseção" vale por ARQUIVO, não por
+        efeito: quando o F-011 entregar o compromisso percentual, a
+        `capacidade_hoje` cai, e a oferta recitada cai junto — sem tocar arquivo
+        desta feature. Se um dia o script passar a recitar um número que não é o
+        da capacidade que o resto do app usa, é aqui que aparece.
+        """
+        from config import get_settings
+        from leitura import capacidade_atual
+        from routers.revisao import _capacidade_para_oferta
+
+        divida_id = self._com_contrato_lido(client, auth, sessao)
+        _caixa(client, auth, renda=1000000, essenciais=400000)
+
+        tenant = get_settings().tenant_id
+        oferta = _capacidade_para_oferta(sessao, tenant, divida_id)
+        caixa = capacidade_atual(sessao, tenant, get_settings())
+        assert caixa is not None
+        # Uma dívida só: a oferta é a capacidade de hoje que o simulador também lê.
+        assert oferta == caixa.capacidade_hoje
+
+        # E é EXATAMENTE esse número que o script recita — não outro.
+        texto = self._texto_do_script(client, auth, divida_id)
+        assert formatar_brl(oferta) in texto
+
 
 class TestFormatarBRL:
     def test_formata_em_pt_br(self):
