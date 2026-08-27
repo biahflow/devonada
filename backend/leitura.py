@@ -15,6 +15,7 @@ from domain.caixa import (
     calcular_caixa,
     renda_tipica,
 )
+from domain import renda
 from domain.dinheiro import aplicar_percentual
 from domain.minimo_existencial import minimo_existencial
 from domain.simulacao import DividaSimulavel
@@ -134,21 +135,35 @@ def montar_entrada_caixa(db: Session, tenant: str, settings: Settings) -> Entrad
 
     bruta = 0
     origem = "informada"
+    # O MÊS QUE ANCOROU A RENDA (M12, ADR 0021, decisão 3). A renda típica é
+    # apurada por fonte, então há um mês âncora por fonte que veio do histórico;
+    # o que viaja para a tela é o da ÚLTIMA fonte histórica do laço. Para quem tem
+    # uma fonte só — o caso da copy "dimensionado pelo pior mês, que foi março" —
+    # é o único, e não há ambiguidade. Fica `None` enquanto nenhuma fonte veio do
+    # histórico, coerente com `origem = "informada"`.
+    mes_ancora: str | None = None
     # O fallback da fonte que não declarou nada é o `Perfil`, exatamente como
     # antes desta linha existir.
     imposto_do_perfil = perfil.imposto_bps if perfil else None
     alguma_fonte_declarou_aliquota = False
     imposto_somado_por_fonte = 0
+    # AUSÊNCIA TIPADA DE ALÍQUOTA (M12, ADR 0021, decisão 1): liga quando uma
+    # fonte que reserva imposto — hoje só `pj_hora`, via `domain.renda` — está
+    # ativa sem alíquota própria e sem o fallback do `Perfil`.
+    imposto_nao_declarado = False
     for f in fontes:
-        recebimentos = db.scalars(
-            select(orm.Recebimento.valor)
+        recebimentos = db.execute(
+            select(orm.Recebimento.mes, orm.Recebimento.valor)
             .where(orm.Recebimento.tenant_id == tenant, orm.Recebimento.fonte_id == f.id)
             .order_by(orm.Recebimento.mes)
         ).all()
-        valor, origem_da_fonte = renda_tipica(f.valor_tipico_informado, list(recebimentos))
+        valor, origem_da_fonte, mes_da_fonte = renda_tipica(
+            f.valor_tipico_informado, [(mes, v) for mes, v in recebimentos]
+        )
         bruta += valor
         if origem_da_fonte == "pior_mes_registrado":
             origem = "pior_mes_registrado"
+            mes_ancora = mes_da_fonte
 
         # A ALÍQUOTA DA PRÓPRIA FONTE TEM PRECEDÊNCIA; sem ela, vale a do
         # `Perfil`. `is not None` e não truthiness: 0% declarado na fonte é uma
@@ -161,6 +176,17 @@ def montar_entrada_caixa(db: Session, tenant: str, settings: Settings) -> Entrad
             aliquota = imposto_do_perfil
         if aliquota:
             imposto_somado_por_fonte += aplicar_percentual(valor, aliquota)
+
+        # Só a fonte que RESERVA imposto e ficou sem alíquota nenhuma acende o
+        # sinal — uma fonte `aluguel` ou `outro` sem alíquota não o liga, porque o
+        # modelo não espera reserva dela. O `Perfil` como fallback conta: se ele
+        # existe, a fonte tem alíquota e o sinal não acende.
+        if (
+            renda.comportamento(f.tipo).reserva_imposto
+            and f.imposto_bps is None
+            and imposto_do_perfil is None
+        ):
+            imposto_nao_declarado = True
 
     gastos = db.scalars(
         select(orm.Gasto).where(orm.Gasto.tenant_id == tenant, orm.Gasto.ativo.is_(True))
@@ -238,6 +264,8 @@ def montar_entrada_caixa(db: Session, tenant: str, settings: Settings) -> Entrad
         imposto_por_fonte=(
             imposto_somado_por_fonte if alguma_fonte_declarou_aliquota else None
         ),
+        mes_ancora_renda=mes_ancora,
+        imposto_nao_declarado=imposto_nao_declarado,
     )
 
 

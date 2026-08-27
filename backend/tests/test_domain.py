@@ -201,3 +201,91 @@ class TestComprometimento:
 
     def test_sem_renda_devolve_none(self):
         assert comprometimento_renda_bps(110000, 0) is None
+
+
+class TestComportamentoDeRenda:
+    """
+    O tipo da fonte passa a mudar o domínio (M12, ADR 0021). Um teste por tipo,
+    e o teste falha se o tipo voltar a ser rótulo inerte (T2-AC1) — é o critério
+    que dá nome à feature.
+    """
+
+    def test_clt_tem_evento_previsivel_e_nao_reserva_imposto(self):
+        from domain.renda import clt
+
+        c = clt()
+        # O líquido é declarado; 13º e férias existem e não entram na cascata.
+        assert c.tem_eventos_previsiveis is True
+        assert c.reserva_imposto is False
+        assert c.variavel is False
+
+    def test_pj_hora_reserva_imposto_e_e_variavel(self):
+        from domain.renda import pj_hora
+
+        c = pj_hora()
+        assert c.reserva_imposto is True
+        assert c.variavel is True
+        assert c.usa_compromisso_percentual is True
+
+    def test_autonomo_compromete_percentual_e_a_queda_e_o_mes_sem_trabalho(self):
+        from domain.renda import autonomo
+
+        c = autonomo()
+        assert c.usa_compromisso_percentual is True
+        assert c.tem_eventos_previsiveis is False
+        assert c.queda_caracteristica == "mes_sem_trabalho"
+
+    def test_beneficio_tem_dia_de_pagamento_proprio(self):
+        from domain.renda import beneficio
+
+        c = beneficio()
+        assert c.usa_dia_pagamento is True
+        assert c.variavel is False
+        assert c.reserva_imposto is False
+
+    def test_aluguel_e_variavel_e_a_queda_e_a_vacancia(self):
+        from domain.renda import aluguel
+
+        c = aluguel()
+        assert c.variavel is True
+        assert c.queda_caracteristica == "vacancia"
+
+    def test_outro_e_generico(self):
+        from domain.renda import outro
+
+        c = outro()
+        assert c.generico is True
+
+    def test_os_seis_tipos_produzem_comportamentos_distintos(self):
+        # Distintos por COMPORTAMENTO, não só pelo rótulo `tipo`: se dois tipos
+        # tivessem a mesma assinatura de comportamento, um deles seria inerte.
+        from domain.renda import aluguel, autonomo, beneficio, clt, outro, pj_hora
+
+        def sem_rotulo(c):
+            return (
+                c.variavel,
+                c.reserva_imposto,
+                c.usa_compromisso_percentual,
+                c.tem_eventos_previsiveis,
+                c.usa_dia_pagamento,
+                c.generico,
+                c.queda_caracteristica,
+            )
+
+        todos = [clt(), pj_hora(), autonomo(), beneficio(), aluguel(), outro()]
+        assert len({sem_rotulo(c) for c in todos}) == 6
+
+    def test_dispatch_por_tipo_com_fallback_generico(self):
+        from domain.renda import comportamento, pj_hora
+
+        assert comportamento("pj_hora") == pj_hora()
+        # Tipo desconhecido degrada para o genérico em vez de explodir.
+        assert comportamento("um_tipo_que_nao_existe").generico is True
+
+    def test_toda_funcao_de_tipo_declara_fonte_ou_dado_do_usuario(self):
+        # T2-AC5: regra sem FONTE nem declaração de "dado do usuário" não existe.
+        import domain.renda as renda_mod
+
+        for nome in ("clt", "pj_hora", "autonomo", "beneficio", "aluguel", "outro"):
+            doc = (getattr(renda_mod, nome).__doc__ or "").upper()
+            assert "FONTE" in doc or "DADO DO USUÁRIO" in doc, nome
