@@ -516,9 +516,15 @@ class TestCompromissoNosQuatroConsumidores:
         return d["id"]
 
     def _script(self, client, auth, divida_id):
-        return client.get(f"/v1/dividas/{divida_id}/revisao", headers=auth).json()[
+        # Desde o F-012 (M12), `script` é um `ScriptNegociacao` tipado por canal,
+        # não mais uma string: a oferta vive no bloco `momento="oferta"`. O que
+        # este teste cruzado afere continua sendo o mesmo — que o VALOR da oferta
+        # aparece no script e acompanha a capacidade —, então achatamos o texto
+        # dos blocos para procurar o valor onde o usuário de fato o lê.
+        script = client.get(f"/v1/dividas/{divida_id}/revisao", headers=auth).json()[
             "revisao"
         ]["script"]
+        return " ".join(bloco["texto"] for bloco in script["blocos"])
 
     def test_o_teto_do_simulador_desce_exatamente_o_compromisso_declarado(self, client, auth):
         _caixa(client, auth, renda=1000000, essenciais=400000)
