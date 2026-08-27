@@ -495,6 +495,41 @@ export interface ScriptNegociacao {
   blocos: BlocoScript[];
 }
 
+/* ---------- Resultado de negociação (M12) ---------- */
+
+/**
+ * O desfecho da CONVERSA, e não do contrato: `acordo` é o único que reescreve
+ * parcelas (por `renegociacao`); `recusa`, `contraproposta` e `sem_resposta` são
+ * metade da informação do benchmark, e antes não tinham onde ser registrados.
+ */
+export type DesfechoNegociacao = 'acordo' | 'recusa' | 'contraproposta' | 'sem_resposta';
+
+/** O que a tela envia para registrar um resultado de negociação. */
+export interface RegistroNegociacaoInput {
+  canal: Canal;
+  desfecho: DesfechoNegociacao;
+  /** em centavos. Opcional: registrar recusa ou silêncio não exige valor. */
+  valorProposto?: number | null;
+  /** em centavos. Opcional. */
+  valorObtido?: number | null;
+  /** só no acordo, ligando ao registro do contrato. */
+  renegociacaoId?: string | null;
+  observacao?: string | null;
+}
+
+/** Um resultado de negociação registrado, como vem da rota de leitura. */
+export interface ResultadoNegociacao {
+  id: Uuid;
+  dividaId: Uuid;
+  canal: Canal;
+  desfecho: DesfechoNegociacao;
+  valorProposto?: number | null;
+  valorObtido?: number | null;
+  renegociacaoId?: string | null;
+  observacao?: string | null;
+  registradoEm: string;
+}
+
 // --- Módulo de caixa (M7) ----------------------------------------------------
 
 export type TipoFonteRenda = 'pj_hora' | 'clt' | 'autonomo' | 'beneficio' | 'aluguel' | 'outro';
