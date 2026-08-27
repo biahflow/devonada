@@ -143,13 +143,21 @@ class TestScriptDeNegociacao:
         d = _divida(client, auth, primeiroVencimento="2026-01-10", extracaoId=e.id).json()["divida"]
         return d["id"]
 
-    def test_sem_caixa_o_script_nao_promete_valor(self, client, auth, sessao):
-        divida_id = self._com_contrato_lido(client, auth, sessao)
+    @staticmethod
+    def _texto_do_script(client, auth, divida_id) -> str:
+        # O script virou blocos tipados (M12): junta o texto de todos para as
+        # asserções de conteúdo. O canal default (email) leva a oferta como
+        # bloco separado, então a frase e o valor continuam presentes.
         script = client.get(f"/v1/dividas/{divida_id}/revisao", headers=auth).json()["revisao"][
             "script"
         ]
         assert script is not None
-        assert "consigo comprometer" not in script.lower()
+        return "\n".join(b["texto"] for b in script["blocos"])
+
+    def test_sem_caixa_o_script_nao_promete_valor(self, client, auth, sessao):
+        divida_id = self._com_contrato_lido(client, auth, sessao)
+        texto = self._texto_do_script(client, auth, divida_id)
+        assert "consigo comprometer" not in texto.lower()
 
     def test_com_caixa_o_script_faz_uma_oferta_ancorada(self, client, auth, sessao):
         # É o que muda a conversa com o credor: "quero desconto" é pedido,
@@ -157,14 +165,12 @@ class TestScriptDeNegociacao:
         divida_id = self._com_contrato_lido(client, auth, sessao)
         _caixa(client, auth, renda=1000000, essenciais=400000)
 
-        script = client.get(f"/v1/dividas/{divida_id}/revisao", headers=auth).json()["revisao"][
-            "script"
-        ]
-        assert "consigo comprometer" in script.lower()
+        texto = self._texto_do_script(client, auth, divida_id)
+        assert "consigo comprometer" in texto.lower()
         # Capacidade de hoje (R$ 6.000), e não a máxima: a oferta tem de caber
         # na vida que a pessoa leva hoje. A parcela DESTA dívida não é
         # descontada — o acordo substitui a prestação dela.
-        assert formatar_brl(600000) in script
+        assert formatar_brl(600000) in texto
 
     def test_a_oferta_desconta_as_parcelas_das_OUTRAS_dividas(self, client, auth, sessao):
         # Oferecer a capacidade cheia a um credor quando existem dois é prometer
@@ -173,21 +179,17 @@ class TestScriptDeNegociacao:
         _caixa(client, auth, renda=1000000, essenciais=400000)
         _divida(client, auth, credor="Outro Banco", valorCobrado=1200000, totalParcelas=12)
 
-        script = client.get(f"/v1/dividas/{divida_id}/revisao", headers=auth).json()["revisao"][
-            "script"
-        ]
+        texto = self._texto_do_script(client, auth, divida_id)
         # R$ 6.000 de capacidade menos R$ 1.000 da parcela do outro credor.
-        assert formatar_brl(500000) in script
+        assert formatar_brl(500000) in texto
 
     def test_capacidade_negativa_nao_vira_oferta(self, client, auth, sessao):
         # Prometer o que não se tem é pior que não propor valor nenhum.
         divida_id = self._com_contrato_lido(client, auth, sessao)
         _caixa(client, auth, renda=300000, essenciais=900000)
 
-        script = client.get(f"/v1/dividas/{divida_id}/revisao", headers=auth).json()["revisao"][
-            "script"
-        ]
-        assert "consigo comprometer" not in script.lower()
+        texto = self._texto_do_script(client, auth, divida_id)
+        assert "consigo comprometer" not in texto.lower()
 
 
 class TestFormatarBRL:

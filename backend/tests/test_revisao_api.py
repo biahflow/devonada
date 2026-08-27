@@ -72,8 +72,18 @@ def _com_contrato(client, auth, sessao, **campos_over):
     return divida
 
 
-def _revisar(client, auth, divida_id):
-    return client.get(f"/v1/dividas/{divida_id}/revisao", headers=auth)
+def _revisar(client, auth, divida_id, canal=None):
+    url = f"/v1/dividas/{divida_id}/revisao"
+    if canal is not None:
+        url += f"?canal={canal}"
+    return client.get(url, headers=auth)
+
+
+def _textos(script: dict) -> str:
+    """Junta título e texto de todos os blocos — a varredura de copy do script."""
+    return "\n".join(
+        f"{b.get('titulo') or ''} {b['texto']}" for b in script["blocos"]
+    )
 
 
 class TestRota:
@@ -85,7 +95,14 @@ class TestRota:
         corpo = r.json()["revisao"]
         assert corpo["achados"] == []
         assert corpo["valorJusto"] is None
-        assert corpo["script"] is None
+        # T2-AC3: sem achado o script NÃO é mais nulo — carrega o alerta de
+        # validação e a regra de pagamento, que é segurança, não argumento.
+        script = corpo["script"]
+        assert script["canal"] == "email"
+        ids = [b["id"] for b in script["blocos"]]
+        assert ids[0] == "alerta-validacao"
+        assert ids[-1] == "regra-pagamento"
+        assert not any(b["momento"] == "argumento" for b in script["blocos"])
 
     def test_id_inexistente_devolve_404(self, client, auth):
         r = _revisar(client, auth, "nao-existe")
@@ -137,9 +154,87 @@ class TestRota:
             client, auth, sessao, seguroPrestamista=_campo(120_000, "Seguro: R$ 1.200,00")
         )
         corpo = _revisar(client, auth, d["id"]).json()["revisao"]
-        assert corpo["script"]
-        assert "Banco Teste S/A" in corpo["script"]
+        assert corpo["script"]["blocos"]
+        assert "Banco Teste S/A" in _textos(corpo["script"])
+        assert any(b["momento"] == "argumento" for b in corpo["script"]["blocos"])
         assert corpo["fundamentos"]
+
+
+class TestCanal:
+    CANAIS = ("telefone", "chat", "email")
+
+    def test_cada_canal_devolve_seus_proprios_blocos(self, client, auth, sessao):
+        """T2-AC1: o canal escolhe a forma; escrito abre com alerta e fecha com regra."""
+        d = _com_contrato(
+            client, auth, sessao, seguroPrestamista=_campo(120_000, "Seguro: R$ 1.200,00")
+        )
+        for canal in self.CANAIS:
+            script = _revisar(client, auth, d["id"], canal=canal).json()["revisao"]["script"]
+            assert script["canal"] == canal
+            ids = [b["id"] for b in script["blocos"]]
+            if canal in ("chat", "email"):
+                assert ids[0] == "alerta-validacao"
+                assert ids[-1] == "regra-pagamento"
+            else:  # telefone não leva as duas constantes de segurança escrita
+                assert "alerta-validacao" not in ids
+                assert "regra-pagamento" not in ids
+
+    def test_sem_o_parametro_devolve_o_default_email(self, client, auth, sessao):
+        """T2-AC1: sem `?canal`, o default declarado no api-contract.md é email."""
+        d = _com_contrato(
+            client, auth, sessao, seguroPrestamista=_campo(120_000, "Seguro: R$ 1.200,00")
+        )
+        assert _revisar(client, auth, d["id"]).json()["revisao"]["script"]["canal"] == "email"
+
+    def test_os_tres_canais_tem_o_mesmo_valor_justo_e_os_mesmos_achados(
+        self, client, auth, sessao
+    ):
+        """T2-AC2: compara as três respostas DA ROTA, não só a função pura."""
+        d = _com_contrato(
+            client, auth, sessao, seguroPrestamista=_campo(120_000, "Seguro: R$ 1.200,00")
+        )
+        respostas = {
+            canal: _revisar(client, auth, d["id"], canal=canal).json()["revisao"]
+            for canal in self.CANAIS
+        }
+        valores = {r["valorJusto"] for r in respostas.values()}
+        achados = {
+            tuple(sorted(a["id"] for a in r["achados"])) for r in respostas.values()
+        }
+        assert len(valores) == 1, f"valorJusto divergiu entre canais: {valores}"
+        assert len(achados) == 1, f"achados divergiram entre canais: {achados}"
+
+    def test_canal_invalido_e_rejeitado(self, client, auth):
+        d = _criar_divida(client, auth)
+        assert _revisar(client, auth, d["id"], canal="carta").status_code == 422
+
+    def test_valor_justo_continua_null_sem_achado(self, client, auth):
+        """T2-AC4: o script novo não cria número."""
+        d = _criar_divida(client, auth)
+        for canal in self.CANAIS:
+            assert _revisar(client, auth, d["id"], canal=canal).json()["revisao"]["valorJusto"] is None
+
+    def test_script_sem_achado_nao_afirma_nada_sobre_valor(self, client, auth):
+        """T2-AC3: dívida sem contrato lido tem script com alerta e sem afirmação de valor."""
+        import re
+
+        d = _criar_divida(client, auth)
+        for canal in ("chat", "email"):
+            script = _revisar(client, auth, d["id"], canal=canal).json()["revisao"]["script"]
+            texto = _textos(script)
+            assert "alerta-validacao" == script["blocos"][0]["id"]
+            assert "regra-pagamento" == script["blocos"][-1]["id"]
+            # Nenhuma afirmação sobre valor cobrado, valor justo ou irregularidade.
+            assert not re.search(r"R\$|valor justo|contest|irregular", texto, re.IGNORECASE)
+
+    def test_o_canal_nao_e_gravado(self, client, auth, sessao):
+        """T2-AC6: na leitura o canal é visualização e NÃO persiste."""
+        d = _com_contrato(
+            client, auth, sessao, seguroPrestamista=_campo(120_000, "Seguro: R$ 1.200,00")
+        )
+        for canal in self.CANAIS:
+            _revisar(client, auth, d["id"], canal=canal)
+        assert sessao.query(orm.ResultadoNegociacao).count() == 0
 
 
 class TestTetos:

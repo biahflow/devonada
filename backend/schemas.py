@@ -458,6 +458,44 @@ class Achado(Camel):
     evidencia: str | None = None
 
 
+# --- Script de negociação por canal (M12, F-012, ADR 0021) -------------------
+#
+# O script deixou de ser uma STRING ÚNICA e virou blocos tipados por canal. A
+# forma é espelho de `domain/script.BlocoScript`, redeclarada aqui pelo mesmo
+# motivo de `Canal` e `TipoDeMarco`: o contrato não importa do domínio. O
+# `momento` é o que a tela usa para separar VISUALMENTE segurança de contestação
+# — texto de alerta e texto de argumento mal separados leem como "a dívida tem
+# problema" quando ninguém disse isso.
+MomentoScript = Literal["abertura", "argumento", "oferta", "fechamento"]
+
+
+class BlocoScript(Camel):
+    """
+    Um pedaço do script. `copiavel` é `True` só nos canais escritos, onde cada
+    bloco tem botão de copiar próprio (guardrail 1.2): a tela nunca entrega um
+    texto único que alguém precise fatiar à mão para mandar em mensagens
+    separadas.
+    """
+
+    id: str
+    titulo: str | None = None
+    texto: str
+    momento: MomentoScript
+    copiavel: bool
+
+
+class ScriptNegociacao(Camel):
+    """
+    O script inteiro para um canal: os blocos, na ordem em que se falam ou se
+    mandam, mais o canal que os produziu. O `valorJusto` e os achados são
+    IDÊNTICOS nos três canais — só o formato e o momento da oferta mudam
+    (ADR 0021, item 5).
+    """
+
+    canal: Canal
+    blocos: list[BlocoScript]
+
+
 class RevisaoCobranca(Camel):
     """
     `valorJusto` é `valorCobrado` menos a soma dos achados COM valor.
@@ -466,6 +504,11 @@ class RevisaoCobranca(Camel):
     isso diria "conferimos e está tudo certo", afirmação que não temos como
     fazer. `economia` não viaja: o cliente a calcula, e é a única subtração que
     o guardrail 1.2 lhe permite.
+
+    `script` NÃO é mais nulável: `montar_script` deixou de devolver `None` sem
+    achado, porque a validação de canal é SEGURANÇA, não argumento de negociação
+    — quem cadastrou a dívida na mão recebe o script mínimo de segurança (alerta
+    + regra de pagamento), sem nenhuma afirmação sobre valor (ADR 0021).
     """
 
     dividaId: str
@@ -473,7 +516,7 @@ class RevisaoCobranca(Camel):
     valorCobrado: int
     valorJusto: int | None = None
     achados: list[Achado]
-    script: str | None = None
+    script: ScriptNegociacao
     fundamentos: list[str]
     baseLegalVigenteEm: str | None = None
 
@@ -521,7 +564,7 @@ class ValorJustoCard(Camel):
     credor: str
     valorCobrado: int
     valorJusto: int
-    script: str
+    script: ScriptNegociacao
     fundamentos: list[str]
 
 
