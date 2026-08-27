@@ -1291,6 +1291,41 @@ real contra o efeito cruel disso é o marco ser evento persistido, e não predic
 
 ---
 
+### 3.14 F-011 · renda tipada e compromisso percentual (ADR 0021)
+
+*Destrava o campo mais antigo e mais inerte do modelo: `fonte_renda.tipo` era gravado desde o M7 e
+nunca lido. Agora o tipo muda o que o app pergunta e o que reserva, e quem tem renda variável
+compromete **percentual do que entra**, não um valor fixo que o mês fraco derruba.*
+
+Os endpoints são **aditivos** sobre o módulo de caixa (M7) — os campos e o CRUD estão documentados
+in loco em [`### M7 — Módulo de caixa`](#m7--módulo-de-caixa). Este bloco reúne o contrato do F-011:
+
+- **`GET /v1/caixa`** ganha `compromissoPercentualBps` (bps, `null` = nunca declarou; `0` é escolha),
+  `compromissoPercentual` (centavos, aplicado sobre a renda **líquida** típica **no servidor** — o
+  cliente não multiplica), `impostoNaoDeclarado` (bool) e `mesAncoraRenda` (`AAAA-MM` ou `null`).
+- **`PUT /v1/caixa/metas`** aceita `compromissoPercentualBps` (0–10000 bps; fora da faixa ⇒ `422`).
+  Compromisso que empurre o que sobra **abaixo do mínimo existencial** é recusado com `422`,
+  `campo: "compromissoPercentualBps"`, mensagem em pt-BR **sem valor no corpo** (guardrail 5), no
+  registro exato de `gravar_respiro`. Incide sobre a renda **líquida** típica, a mesma base do piso
+  (ADR 0021, Nota de desempate). Sem caixa preenchido, a gravação segue — limitação declarada.
+- **`GET · POST · PATCH · DELETE /v1/caixa/fontes[/{id}]`** ganham `impostoBps` (alíquota **por
+  fonte**, `null` ⇒ fallback do `impostoBps` do perfil, campo a campo como hoje) e `diaPagamento`
+  (1–31, `null` = não informou). Nenhum dado migra; quem tem uma alíquota só continua idêntico.
+- **`GET · POST · PATCH · DELETE /v1/caixa/eventos-previsiveis[/{id}]`** — 13º, férias e o que cai
+  uma vez por ano. `tipo` `decimo_terceiro` \| `ferias` \| `outro`, `mesPrevisto` 1–12, `valor` em
+  centavos **declarado pelo usuário**, `fonteId` opcional. **NÃO ENTRA NA CASCATA** nem na janela do
+  `min()`: gravar um evento não muda nenhum número de `GET /v1/caixa`. É munição de negociação à
+  vista. Recurso de outro tenant ⇒ **404, nunca 403**.
+
+**Ação a distância, provada por teste.** Compromisso percentual declarado derruba `capacidadeMaxima`
+e, com ela, **quatro** consumidores de `leitura.capacidade_atual` sem que nenhum dos quatro arquivos
+seja tocado: o teto do simulador, a `margemDisponivel` do painel, o aporte do card `plano_sugerido`
+do chat e a **oferta do script de negociação** (`routers/revisao`, PF-1 do plano). Coberto por
+`tests/test_caixa_integracao.py::TestCompromissoNosQuatroConsumidores`, com a regressão gêmea que
+prova que quem não declarou tem os quatro números idênticos aos de antes.
+
+---
+
 ## 4. Fila do backend
 
 > **Esta é a fila de trabalho canônica do backend.** `roadmap.md` aponta para cá e não repete a
@@ -1561,6 +1596,39 @@ pessoa parou de viver — e o mês 4 é onde ela desiste.*
 - [~] **Ver no aparelho.** `RespiroCard`, a tela de declaração e a `MarcoScreen` renderizam, reagem
       e passam os seis gates do front, e nada disso prova leitura, safe area, teclado ou
       acessibilidade em device. É o gate humano que fecha o M11, e nenhum agente o declara
+
+### Bloco 14 — M12 · renda tipada e compromisso percentual (F-011, ADR 0021)
+
+*Destrava o efeito de domínio de `fonte_renda.tipo` — coluna desde o M7, nunca lida — e o pote
+percentual para quem tem renda variável. Contrato em [`### 3.14`](#314-f-011--renda-tipada-e-compromisso-percentual-adr-0021).*
+
+> **Bloco fechado em 27/08/2026** (F-011, T1 a T6), em paralelo com o F-012. `[x]` = implementado,
+> coberto por teste e com o consumo pelo app escrito; `[~]` = depende de **ver no aparelho**.
+> Nenhum item de tela foi visto em device.
+
+- [x] Migração `482c266f5c6a` (T1), encadeada em `116f2181bdda`, todas as colunas `nullable` e
+      **nenhum dado migra**: `perfil.compromisso_percentual_bps`, `fonte_renda.imposto_bps` e
+      `dia_pagamento`, `caixa_snapshot.compromisso_percentual`, e a tabela `evento_previsivel` (com
+      `tenant_id`, que a faz entrar sozinha na exclusão de conta — há teste). Round-trip
+      `upgrade/downgrade/upgrade` verificado; DDL conferido contra `CreateTable(Base.metadata)`,
+      porque `conftest.py` monta o schema por `create_all`, não pelo Alembic
+- [x] `domain/caixa.py` — compromisso percentual como sétima linha da cascata, na mesma posição dos
+      potes e do respiro, incidindo sobre a renda **líquida** típica (ADR 0021, Nota de desempate).
+      `percentual_invade_o_piso` com FONTE (Decreto 11.150/2022 na redação do 11.567/2023); o
+      docstring declara o percentual **dado do usuário, não regra financeira**. Alíquota apurada
+      **por fonte** com o perfil de fallback (T1)
+- [x] `domain/renda.py` (novo) — comportamento por tipo para os seis valores, cada um com FONTE ou
+      declaração de "dado do usuário"; `imposto_nao_declarado` e o mês âncora da renda típica (T2)
+- [x] `PUT /v1/caixa/metas` com `compromissoPercentualBps` e o `422` do piso legal; alíquota e dia
+      de pagamento por fonte; CRUD de `evento_previsivel` que **não muda número da cascata** (T3)
+- [x] Tela de fonte que se adapta ao tipo — um formulário, seis comportamentos —, com "não está
+      reservando imposto" lido de `impostoNaoDeclarado`, nunca `R$ 0,00` (T4). Card de compromisso
+      percentual com dois estados e o mês âncora na leitura da renda típica (T5)
+- [x] Teste cruzado dos **quatro** consumidores (`TestCompromissoNosQuatroConsumidores`) e a
+      regressão gêmea de quem não declarou; teste de copy da renda tipada por injeção (T6)
+- [~] **Ver no aparelho.** A tela de fonte por tipo, o card de compromisso e a declaração passam os
+      seis gates do front, e nada disso prova leitura, teclado sobre campo de valor, safe area ou
+      acessibilidade em device. É o gate humano que fecha o M12, e nenhum agente o declara
 
 ### Estado observado em device
 

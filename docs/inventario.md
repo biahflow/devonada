@@ -300,8 +300,8 @@ Deep link sempre por campo tipado, nunca por id extraído de texto.
 
 | Suíte | Números |
 |---|---|
-| Jest | **539 testes em 45 suítes**, verdes em 20/08/2026, no fechamento do M11 (era 472 / 42 na entrada dele). O ambiente exigiu `--watchman=false`; o processo **conclui a suíte e não encerra**, por handle aberto — a contagem sai antes disso, e `--forceExit` é o contorno. Há avisos de `act(...)` a investigar. |
-| pytest | **620 testes**, verdes em SQLite em 20/08/2026 (era 497 na entrada do M11); 23 avisos — `HTTP_422_UNPROCESSABLE_ENTITY` depreciado, Starlette/httpx e `InsecureKeyLength` do JWT de teste. A execução contra Postgres continua obrigatória antes de release. |
+| Jest | **589 testes em 48 suítes**, verdes em 27/08/2026, no fechamento do F-011 (era 541 / 46 na entrada dele; 539 / 45 no fechamento do M11). O processo **conclui a suíte e não encerra**, por handle aberto — a contagem sai antes disso, e `--forceExit` é o contorno. Há avisos de `act(...)` a investigar. |
+| pytest | **698 testes**, verdes em SQLite em 27/08/2026 (era 662 na entrada do F-011; 620 no M11); 27 avisos — `HTTP_422_UNPROCESSABLE_ENTITY` depreciado (quatro ocorrências novas do `422` de `PUT /v1/caixa/metas`), Starlette/httpx e `InsecureKeyLength` do JWT de teste. Rodado em Python 3.12 via `uv` (o `python3` do sistema é 3.9), sem `pysqlite3`. A execução contra Postgres continua obrigatória antes de release e **não** foi feita nesta worktree. |
 
 Gates locais, **seis** desde 19/08/2026: `npm run typecheck`, `npm run lint`, `npm test`,
 `npm run bundle:check`, `npm run palette:check` e `npm run digits:check`, mais `pytest` no backend.

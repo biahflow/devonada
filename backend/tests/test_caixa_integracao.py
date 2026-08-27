@@ -407,3 +407,172 @@ class TestRespiroNosTresConsumidores:
         assert caixa["aporteMaximo"] == caixa["capacidadeMaxima"] - caixa["comprometidoDividas"]
         assert self._margem_do_painel(client, auth) == caixa["aporteMaximo"]
         assert self._card_de_plano(client, auth)["aporteExtraMensal"] == caixa["aporteMaximo"]
+
+
+class TestCompromissoNosQuatroConsumidores:
+    """
+    O TESTE CRUZADO DO M12 (F-011, T6), gêmeo de `TestRespiroNosTresConsumidores`
+    — e com UM CONSUMIDOR A MAIS.
+
+    A ADR 0021 e os dois contratos falavam em três consumidores de
+    `leitura.capacidade_atual`; `grep -rn "capacidade_atual"` encontra QUATRO
+    (PF-1 do plano). O quarto é `routers/revisao._capacidade_para_oferta`, que
+    monta a frase "consigo comprometer até R$ X por mês" do script de negociação.
+    Compromisso percentual declarado derruba a `capacidade_maxima`, e com ela:
+
+    1. o teto do simulador (`_validar_aporte` via `capacidade_atual`);
+    2. a `margemDisponivel` do painel (`routers/resumo`);
+    3. o aporte do card `plano_sugerido` do chat;
+    4. a oferta que o usuário faz ao credor no script (`routers/revisao`).
+
+    Os QUATRO mudam de número sem que nenhum dos quatro arquivos seja tocado — a
+    ação a distância que não aparece em diff, e que este teste torna visível.
+    """
+
+    # 10% sobre a renda LÍQUIDA típica. A fonte de `_caixa` é `pj_hora` sem
+    # alíquota, então a líquida é a bruta (R$ 10.000), e 10% dela é R$ 1.000.
+    BPS = 1000
+    COMPROMISSO = 100000
+
+    def _declarar(self, client, auth, bps):
+        r = client.put(
+            "/v1/caixa/metas",
+            json={"compromissoPercentualBps": bps},
+            headers=auth,
+        )
+        assert r.status_code == 200, r.text
+        return r
+
+    def _aporte_maximo(self, client, auth):
+        return client.get("/v1/caixa", headers=auth).json()["caixa"]["aporteMaximo"]
+
+    def _margem_do_painel(self, client, auth):
+        r = client.get("/v1/dividas/resumo", headers=auth)
+        return r.json()["resumo"]["margemDisponivel"]
+
+    def _card_de_plano(self, client, auth):
+        r = client.post(
+            "/v1/chat/messages",
+            json={"content": "quero um plano para quitar"},
+            headers=auth,
+        )
+        cards = r.json()["message"]["cards"]
+        return next(c for c in cards if c["kind"] == "plano_sugerido")
+
+    def _com_contrato_lido(self, client, auth, sessao):
+        """Dívida com encargo lido — o que produz achado e, com ele, o script."""
+        import orm
+        from config import get_settings
+        from tests.test_revisao_api import _campo, _campos
+
+        e = orm.Extracao(
+            tenant_id=get_settings().tenant_id,
+            status="concluida",
+            campos_json=_campos(
+                credor=_campo("Banco Teste", "Banco Teste S/A"),
+                valorCobrado=_campo(1200000, "R$ 12.000,00"),
+                multaMoratoriaMensal=_campo(500, "multa por atraso de 5%"),
+            ),
+        )
+        sessao.add(e)
+        sessao.commit()
+        d = _divida(
+            client, auth, primeiroVencimento="2026-01-10", extracaoId=e.id
+        ).json()["divida"]
+        return d["id"]
+
+    def _script(self, client, auth, divida_id):
+        return client.get(f"/v1/dividas/{divida_id}/revisao", headers=auth).json()[
+            "revisao"
+        ]["script"]
+
+    def test_o_teto_do_simulador_desce_exatamente_o_compromisso_declarado(self, client, auth):
+        _caixa(client, auth, renda=1000000, essenciais=400000)
+        _divida(client, auth)
+
+        teto_sem = self._aporte_maximo(client, auth)
+        assert _simular(client, auth, teto_sem).status_code == 200
+        assert _simular(client, auth, teto_sem + 1).status_code == 422
+
+        self._declarar(client, auth, self.BPS)
+
+        teto_com = self._aporte_maximo(client, auth)
+        # Desceu o compromisso inteiro, nem um centavo a mais.
+        assert teto_com == teto_sem - self.COMPROMISSO
+        assert _simular(client, auth, teto_com).status_code == 200
+        assert _simular(client, auth, teto_com + 1).status_code == 422
+        assert _simular(client, auth, teto_sem).status_code == 422
+
+    def test_o_painel_nao_anuncia_a_sobra_que_o_simulador_recusa(self, client, auth):
+        _caixa(client, auth, renda=1000000, essenciais=400000)
+        _divida(client, auth)
+
+        margem_sem = self._margem_do_painel(client, auth)
+        assert margem_sem == self._aporte_maximo(client, auth)
+
+        self._declarar(client, auth, self.BPS)
+
+        margem_com = self._margem_do_painel(client, auth)
+        assert margem_com == margem_sem - self.COMPROMISSO
+        assert margem_com == self._aporte_maximo(client, auth)
+        assert _simular(client, auth, margem_com).status_code == 200
+        assert _simular(client, auth, margem_sem).status_code == 422
+
+    def test_o_card_de_plano_do_chat_planeja_com_o_compromisso_descontado(self, client, auth):
+        _caixa(client, auth, renda=1000000, essenciais=400000)
+        _divida(client, auth)
+
+        card_sem = self._card_de_plano(client, auth)
+        assert card_sem["aporteExtraMensal"] == self._aporte_maximo(client, auth)
+
+        self._declarar(client, auth, self.BPS)
+
+        card_com = self._card_de_plano(client, auth)
+        assert card_com["aporteExtraMensal"] == card_sem["aporteExtraMensal"] - self.COMPROMISSO
+
+        simulado = _simular(client, auth, card_com["aporteExtraMensal"]).json()["simulacoes"][0]
+        assert card_com["mesesAteQuitacao"] == simulado["mesesAteQuitacao"]
+        assert card_com["dataLiberdade"] == simulado["dataLiberdade"]
+
+    def test_a_oferta_do_script_de_negociacao_cai_com_o_compromisso(self, client, auth, sessao):
+        """
+        O QUARTO consumidor (PF-1): a oferta que vai para um credor de verdade.
+
+        Oferecer ao credor o que não cabe no mês é exatamente o plano quebrado que
+        o produto existe para evitar. A oferta parte de `capacidade_hoje`, e ela
+        cai o compromisso declarado.
+        """
+        divida_id = self._com_contrato_lido(client, auth, sessao)
+        _caixa(client, auth, renda=1000000, essenciais=400000)
+
+        # Sem compromisso: capacidade de hoje R$ 6.000, e é o que a oferta ancora.
+        script_sem = self._script(client, auth, divida_id)
+        assert formatar_brl(600000) in script_sem
+
+        self._declarar(client, auth, self.BPS)
+
+        # A oferta caiu exatamente R$ 1.000 — para R$ 5.000.
+        script_com = self._script(client, auth, divida_id)
+        assert formatar_brl(500000) in script_com
+        assert formatar_brl(600000) not in script_com
+
+    def test_quem_nao_declarou_compromisso_tem_os_quatro_numeros_de_antes(
+        self, client, auth, sessao
+    ):
+        """
+        A regressão do outro lado, agora com QUATRO. Sem declaração não há
+        compromisso, e nenhum dos quatro consumidores muda de número — é o que
+        impede a linha nova de vazar para quem não pediu por ela.
+        """
+        divida_id = self._com_contrato_lido(client, auth, sessao)
+        _caixa(client, auth, renda=1000000, essenciais=400000)
+
+        caixa = client.get("/v1/caixa", headers=auth).json()["caixa"]
+        # `None`, nunca `0`: não declarar é diferente de declarar zero.
+        assert caixa["compromissoPercentualBps"] is None
+        assert caixa["compromissoPercentual"] is None
+        assert caixa["aporteMaximo"] == caixa["capacidadeMaxima"] - caixa["comprometidoDividas"]
+        assert self._margem_do_painel(client, auth) == caixa["aporteMaximo"]
+        assert self._card_de_plano(client, auth)["aporteExtraMensal"] == caixa["aporteMaximo"]
+        # A oferta é a capacidade de hoje (única dívida ⇒ nada a descontar).
+        assert formatar_brl(caixa["capacidadeHoje"]) in self._script(client, auth, divida_id)
