@@ -27,7 +27,7 @@ router = APIRouter(prefix="/v1/lembretes", tags=["Lembretes"])
 # valor não tem por onde vazar para o texto. Tom neutro continua obrigatório: nada
 # de "ATENÇÃO", contagem regressiva ou linguagem de cobrança.
 _TITULO = "Você tem um passo hoje"
-_CORPO = "Abra o Devo Nada para ver o que você combinou."
+_CORPO = "Abra o devo.nada para ver o que você combinou."
 
 
 def _texto() -> tuple[str, str]:
