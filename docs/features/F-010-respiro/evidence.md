@@ -3,7 +3,7 @@
 O handoff de revisão do milestone M11. Ele **consolida referências; não substitui** os artefatos
 que aponta, e nenhum resumo aqui é mais autoritativo que a fonte que resume.
 
-Produzido a partir de `/Users/danielcampos/workspace/engineeringOS/templates/evidence.md`, na
+Produzido a partir do [template global de evidência](../../engineering-os/templates/evidence.md), na
 tarefa T8. Escrito por quem executou T8 — as sete tarefas anteriores tiveram outros executores, e
 esta evidência preserva a atribuição de cada uma em vez de fundi-las num relato só.
 

@@ -24,7 +24,7 @@ sequência de produto estão no [roadmap.md](roadmap.md).
 | `docs/features/` | Feature Contracts (FDDs) históricos e em preparação. |
 | `docs/adr/` | Decisões técnicas duradouras. |
 | `docs/inventario.md` | Retrato datado do que existe: stack, versões, endpoints, telas, limitações. **Derivado** — não é fonte de regra. |
-| `/Users/danielcampos/workspace/engineeringOS/` | Contexto global, gates humanos e lifecycle de trabalho. |
+| [`docs/engineering-os/`](docs/engineering-os/PROVENANCE.md) | Camada global vendorizada e pinada: gates humanos e lifecycle de trabalho. |
 
 ## Princípios do produto
 

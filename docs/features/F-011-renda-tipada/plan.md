@@ -4,8 +4,8 @@ Produzido pelo Planner a partir do Feature Contract aceito em [`feature.md`](fea
 documento diz **como** a feature aceita é decomposta. Ele não altera requisito, não escolhe harness
 ou modelo e não concede aprovação.
 
-O formato abaixo é o `FEATURE EXECUTION PLAN` de
-`/Users/danielcampos/workspace/engineeringOS/agents/planner.md`.
+O formato abaixo é o `FEATURE EXECUTION PLAN` do
+[contrato do Planner](../../engineering-os/agents/planner.md).
 
 ---
 

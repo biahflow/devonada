@@ -10,12 +10,13 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test": "jest",
+    "test": "node --test scripts/eos-sync.test.mjs && jest",
     "test:watch": "jest --watch",
     "assets:build": "node scripts/rasterizar-assets.mjs",
     "bundle:check": "expo export --platform ios --output-dir .expo/bundle-check --clear",
     "palette:check": "node scripts/paleta-check.mjs",
-    "digits:check": "node scripts/digitos-check.mjs"
+    "digits:check": "node scripts/digitos-check.mjs",
+    "eos:sync": "node scripts/sync-engineering-os.mjs"
   },
   "jest": {
     "preset": "jest-expo",

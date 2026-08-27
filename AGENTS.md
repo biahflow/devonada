@@ -4,9 +4,15 @@ Instruções específicas para o Codex e demais agentes de código neste reposit
 
 ## Engineering OS
 
-Este repositório adota a Engineering OS. Antes de qualquer trabalho, carregue o contexto global
-em `/Users/danielcampos/workspace/engineeringOS/`: `README.md`, princípios, guardrails,
-Definition of Done e o contrato de agente aplicável. A Engineering OS define os gates humanos e
+Este repositório adota a Engineering OS. A camada global está vendorizada e pinada em
+[`docs/engineering-os/`](docs/engineering-os/PROVENANCE.md), alcançável do próprio checkout.
+Antes de qualquer trabalho, carregue
+[os princípios](docs/engineering-os/core/principles/engineering.md),
+[os guardrails](docs/engineering-os/core/guardrails/git.md),
+[a Definition of Done](docs/engineering-os/core/definition-of-done.md) e o contrato de agente
+aplicável — [Planner](docs/engineering-os/agents/planner.md),
+[Builder](docs/engineering-os/agents/builder.md) ou
+[Reviewer](docs/engineering-os/agents/reviewer.md). A Engineering OS define os gates humanos e
 o ciclo de vida; este repositório define seus documentos canônicos, arquitetura e comandos.
 
 ## Leitura obrigatória

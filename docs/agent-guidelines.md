@@ -8,9 +8,13 @@ respectivas ferramentas e apontar para este documento.
 
 ## Engineering OS e ciclo de trabalho
 
-O contexto global da Engineering OS está em
-`/Users/danielcampos/workspace/engineeringOS/`. Ele define princípios, guardrails, Definition of
-Done, contratos de agente e o ciclo `roadmap → Feature Contract → plano → tarefas → evidência →
+A camada global da Engineering OS está vendorizada e pinada em
+[`engineering-os/`](engineering-os/PROVENANCE.md), alcançável do próprio checkout — por CI, por
+colaborador novo e por agente em nuvem, não só por quem tem o bootstrap pessoal instalado. Ela
+define [princípios](engineering-os/core/principles/engineering.md),
+[guardrails](engineering-os/core/guardrails/git.md),
+[Definition of Done](engineering-os/core/definition-of-done.md),
+[contratos de agente](engineering-os/agents/builder.md) e o ciclo `roadmap → Feature Contract → plano → tarefas → evidência →
 gate humano`. Os documentos deste repositório definem o produto e não duplicam a regra global.
 O resultado vigente da adoção está em [engineering-os-adoption.md](engineering-os-adoption.md).
 
@@ -36,8 +40,8 @@ validação.
 
 M0–M9 preservam os FDDs históricos existentes. Não há obrigação de retropreenchê-los para a
 adoção. Para novo trabalho, use o próximo identificador sequencial em `docs/features/`, partindo
-do [template de FDD](feature-template.md) e do template global de Feature Contract em
-`/Users/danielcampos/workspace/engineeringOS/templates/feature.md`.
+do [template de FDD](feature-template.md) e do
+[template global de Feature Contract](engineering-os/templates/feature.md).
 
 ---
 

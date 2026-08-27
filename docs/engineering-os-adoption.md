@@ -2,15 +2,22 @@
 
 ## Status
 
-`ENGINEERING_OS_COMPLIANT`
+`ENGINEERING_OS_COMPLIANT` contra a Engineering OS `v0.1.0`, **reverificado em 26/08/2026**.
+
+A adoção de 17/08/2026 não sobreviveu à exigência de alcançabilidade que a camada global passou
+a fazer depois: a única referência ao contexto global era um caminho absoluto da máquina do
+operador, e ele morreu em silêncio quando o diretório mudou de lugar. O espelho vendorizado
+fecha essa lacuna ([ADR 0012](adr/0012-camada-global-vendorizada-e-pinada-por-tag.md)); avançar
+o pino é mudança revisada, nunca automática.
 
 **Aprovado por humano em 17/08/2026.** Esta classificação descreve a estrutura operacional do
 repositório; não declara ausência de bugs, dívida técnica ou validação pendente em device.
 
 ## Escopo e evidência
 
-- **Contexto global:** `/Users/danielcampos/workspace/engineeringOS/`, referenciado por
-  `AGENTS.md` e `CLAUDE.md`.
+- **Contexto global:** vendorizado e pinado em
+  [`engineering-os/`](engineering-os/PROVENANCE.md) na tag `v0.1.0`, referenciado por
+  `AGENTS.md`, `CLAUDE.md`, `README.md` e este documento.
 - **Contexto do projeto:** `docs/agent-guidelines.md` e seus documentos canônicos.
 - **Roadmap do produto/front:** `roadmap.md`.
 - **Fila do backend:** `docs/api-contract.md`, seção 4.
