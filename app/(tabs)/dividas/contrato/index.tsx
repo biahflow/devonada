@@ -6,15 +6,26 @@ import { PageHeader } from '../../../../src/components/ui/PageHeader';
 import { Card } from '../../../../src/components/ui/Card';
 import { Button } from '../../../../src/components/ui/Button';
 import { Feedback } from '../../../../src/components/ui/Feedback';
+import { OptionGroup, type Option } from '../../../../src/components/ui/OptionGroup';
 import { escolherArquivo } from '../../../../src/components/ui/SeletorDeArquivo';
 import { ErroDeMutacao } from '../../../../src/components/ui/ErroDeMutacao';
 import { useEnviarContrato } from '../../../../src/hooks/useContrato';
-import type { ArquivoContrato } from '../../../../src/api/contratos';
+import type { ArquivoContrato, TipoDocumento } from '../../../../src/api/contratos';
 import { colors, spacing, typography } from '../../../../src/theme/theme';
+
+// O que a gente procura em cada tipo, para a tela dizer a verdade antes do
+// upload — um print de cobrança não tem taxa de juros a extrair.
+const TIPOS: readonly Option<TipoDocumento>[] = [
+  { value: 'contrato', label: 'Contrato', description: 'Empréstimo, consignado ou financiamento.' },
+  { value: 'boleto', label: 'Boleto', description: 'Beneficiário, valor e vencimento.' },
+  { value: 'carta', label: 'Carta', description: 'Aviso de cobrança em papel ou PDF.' },
+  { value: 'print', label: 'Print', description: 'Captura de app, SMS ou mensagem.' },
+];
 
 export default function EnviarContrato() {
   const router = useRouter();
   const [arquivo, setArquivo] = useState<ArquivoContrato | null>(null);
+  const [tipo, setTipo] = useState<TipoDocumento>('contrato');
   const enviar = useEnviarContrato();
 
   async function selecionar() {
@@ -24,9 +35,10 @@ export default function EnviarContrato() {
 
   function enviarArquivo() {
     if (!arquivo) return;
-    enviar.mutate(arquivo, {
-      onSuccess: ({ extracao }) => router.replace(`/dividas/contrato/${extracao.id}`),
-    });
+    enviar.mutate(
+      { arquivo, tipo },
+      { onSuccess: ({ extracao }) => router.replace(`/dividas/contrato/${extracao.id}`) },
+    );
   }
 
   return (
@@ -34,16 +46,25 @@ export default function EnviarContrato() {
       <ScrollView contentContainerStyle={styles.conteudo} showsVerticalScrollIndicator={false}>
         <PageHeader
           eyebrow="Atalho"
-          title="Ler o contrato"
-          description="Mande o contrato do empréstimo, consignado ou financiamento. A gente lê e preenche o cadastro para você conferir."
+          title="Ler o documento"
+          description="Mande o contrato, o boleto, a carta ou o print da cobrança. A gente lê e preenche o cadastro para você conferir."
           onBack={() => router.back()}
         />
 
         <Card>
+          <OptionGroup
+            label="Que documento é?"
+            options={TIPOS}
+            value={tipo}
+            onChangeValue={setTipo}
+          />
+        </Card>
+
+        <Card>
           <Text style={styles.tituloCard}>O que vamos procurar</Text>
-          <Text style={styles.item}>Credor, valor, data e número de parcelas</Text>
-          <Text style={styles.item}>Taxa de juros e Custo Efetivo Total</Text>
-          <Text style={styles.item}>Tarifas e seguros embutidos que passam batido</Text>
+          <Text style={styles.item}>Credor e valor cobrado, com o trecho que comprova</Text>
+          <Text style={styles.item}>Data e vencimento, quando o documento traz</Text>
+          <Text style={styles.item}>Só o que estiver escrito — nada é deduzido</Text>
         </Card>
 
         {/* Transparência antes do upload é parte do consentimento, não cortesia. */}

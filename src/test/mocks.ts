@@ -96,6 +96,7 @@ export function umaExtracao(over: Partial<ExtracaoContrato> = {}): ExtracaoContr
   return {
     id: 'extracao-1',
     status: 'concluida',
+    tipo: 'contrato',
     campos: {
       credor: { valor: 'Banco Teste S/A', confianca: 'alta', trecho: 'CREDOR: Banco Teste S/A' },
       valorCobrado: { valor: 150000, confianca: 'alta', trecho: 'Valor total: R$ 1.500,00' },
@@ -104,6 +105,58 @@ export function umaExtracao(over: Partial<ExtracaoContrato> = {}): ExtracaoContr
       taxaJurosMensal: { valor: 1250, confianca: 'alta', trecho: 'Taxa: 12,50% a.m.' },
       totalParcelas: { valor: 12, confianca: 'alta', trecho: 'Em 12 parcelas' },
       cet: { valor: 18000, confianca: 'baixa', trecho: 'CET: 180,00% a.a.' },
+    },
+    ...over,
+  };
+}
+
+/** Extração de BOLETO (M13). */
+export function umBoleto(over: Partial<ExtracaoContrato> = {}): ExtracaoContrato {
+  return {
+    id: 'extracao-boleto-1',
+    status: 'concluida',
+    tipo: 'boleto',
+    campos: {
+      beneficiario: { valor: 'Sabesp', confianca: 'alta', trecho: 'Beneficiário: Sabesp' },
+      valor: { valor: 8990, confianca: 'alta', trecho: 'Valor do documento: R$ 89,90' },
+      vencimento: { valor: '2026-09-05', confianca: 'alta', trecho: 'Vencimento: 05/09/2026' },
+      linhaDigitavel: {
+        valor: '34191.79001 01043.510047 91020.150008 1 99110000008990',
+        confianca: 'media',
+        trecho: '34191.79001 01043.510047 91020.150008 1 99110000008990',
+      },
+      nossoNumero: { valor: null, confianca: 'baixa' },
+    },
+    ...over,
+  };
+}
+
+/** Extração de CARTA de cobrança (M13). */
+export function umaCarta(over: Partial<ExtracaoContrato> = {}): ExtracaoContrato {
+  return {
+    id: 'extracao-carta-1',
+    status: 'concluida',
+    tipo: 'carta',
+    campos: {
+      credor: { valor: 'Loja Crédito Fácil', confianca: 'alta', trecho: 'Cordialmente, Loja Crédito Fácil' },
+      valorCobrado: { valor: 45000, confianca: 'alta', trecho: 'Débito em aberto: R$ 450,00' },
+      dataVencimento: { valor: null, confianca: 'baixa' },
+      referencia: { valor: 'Contrato 8842', confianca: 'media', trecho: 'Ref. contrato 8842' },
+    },
+    ...over,
+  };
+}
+
+/** Extração de PRINT de cobrança (M13). */
+export function umPrint(over: Partial<ExtracaoContrato> = {}): ExtracaoContrato {
+  return {
+    id: 'extracao-print-1',
+    status: 'concluida',
+    tipo: 'print',
+    campos: {
+      credor: { valor: 'Banco Digital', confianca: 'media', trecho: 'Banco Digital: sua fatura venceu' },
+      valorCobrado: { valor: 32000, confianca: 'media', trecho: 'Total: R$ 320,00' },
+      referencia: { valor: null, confianca: 'baixa' },
     },
     ...over,
   };

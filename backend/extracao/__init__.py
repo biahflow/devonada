@@ -12,9 +12,30 @@ __all__ = [
     "ErroDeExtracao",
     "ExtratorDeContrato",
     "ResultadoExtracao",
+    "TIPOS_DOCUMENTO",
     "limpar_campos_sem_evidencia",
+    "modelo_de_campos",
     "obter_extrator",
 ]
+
+# Os tipos de documento que a extração roteia. O router valida a entrada contra
+# esta tupla; a fonte é o registro de `extracao.regras`, sem duplicar a lista.
+TIPOS_DOCUMENTO: tuple[str, ...] = ("contrato", "boleto", "carta", "print")
+
+
+def modelo_de_campos(tipo: str):
+    """
+    O modelo Pydantic que valida os campos daquele tipo de documento.
+
+    A rota usa isto para DESERIALIZAR o `campos_json` gravado com o modelo certo
+    antes de montar a resposta — passar um dict à união de `ExtracaoContrato`
+    casaria com `CamposContrato` por engano. Tipo desconhecido (linha antiga sem
+    coluna) cai em `contrato`, que é o `server_default` da migração.
+    """
+    from extracao.regras import REGRAS
+
+    regra = REGRAS.get(tipo) or REGRAS["contrato"]
+    return regra.modelo
 
 
 def obter_extrator() -> ExtratorDeContrato:

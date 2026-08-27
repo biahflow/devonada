@@ -15,6 +15,7 @@ function extracao(
   return {
     id: 'e1',
     status: 'concluida',
+    tipo: 'contrato',
     campos: {
       credor: campo('Banco Teste S/A', 'CREDOR: Banco Teste S/A'),
       valorCobrado: campo(150000, 'Valor total: R$ 1.500,00'),
@@ -30,7 +31,7 @@ function extracao(
 
 describe('extracaoParaProposta', () => {
   it('devolve vazio quando não há campos', () => {
-    expect(extracaoParaProposta({ id: 'e1', status: 'processando' })).toEqual({});
+    expect(extracaoParaProposta({ id: 'e1', status: 'processando', tipo: 'contrato' })).toEqual({});
   });
 
   it('copia os campos que têm valor e evidência', () => {

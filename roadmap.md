@@ -914,9 +914,13 @@ tem de vir antes do esforço. O M7 já tinha provado isso com o "Nível 0" do ca
       que ofereça qualquer login social, então os dois andam juntos.
 - [ ] **Páginas de Termos e Política de Privacidade.** A linha legal da tela de entrada é texto sem
       link porque as URLs não existem. Item de pré-lançamento, não polimento: as duas lojas pedem.
-- [ ] Extração de **boleto, carta e print de cobrança** — a camada de extração existe para
-      contrato; falta o schema e o prompt destes. Vale integralmente o guardrail 8: campo sem
-      trecho citável é descartado, e o arquivo é lido e descartado.
+- [x] Extração de **boleto, carta e print de cobrança** (F-013) — a rota `POST /v1/contratos`
+      passou a receber `tipo` no multipart (default `contrato`, retrocompatível), e a camada de
+      extração roteia prompt e schema por tipo: `CamposBoleto`, `CamposCartaCobranca` e
+      `CamposPrintCobranca`, cada um com seu `SYSTEM`. O guardrail 8 vale integralmente para os
+      quatro — campo sem trecho citável é zerado no servidor pela mesma rede que já servia o
+      contrato, e o arquivo continua lido e descartado. A tela de revisão renderiza os campos do
+      tipo lido. Falta validar em aparelho e rodar a migração `tipo` contra Postgres.
 - [ ] Notificações discretas: a palavra "dívida" nunca aparece em push (guardrail 4).
 
 ## M14 — Lei do Superendividamento no corpus
