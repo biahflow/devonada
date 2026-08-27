@@ -917,7 +917,14 @@ tem de vir antes do esforço. O M7 já tinha provado isso com o "Nível 0" do ca
 - [ ] Extração de **boleto, carta e print de cobrança** — a camada de extração existe para
       contrato; falta o schema e o prompt destes. Vale integralmente o guardrail 8: campo sem
       trecho citável é descartado, e o arquivo é lido e descartado.
-- [ ] Notificações discretas: a palavra "dívida" nunca aparece em push (guardrail 4).
+- [x] **Notificações discretas** (F-014). O lembrete de parcela nascia delatando credor e valor —
+      "Nubank vence amanhã" / "Parcela 3 de 12 — R$ 450,00". Agora nasce genérico no backend
+      (`routers/lembretes.py`): "Você tem um passo hoje" / "Abra o Devo Nada para ver o que você
+      combinou.", sem credor, valor, vencimento nem a palavra "dívida". O `dividaId`/`parcelaId`
+      segue no payload de dados para o deep link do card, invisível na tela de bloqueio. Guardrail 4
+      (seção 4, discrição por padrão) foi explicitado para enumerar os cinco delatores, e o
+      teste-gêmeo de `test_parcelas_api.py` planta credor e valor reais e prova que não vazam.
+      Ver `docs/features/F-014-push-discreto/`.
 
 ## M14 — Lei do Superendividamento no corpus
 

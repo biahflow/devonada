@@ -175,8 +175,13 @@ nunca morou no token de cor: ela mora nos comportamentos abaixo, e **nenhum dele
   falta. Ver `design-system.md`, seção 1, e ADR 0015.
 - Copy usa segunda pessoa e é específica. "Faltam 7 parcelas" em vez de "Atenção: dívida ativa".
 - **Discrição por padrão.** Vergonha é o sentimento central deste público, e a tela de bloqueio é
-  pública. A palavra "dívida" não aparece em push nem em notificação local. "Você tem um passo
-  hoje" chega; "Sua dívida do Nubank vence amanhã" delata a pessoa para quem estiver ao lado.
+  pública. Nenhuma notificação — push ou local — **delata** a situação para quem estiver ao lado:
+  não aparecem a palavra "dívida", o **nome do credor**, o **valor**, o **número da parcela** nem o
+  **vencimento** no texto visível (`titulo`/`corpo`). "Você tem um passo hoje" chega; "Sua dívida do
+  Nubank vence amanhã" é o modelo **proibido**. O identificador que o deep link precisa (`dividaId`,
+  `parcelaId`) viaja no **payload de dados** da notificação, nunca no texto. O texto do lembrete de
+  parcela nasce genérico no backend (`backend/routers/lembretes.py`), e é lá que o teste-gêmeo de
+  discrição (`test_parcelas_api.py`) planta credor e valor reais e prova que não vazam.
 
 ### 4.1 Respiro — lazer é linha do plano, não desvio
 
