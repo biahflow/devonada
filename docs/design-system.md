@@ -673,6 +673,35 @@ não escorrega para prestação de contas e que o par `accent`/`neutralSurface` 
 contraste — **piso, não legibilidade**. Leitura, safe area, comportamento de teclado e
 acessibilidade em device são o gate humano que fecha o M11, e ele continua aberto.
 
+**Renda tipada — o formulário que se adapta** (`app/(tabs)/caixa/renda.tsx`, F-011, T4) — **um
+formulário só, não seis fluxos** (ADR 0021, decisão de 20/08/2026). O `OptionGroup` de tipo decide o
+que aparece: `pj_hora` pede a alíquota (`PercentInput`); `beneficio`, o dia de pagamento;
+`clt` mostra a seção de **13º e férias** (eventos previsíveis, valor e mês declarados); `autonomo`
+oferece o caminho do compromisso percentual; `aluguel` nomeia a vacância como recebimento zero; e
+`outro` **diz que é genérico**. Reusa `FormField`, `CurrencyInput`, `PercentInput` e `OptionGroup` —
+nenhuma primitiva nova. A fonte `pj_hora` sem alíquota exibe **"não está reservando imposto"**, lido
+de `impostoNaoDeclarado` do servidor: **nunca `R$ 0,00`** como se fosse reserva (ADR 0009). Nada é
+calculado no cliente — taxa, imposto e renda típica chegam prontos (guardrail 1.2).
+
+**`CompromissoCard`** (`src/components/caixa/CompromissoCard.tsx`, F-011, T5) — no molde exato do
+`RespiroCard`, com **dois estados**. Sem percentual declarado (`compromissoPercentualBps === null`),
+**convida e NÃO sugere valor, faixa nem percentual** — a ADR 0009 proíbe coeficiente de alocação sem
+fonte, e a 0021 reafirma "quem não declarar não tem". Com percentual declarado, mostra o bps
+(`formatBasisPoints`) e o valor em centavos que o servidor mandou — o cliente não multiplica bps por
+renda. Props: `{ compromissoPercentualBps, compromissoPercentual, onDeclarar }`, todas de
+`GET /v1/caixa`. `onDeclarar` leva à declaração (`app/(tabs)/caixa/compromisso.tsx`, T5): um
+`PercentInput`, e a gravação **reenvia as outras metas** porque `PUT /v1/caixa/metas` sobrescreve
+tudo. O `422` do piso legal vem pronto em pt-BR do servidor — a tela exibe, nunca reescreve.
+
+**Mês âncora na leitura da renda típica** (`app/(tabs)/caixa/index.tsx`, F-011, T5) — quando a renda
+vem do histórico, a linha de origem passa a dizer **qual mês a ancorou** ("do seu pior mês
+registrado, que foi mar/26"), e some quando a origem é `informada`. É explicação, nunca cobrança:
+ver a capacidade despencar sem contexto é o app quebrando na cara de quem teve um mês ruim
+(guardrail 4). Coberto pelo sweep de copy `src/test/screens/renda-tipada-copy.test.tsx`.
+
+**Nenhuma tela do F-011 foi vista em aparelho.** Os seis gates do front passam; leitura, teclado
+sobre campo de valor, safe area e acessibilidade em device são o gate humano que fecha o M12.
+
 ### Ainda só especificação
 
 > Estes vieram da concepção (`docs/concepcao/`) e **não existem em `src/`**. Dependem de domínio

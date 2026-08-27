@@ -128,6 +128,12 @@ export function umCaixa(over: Partial<Caixa> = {}): Caixa {
     respiroUsadoNoMes: null,
     respiroDisponivelNoMes: null,
     respiroSaldoAcumulado: null,
+    // F-011 (ADR 0021): `false`/`null` é o estado que não muda nada para as telas
+    // que ainda não conhecem renda tipada. Quem testa o outro lado passa por `over`.
+    impostoNaoDeclarado: false,
+    compromissoPercentualBps: null,
+    compromissoPercentual: null,
+    mesAncoraRenda: null,
     comprometidoDividas: 0,
     capacidadeHoje: 600000,
     capacidadeMaxima: 600000,

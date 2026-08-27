@@ -1,6 +1,7 @@
 import { request } from './client';
 import type {
   Caixa,
+  EventoPrevisivel,
   FonteRenda,
   ItemConfirmado,
   PropostaFechamento,
@@ -60,6 +61,37 @@ export function registrarRecebimento(fonteId: Uuid, mes: string, valor: number) 
     method: 'POST',
     body: { mes, valor },
   });
+}
+
+/* --- Eventos previsíveis (F-011, ADR 0021, decisão 2) --- */
+
+export type NovoEventoPrevisivel = Omit<EventoPrevisivel, 'id'>;
+
+/**
+ * 13º, férias e o que mais cai uma vez por ano. NÃO ENTRA NA CASCATA — gravar um
+ * evento não muda nenhum número de `GET /v1/caixa`. O valor é declarado pelo
+ * usuário; nenhum 13º é projetado a partir da renda (ADR 0009).
+ */
+export function listarEventosPrevisiveis() {
+  return request<{ eventos: EventoPrevisivel[] }>('/v1/caixa/eventos-previsiveis');
+}
+
+export function criarEventoPrevisivel(evento: NovoEventoPrevisivel) {
+  return request<{ evento: EventoPrevisivel }>('/v1/caixa/eventos-previsiveis', {
+    method: 'POST',
+    body: evento,
+  });
+}
+
+export function atualizarEventoPrevisivel(id: Uuid, patch: Partial<NovoEventoPrevisivel>) {
+  return request<{ evento: EventoPrevisivel }>(`/v1/caixa/eventos-previsiveis/${id}`, {
+    method: 'PATCH',
+    body: patch,
+  });
+}
+
+export function excluirEventoPrevisivel(id: Uuid) {
+  return request<void>(`/v1/caixa/eventos-previsiveis/${id}`, { method: 'DELETE' });
 }
 
 /* --- Gastos --- */

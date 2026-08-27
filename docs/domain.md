@@ -139,19 +139,38 @@ registrados, não a média. Dimensionar pela média quebra o plano em todo mês 
 por hora tem mês fraco. Sem histórico, é o valor que o usuário informou, e a tela diz qual das
 duas origens está em uso.
 
+Ela é apurada **por fonte** e somada: uma fonte fixa não é puxada para baixo pelo pior mês de uma
+variável, e um mês zerado derruba só a fonte dele. Quando a origem é o histórico, o **mês âncora**
+— o `AAAA-MM` do recebimento que produziu o menor valor — viaja para a tela (F-011, ADR 0021), que
+passa a dizer "seu plano está dimensionado pelo seu pior mês, que foi março" em vez de deixar a
+capacidade despencar sem explicação. A regra do `min()` não muda; só passa a contar de onde o
+número veio.
+
 ### tipo de renda
 De que natureza é a fonte. Existe porque praticamente todo app financeiro brasileiro assume
-salário fixo no dia 5, e metade deste público não tem isso.
+salário fixo no dia 5, e metade deste público não tem isso. Desde a F-011 (ADR 0021) o tipo tem
+efeito de domínio — antes era coluna gravada e nunca lida —, e cada um dos **seis** valores muda o
+que o app pergunta e o que ele reserva. Nenhum coeficiente é inventado: o comportamento é decisão
+de produto, e o **valor** de tudo é dado do usuário.
 
 | Valor | O que o app faz de diferente |
 |---|---|
-| `clt` | Líquido mensal fixo, mais os eventos previsíveis — 13º, férias, FGTS. O 13º é a munição de negociação à vista mais comum do calendário brasileiro |
-| `pj_hora` | Taxa × horas, menos o imposto que o usuário informou. Sem `impostoBps` informado, **nada é reservado e a tela diz que não está reservando** (ADR 0009) |
+| `clt` | Líquido mensal fixo, mais os eventos previsíveis do calendário — 13º (Lei 4.090/1962) e férias com o terço (CF art. 7º, XVII). Eles têm mês e **valor declarados pelo usuário**, e **não entram na cascata** nem na janela do `min()`: são munição de negociação à vista (ADR 0021). FGTS é evento do CLT, mas não é renda disponível para quitação e fica de fora |
+| `pj_hora` | Taxa × horas, menos o imposto que o usuário informou. Sem `impostoBps` na fonte **nem** no perfil como fallback, **nada é reservado e a tela diz que não está reservando** (`impostoNaoDeclarado`, ADR 0009) — nunca `R$ 0,00` como se fosse reserva |
 | `autonomo` | Trabalha com a [renda típica](#renda-típica). O compromisso mensal é **percentual do que entra**, nunca valor fixo |
+| `beneficio` | Valor fixo com **dia de pagamento próprio** — que não é o dia 5 de ninguém. O reajuste **não é projetado** (varia por ano e espécie): o usuário atualiza o valor quando ele muda |
+| `aluguel` | Renda variável cuja queda característica é a **vacância** — um mês vago é um recebimento zero como qualquer outro. A taxa de vacância **não é estimada**: é fato do histórico do usuário |
+| `outro` | Comportamento genérico, sem regra específica — e a tela **diz** que é genérico, em vez de forçar um molde que não é o da pessoa |
 
 **Renda variável não promete valor fixo.** Prometer "R$ 500 todo mês" a quem é autônomo é receita
 de plano quebrado no primeiro mês fraco. O compromisso vira percentual do recebimento, e em mês
 fraco a meta **se ajusta sem drama** — o plano se adapta, não quebra.
+
+**A alíquota desce para a fonte** (F-011, ADR 0021): `fonte_renda.impostoBps` é opcional e, quando
+ausente, aplica o `impostoBps` do perfil como fallback — nenhum dado migra, e quem tem uma alíquota
+só continua com o número idêntico. O **compromisso percentual** é pote novo em bps, ao lado da
+reserva e da aposentadoria, subtraído antes de `capacidadeMaxima` e incidindo sobre a renda
+**líquida** típica; quem não declara não tem, e a cascata dele fica idêntica à de hoje.
 
 ### respiro
 A fatia da capacidade reservada para lazer e autocuidado, desde o primeiro plano. **É linha da

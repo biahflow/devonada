@@ -122,6 +122,25 @@ class EntradaCaixa:
     # mudaria o número de quem nunca pediu nada.
     imposto_por_fonte: int | None = None
 
+    # O MÊS QUE ANCOROU A RENDA TÍPICA (M12, ADR 0021, decisão 3), em `AAAA-MM`.
+    # É o mês do recebimento que produziu o `min()` — o "pior mês" que dimensiona
+    # o plano —, e viaja para a tela poder dizer "seu plano está dimensionado
+    # pelo seu pior mês, que foi março" em vez de deixar a capacidade despencar
+    # sem explicação. `None` quando a origem é `informada`: não há mês âncora
+    # quando o número é o que o usuário digitou.
+    mes_ancora_renda: str | None = None
+
+    # AUSÊNCIA TIPADA DE ALÍQUOTA (M12, ADR 0021, decisão 1). `True` quando existe
+    # fonte que reserva imposto — hoje, só `pj_hora` — ativa e sem alíquota
+    # própria nem `Perfil.imposto_bps` de fallback. Quem preenche é
+    # `leitura.montar_entrada_caixa`, que é quem conhece os tipos das fontes.
+    #
+    # É o par de `imposto_reservado == 0`: nesse caso o zero NÃO é reserva, é
+    # "não sei ainda", e a tela diz "não está reservando imposto" em vez de
+    # exibir R$ 0,00 (ADR 0009, `domain.md:148`). Default `False`, não `None`:
+    # não é o campo que distingue ausência de escolha — é um sinal derivado.
+    imposto_nao_declarado: bool = False
+
 
 @dataclass(frozen=True)
 class Caixa:
@@ -153,6 +172,14 @@ class Caixa:
     # E o que ela custa neste mês, em centavos — derivado da renda LÍQUIDA
     # típica a cada leitura, nunca persistido, porque muda com a renda.
     compromisso_percentual: int | None
+    # O MÊS QUE ANCOROU A RENDA TÍPICA, em `AAAA-MM`, ou `None` quando a origem é
+    # `informada`. Propagado da entrada sem cálculo — a tela o usa junto de
+    # `origem_renda` para explicar o número em vez de deixá-lo despencar sozinho.
+    mes_ancora_renda: str | None
+    # AUSÊNCIA TIPADA DE ALÍQUOTA: `True` quando uma fonte `pj_hora` ativa não tem
+    # alíquota própria nem fallback. Anda junto de `imposto_reservado == 0`, e é o
+    # que separa "não reservou porque não sabe" de "reservou zero".
+    imposto_nao_declarado: bool
     minimo_existencial: int | None
     abaixo_do_piso: bool | None
     nao_fecha: bool
@@ -160,8 +187,8 @@ class Caixa:
 
 
 def renda_tipica(
-    informada: int | None, recebimentos: Sequence[int]
-) -> tuple[int, str]:
+    informada: int | None, recebimentos: Sequence[tuple[str, int]]
+) -> tuple[int, str, str | None]:
     """
     A renda que o plano precisa suportar quando o mês é ruim.
 
@@ -178,11 +205,21 @@ def renda_tipica(
     foi ele. A origem viaja para a tela: o usuário precisa saber se o número que
     está vendo é o que ele digitou ou o que ele de fato recebeu. Mesmo espírito
     do `evolucaoSaldo`, que nasce vazio e ganha um ponto por mês de uso.
+
+    DEVOLVE TAMBÉM O MÊS ÂNCORA (M12, ADR 0021, decisão 3): o `AAAA-MM` do
+    recebimento que produziu o `min()`, e `None` quando a origem é `informada`.
+    A REGRA DO `min()` NÃO MUDA — janela de seis, mínimo de três amostras. Só
+    passa a contar de ONDE o número veio, para a tela dizer "seu plano está
+    dimensionado pelo seu pior mês, que foi março" em vez de mostrar a capacidade
+    despencar sem explicação. Cada recebimento entra como `(mês, valor)`; a
+    entrada empatada no menor valor devolve o mês mais antigo, que é o primeiro
+    da janela ordenada por mês.
     """
     recentes = list(recebimentos)[-JANELA_RECEBIMENTOS:]
     if len(recentes) >= MINIMO_DE_AMOSTRAS:
-        return min(recentes), ORIGEM_HISTORICO
-    return (informada or 0), ORIGEM_INFORMADA
+        mes_ancora, valor = min(recentes, key=lambda item: item[1])
+        return valor, ORIGEM_HISTORICO, mes_ancora
+    return (informada or 0), ORIGEM_INFORMADA, None
 
 
 def meses_ate_vencimento(mes_vencimento: int, mes_atual: int) -> int:
@@ -500,6 +537,10 @@ def calcular_caixa(entrada: EntradaCaixa) -> Caixa:
         respiro_saldo_acumulado=respiro_saldo,
         compromisso_percentual_bps=entrada.compromisso_percentual_bps,
         compromisso_percentual=compromisso_percentual,
+        # Propagados da entrada sem cálculo, como `origem_renda`: quem os apura é
+        # `leitura.montar_entrada_caixa`, que conhece as fontes e os tipos.
+        mes_ancora_renda=entrada.mes_ancora_renda,
+        imposto_nao_declarado=entrada.imposto_nao_declarado,
         minimo_existencial=entrada.minimo_existencial,
         abaixo_do_piso=abaixo_do_piso,
         # FATO ARITMÉTICO, NÃO DIAGNÓSTICO. As parcelas mínimas não cabem nem

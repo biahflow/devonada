@@ -41,29 +41,52 @@ def _entrada(**kwargs) -> EntradaCaixa:
 
 class TestRendaTipica:
     def test_sem_historico_usa_o_informado_e_diz_que_usou(self):
-        valor, origem = renda_tipica(1000000, [])
+        valor, origem, ancora = renda_tipica(1000000, [])
         assert valor == 1000000
         assert origem == "informada"
+        # Sem histórico não há mês âncora: o número é o que o usuário digitou.
+        assert ancora is None
 
     def test_com_menos_de_tres_recebimentos_ainda_usa_o_informado(self):
         # Dois pontos não descrevem variação — descrevem dois pontos.
-        valor, origem = renda_tipica(1000000, [800000, 1200000])
+        valor, origem, ancora = renda_tipica(
+            1000000, [("2026-01", 800000), ("2026-02", 1200000)]
+        )
         assert valor == 1000000
         assert origem == "informada"
+        assert ancora is None
 
     def test_com_historico_usa_o_PIOR_mes_e_nao_a_media(self):
         # Média seria 1.000.000. O plano tem de sobreviver ao mês de 700.000.
-        valor, origem = renda_tipica(1200000, [700000, 1000000, 1300000])
+        valor, origem, ancora = renda_tipica(
+            1200000, [("2026-01", 700000), ("2026-02", 1000000), ("2026-03", 1300000)]
+        )
         assert valor == 700000
         assert origem == "pior_mes_registrado"
+        # T2-AC3: o mês âncora é o do recebimento que produziu o `min()`.
+        assert ancora == "2026-01"
 
     def test_a_janela_impede_que_um_mes_pessimo_antigo_ancore_para_sempre(self):
         # Sete meses: o 100000 do começo sai da janela de seis.
-        valor, _ = renda_tipica(None, [100000, 900000, 950000, 900000, 980000, 990000, 970000])
+        valor, _, ancora = renda_tipica(
+            None,
+            [
+                ("2025-08", 100000),
+                ("2025-09", 900000),
+                ("2025-10", 950000),
+                ("2025-11", 900000),
+                ("2025-12", 980000),
+                ("2026-01", 990000),
+                ("2026-02", 970000),
+            ],
+        )
         assert valor == 900000
+        # O 100000 saiu da janela; o pior mês restante é um dos 900000, e o
+        # empate devolve o mais antigo — setembro, não novembro.
+        assert ancora == "2025-09"
 
     def test_sem_informado_e_sem_historico_devolve_zero(self):
-        assert renda_tipica(None, []) == (0, "informada")
+        assert renda_tipica(None, []) == (0, "informada", None)
 
 
 class TestMesesAteVencimento:
@@ -248,7 +271,15 @@ class TestCasoRealPJ:
 
     @pytest.fixture
     def caixa(self):
-        valor, origem = renda_tipica(1200000, [1150000, 980000, 1310000, 1050000])
+        valor, origem, _ = renda_tipica(
+            1200000,
+            [
+                ("2026-01", 1150000),
+                ("2026-02", 980000),
+                ("2026-03", 1310000),
+                ("2026-04", 1050000),
+            ],
+        )
         return calcular_caixa(
             EntradaCaixa(
                 renda_bruta_tipica=valor,
@@ -820,6 +851,144 @@ class TestAliquotaPorFonteNaLeitura:
         entrada = montar_entrada_caixa(sessao, tenant, get_settings())
         assert entrada.compromisso_percentual_bps is None
         assert entrada.imposto_por_fonte is None
+
+
+class TestImpostoNaoDeclaradoNaLeitura:
+    """
+    A ausência tipada de alíquota chegando à cascata (M12, ADR 0021, decisão 1).
+
+    É o par que separa "não reservou porque não sabe" de "reservou zero": uma
+    fonte `pj_hora` ativa sem alíquota própria e sem `Perfil.imposto_bps` reserva
+    zero E acende `imposto_nao_declarado`, para a tela dizer "não está reservando
+    imposto" em vez de exibir R$ 0,00. Só a fonte que RESERVA imposto acende o
+    sinal — quem decide isso é `domain.renda`, não a leitura.
+    """
+
+    def test_pj_hora_sem_aliquota_reserva_zero_e_acende_o_sinal(self, sessao):
+        from config import get_settings
+        from leitura import montar_entrada_caixa
+
+        tenant = "tenant-pj-sem-aliquota"
+        _fonte_persistida(sessao, tenant, tipo="pj_hora", valor_tipico_informado=600000)
+
+        caixa = calcular_caixa(montar_entrada_caixa(sessao, tenant, get_settings()))
+
+        # T2-AC2: o par obrigatório. Zero aqui NÃO é reserva, é "não sei ainda".
+        assert caixa.imposto_reservado == 0
+        assert caixa.imposto_nao_declarado is True
+
+    def test_pj_hora_com_aliquota_propria_nao_acende_o_sinal(self, sessao):
+        from config import get_settings
+        from leitura import montar_entrada_caixa
+
+        tenant = "tenant-pj-com-aliquota"
+        _fonte_persistida(
+            sessao, tenant, tipo="pj_hora", valor_tipico_informado=600000, imposto_bps=600
+        )
+
+        entrada = montar_entrada_caixa(sessao, tenant, get_settings())
+        assert entrada.imposto_nao_declarado is False
+
+    def test_pj_hora_com_fallback_do_perfil_nao_acende_o_sinal(self, sessao):
+        from config import get_settings
+        from leitura import montar_entrada_caixa
+
+        tenant = "tenant-pj-fallback"
+        _perfil_persistido(sessao, tenant, imposto_bps=600)
+        _fonte_persistida(sessao, tenant, tipo="pj_hora", valor_tipico_informado=600000)
+
+        entrada = montar_entrada_caixa(sessao, tenant, get_settings())
+        # O fallback do `Perfil` conta como alíquota: o sinal não acende.
+        assert entrada.imposto_nao_declarado is False
+
+    def test_aluguel_sem_aliquota_nao_acende_o_sinal(self, sessao):
+        # `aluguel` não reserva imposto, então a ausência de alíquota nela é o
+        # estado normal, não um alerta — o sinal é sobre `pj_hora`.
+        from config import get_settings
+        from leitura import montar_entrada_caixa
+
+        tenant = "tenant-aluguel-sem-aliquota"
+        _fonte_persistida(
+            sessao, tenant, nome="Aluguel", tipo="aluguel", valor_tipico_informado=400000
+        )
+
+        entrada = montar_entrada_caixa(sessao, tenant, get_settings())
+        assert entrada.imposto_nao_declarado is False
+
+
+class TestMesAncoraNaLeitura:
+    """
+    O mês âncora da renda típica viajando para a entrada (M12, ADR 0021, dec. 3).
+
+    A query passou a selecionar `(mes, valor)` (PF-3 do plano), e é o que permite
+    a tela dizer "dimensionado pelo pior mês, que foi março". Sem histórico
+    suficiente a origem é `informada` e não há mês âncora.
+    """
+
+    def _receber(self, sessao, tenant, fonte_id, mes, valor):
+        import orm
+
+        sessao.add(
+            orm.Recebimento(tenant_id=tenant, fonte_id=fonte_id, mes=mes, valor=valor)
+        )
+        sessao.commit()
+
+    def test_o_mes_do_pior_recebimento_chega_a_entrada(self, sessao):
+        from config import get_settings
+        from leitura import montar_entrada_caixa
+
+        tenant = "tenant-ancora"
+        fonte = _fonte_persistida(
+            sessao, tenant, tipo="autonomo", valor_tipico_informado=1200000
+        )
+        self._receber(sessao, tenant, fonte.id, "2026-01", 1150000)
+        self._receber(sessao, tenant, fonte.id, "2026-02", 980000)
+        self._receber(sessao, tenant, fonte.id, "2026-03", 1300000)
+
+        entrada = montar_entrada_caixa(sessao, tenant, get_settings())
+        assert entrada.origem_renda == "pior_mes_registrado"
+        assert entrada.mes_ancora_renda == "2026-02"
+
+    def test_sem_historico_suficiente_nao_ha_mes_ancora(self, sessao):
+        from config import get_settings
+        from leitura import montar_entrada_caixa
+
+        tenant = "tenant-informada"
+        fonte = _fonte_persistida(
+            sessao, tenant, tipo="autonomo", valor_tipico_informado=1200000
+        )
+        self._receber(sessao, tenant, fonte.id, "2026-01", 900000)
+        self._receber(sessao, tenant, fonte.id, "2026-02", 950000)
+
+        entrada = montar_entrada_caixa(sessao, tenant, get_settings())
+        assert entrada.origem_renda == "informada"
+        assert entrada.mes_ancora_renda is None
+
+    def test_um_mes_zerado_zera_so_a_fonte_dele_e_nao_as_outras(self, sessao):
+        # T2-AC6: a vacância de uma fonte é um recebimento zero, e a apuração por
+        # fonte impede que ela derrube a renda típica das outras.
+        from config import get_settings
+        from leitura import montar_entrada_caixa
+
+        tenant = "tenant-vacancia"
+        aluguel = _fonte_persistida(
+            sessao, tenant, nome="Aluguel", tipo="aluguel", valor_tipico_informado=400000
+        )
+        salario = _fonte_persistida(
+            sessao, tenant, nome="CLT", tipo="clt", valor_tipico_informado=500000
+        )
+        # Aluguel: três meses, um deles vago (zero) → pior mês é zero.
+        self._receber(sessao, tenant, aluguel.id, "2026-01", 300000)
+        self._receber(sessao, tenant, aluguel.id, "2026-02", 0)
+        self._receber(sessao, tenant, aluguel.id, "2026-03", 300000)
+        # CLT: três meses estáveis → pior mês é 500000, intacto.
+        self._receber(sessao, tenant, salario.id, "2026-01", 500000)
+        self._receber(sessao, tenant, salario.id, "2026-02", 500000)
+        self._receber(sessao, tenant, salario.id, "2026-03", 500000)
+
+        entrada = montar_entrada_caixa(sessao, tenant, get_settings())
+        # A fonte vaga foi a zero; a estável não. A bruta é 0 + 500000.
+        assert entrada.renda_bruta_tipica == 500000
 
 
 class TestEventoPrevisivelEntraSozinhoNaExclusao:

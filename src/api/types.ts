@@ -515,6 +515,28 @@ export interface Caixa {
    * mês passou da fatia, com piso em zero — já é o efetivo. Não recalcule.
    */
   respiroSaldoAcumulado: number | null;
+  /**
+   * F-011 (ADR 0021): `true` quando existe fonte `pj_hora` ativa que não reserva
+   * imposto — sem alíquota própria e sem `impostoBps` de perfil como fallback.
+   * Anda com `impostoReservado === 0`, e a tela diz "não está reservando
+   * imposto" em vez de exibir `R$ 0,00` (ADR 0009). Adicionado por T4; os demais
+   * campos do M12 na `Caixa` chegam em T5.
+   */
+  impostoNaoDeclarado?: boolean;
+  /**
+   * COMPROMISSO PERCENTUAL (F-011, ADR 0021, decisão 4). `compromissoPercentualBps`
+   * é a escolha do usuário em **bps** (`null` = nunca declarou; `0` é escolha
+   * legítima). `compromissoPercentual` é o que ela custa neste mês, em centavos,
+   * aplicado sobre a renda LÍQUIDA típica **no servidor** — o cliente exibe, não
+   * multiplica (guardrail 1.2). Entra na cascata na posição dos potes e do respiro.
+   */
+  compromissoPercentualBps?: number | null;
+  compromissoPercentual?: number | null;
+  /**
+   * O `AAAA-MM` do recebimento que ancorou a renda típica, ou `null` quando a
+   * origem é `informada`. A tela o usa para explicar por que a capacidade caiu.
+   */
+  mesAncoraRenda?: string | null;
   comprometidoDividas: number;
   /**
    * O que sobra sem mudar nada de vida. **Pode ser negativo**, e o negativo é a
@@ -555,6 +577,32 @@ export interface FonteRenda {
   variavel: boolean;
   /** Chave de liga/desliga: preserva o histórico sem entrar na conta. */
   ativo: boolean;
+  /**
+   * Alíquota por fonte, em **basis points** (F-011, ADR 0021). Ausente aplica o
+   * `impostoBps` do perfil como fallback, campo a campo como hoje — nenhum dado
+   * migra. A tela não estima: sem valor aqui e sem fallback, nada é reservado.
+   */
+  impostoBps?: number | null;
+  /** Dia do pagamento, 1–31 (F-011). Ausente = não informado. */
+  diaPagamento?: number | null;
+}
+
+export type TipoEventoPrevisivel = 'decimo_terceiro' | 'ferias' | 'outro';
+
+/**
+ * 13º, férias e o que mais cai uma vez por ano (F-011, ADR 0021, decisão 2).
+ * NÃO ENTRA NA CASCATA — é munição de negociação à vista. O `valor` é declarado
+ * pelo usuário, nunca projetado a partir da renda (ADR 0009).
+ */
+export interface EventoPrevisivel {
+  id: Uuid;
+  tipo: TipoEventoPrevisivel;
+  /** 1 a 12. */
+  mesPrevisto: number;
+  /** Em centavos. */
+  valor: number;
+  /** Opcional: a fonte de onde veio, quando o usuário tem mais de uma. */
+  fonteId?: Uuid | null;
 }
 
 export interface Recebimento {
@@ -597,6 +645,12 @@ export interface MetasCaixa {
   aposentadoriaAporte?: number | null;
   /** Ausente ⇒ nenhuma comparação dívida × investimento é exibida (ADR 0009). */
   rendimentoEsperadoBps?: number | null;
+  /**
+   * Pote percentual em **bps** (F-011, ADR 0021, decisão 4). Ausente = nunca
+   * declarou (cascata idêntica à de hoje); `0` é escolha legítima. Compromisso
+   * que empurre o mês abaixo do piso legal é recusado com `422` pelo servidor.
+   */
+  compromissoPercentualBps?: number | null;
 }
 
 /* --- Metas nomeadas (/v1/metas) --- */

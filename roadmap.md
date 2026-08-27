@@ -821,15 +821,18 @@ cede. Atinge a tela de revisão e o card `valor_justo` do chat.
 - [x] **A segunda aba troca na fase verde** com `href: null`, que tira da barra sem tirar da rota:
       `/dividas` continua alcançável e a tela de Metas oferece o caminho. Sem isso, quem quitasse
       tudo e contraísse dívida nova não teria como cadastrá-la.
-- [ ] **F-011** · `fonte_renda` ganha `tipo` (`clt` · `pj_hora` · `autonomo`), com a UX dedicada de
-      cada um — 13º e férias no CLT, taxa × horas menos imposto no PJ, renda típica no autônomo.
-      **O campo já existe** e não faz nada: é coluna desde a migração do M7, validada em seis
-      valores, e nenhuma regra de domínio a consulta. O trabalho é dar efeito a dado que usuários
-      já preencheram — o que muda o plano de quem já usa o app, retroativamente. `beneficio`,
-      `aluguel` e `outro` também ganham UX, por decisão de 20/08/2026.
-- [ ] **F-011** · Compromisso **percentual** para renda variável, no lugar de valor fixo. Incide
-      sobre a renda típica e sai antes de `capacidade_maxima`, junto aos potes (decisão de
-      20/08/2026) — logo, ação a distância nos mesmos três consumidores do M11.
+- [x] **F-011** · `fonte_renda.tipo` ganha efeito de domínio para os **seis** valores (`clt` ·
+      `pj_hora` · `autonomo` · `beneficio` · `aluguel` · `outro`), num **formulário que se adapta**
+      ao tipo, não seis fluxos (decisão de 20/08/2026). 13º e férias como evento previsível fora da
+      cascata no CLT; alíquota × renda menos imposto no PJ, com "não está reservando imposto" quando
+      não há alíquota; renda típica no autônomo; dia de pagamento no benefício; vacância no aluguel;
+      genérico declarado no `outro`. O campo era coluna inerte desde o M7 — o trabalho deu efeito a
+      dado que usuários já preencheram. Código fechado em 27/08/2026 (T1–T6); **aguarda device**.
+- [x] **F-011** · Compromisso **percentual** para renda variável, no lugar de valor fixo. Incide
+      sobre a renda **líquida** típica e sai antes de `capacidade_maxima`, junto aos potes e ao
+      respiro (Nota de desempate da ADR 0021). Alíquota desce para a fonte com o perfil de fallback;
+      nada migra. Card de dois estados no Caixa e a renda típica dizendo qual mês a ancorou.
+      **Ver "Mudança de comportamento a declarar" abaixo.**
 - [ ] **F-012** · `script` ganha as **três variantes de canal** (`telefone` · `chat` · `email`),
       mesmo motor de valor justo, formatos diferentes. Ver `domain.md`, verbete `canal`. Barato do
       jeito certo: `montar_script` é template curado, sem LLM, por guardrail.
@@ -842,6 +845,25 @@ cede. Atinge a tela de revisão e o card `valor_justo` do chat.
       dia 1** é o que constrói o benchmark de desconto por credor, que é o maior ativo competitivo
       do produto. Hoje `orm.Renegociacao` é grava-e-esquece: **nenhum `GET` a devolve**, e ela só
       nasce quando houve acordo — recusa e silêncio do credor não cabem nela.
+
+**Baseline de entrada do F-011** (medido em 27/08/2026, em `main`, antes da feature): 46 suítes /
+541 Jest e 662 pytest. **Saída medida no fechamento do F-011:** 48 suítes / 589 Jest e 698 pytest
+(SQLite, o padrão da suíte). A execução foi em Python 3.12 via `uv` — o `python3` do sistema é 3.9,
+abaixo do exigido pelo `requirements.txt`; `pysqlite3` (que não compila ali) não é importado por
+teste nenhum, e o dialeto `sqlite+pysqlite` usa o `sqlite3` da stdlib. Postgres **não** foi rodado
+nesta worktree, e continua sendo gate de release.
+
+**Mudança de comportamento a declarar (F-011):** compromisso percentual declarado faz
+`capacidade_maxima` cair, e com ela **quatro consumidores mudam de número sem que nenhum deles tenha
+sido tocado** — o simulador (`routers/simulacoes._validar_aporte`), o painel (`margemDisponivel`),
+o card `plano_sugerido` do chat e a **oferta do script de negociação**
+(`revisao._capacidade_para_oferta`, o quarto consumidor achado no planejamento). Os quatro leem
+`leitura.capacidade_atual`, e por isso a mudança não aparece no diff dos quatro arquivos;
+`TestCompromissoNosQuatroConsumidores`, em `backend/tests/test_caixa_integracao.py`, é o teste que a
+torna visível. Além disso, **dar efeito ao `tipo`** muda o plano de quem já escolheu um tipo sem que
+a escolha tivesse consequência — retroativamente. `nao_fecha` passa a disparar mais, e **está
+correto**. Quem não declarou compromisso nem alíquota por fonte tem os quatro números idênticos aos
+de antes do F-011, e há teste de regressão dos dois lados.
 
 ## M13 — Entrada pelo alívio — parcialmente entregue
 

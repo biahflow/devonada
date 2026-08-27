@@ -49,10 +49,39 @@ repositório; não declara ausência de bugs, dívida técnica ou validação pe
 - Gates humanos de produção, banco, segurança, arquitetura e validação em device preservados.
 - Nenhum artefato de usuário de origem desconhecida foi alterado durante a adoção.
 
+## Baseline de validação — 27/08/2026 (fechamento do F-011)
+
+Medida no fechamento do F-011 (renda tipada e compromisso percentual, T1–T6), executada na worktree
+da feature, com a árvore incluindo as suítes das próprias tarefas. **É esta linha que vale como
+baseline do próximo trabalho.**
+
+| Perfil | Resultado |
+|---|---|
+| `npm run typecheck` | passou |
+| `npm run lint` | passou |
+| `npm test` (jest, `--forceExit`) | **48 suítes / 589 testes** passaram |
+| `npm run bundle:check` | passou |
+| `npm run palette:check` | passou — nenhum token de cor tocado no F-011 |
+| `npm run digits:check` | passou — nenhuma fonte tocada |
+| `backend/venv/bin/pytest` | **698 testes** passaram em SQLite, com **27 avisos** |
+
+Baseline de ENTRADA do F-011 (em `main`, antes da feature, medido em 27/08/2026): **46 suítes / 541
+Jest** e **662 pytest**. A feature acrescentou **2 suítes e 48 testes Jest** (`renda.test.tsx` e
+`renda-tipada-copy.test.tsx`) e **36 pytest**. Os avisos do pytest foram de 23 para 27 sem classe
+nova: são quatro ocorrências a mais do `HTTP_422_UNPROCESSABLE_ENTITY` depreciado, emitidas pelo
+`422` novo de `PUT /v1/caixa/metas` — o contrato mandava copiar o registro exato do respiro, que usa
+essa constante.
+
+**Nota de ambiente:** o `python3` do sistema é 3.9, abaixo do que o `requirements.txt` exige (≥3.10),
+e o `pysqlite3==0.6.0` não compila contra o SQLite dessa máquina. O venv foi criado com Python 3.12
+via `uv`, e `pysqlite3` foi omitido da instalação — ele não é importado por teste nenhum, e o
+dialeto `sqlite+pysqlite` usa o `sqlite3` da stdlib. `requirements.txt` **não** foi modificado.
+Postgres **não** foi executado nesta worktree; continua obrigatório antes do release.
+
 ## Baseline de validação — 20/08/2026
 
 Medida no fechamento do M11 (F-010, T8), com a árvore em `main` e as duas suítes de teste da
-própria T8 já dentro do número. É esta linha que vale como baseline do próximo milestone.
+própria T8 já dentro do número. Baseline histórica; a linha vigente é a de 27/08/2026 acima.
 
 **Remedida em 20/08/2026 ao planejar F-011 e F-012**, com a árvore limpa em `38a69d3`: `npx jest`
 deu **45 suítes / 539 testes** e `venv/bin/pytest` deu **620 testes com 23 avisos** — idêntico à
