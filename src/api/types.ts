@@ -79,8 +79,8 @@ export interface ValorJustoCardData {
   credor: string;
   valorCobrado: number; // centavos
   valorJusto: number; // centavos, calculado no backend
-  /** mensagem pronta pra negociação (montada por template no backend) */
-  script: string;
+  /** script de negociação em blocos tipados por canal (montado no backend) */
+  script: ScriptNegociacao;
   /** fundamentos curados (ex.: artigos do CDC) — texto vindo do backend */
   fundamentos?: string[];
 }
@@ -451,11 +451,48 @@ export interface RevisaoCobranca {
   /** em centavos. Ausente = nenhum achado com valor. */
   valorJusto?: number | null;
   achados: Achado[];
-  /** mensagem de negociação montada por template no backend */
-  script?: string | null;
+  /**
+   * Script de negociação em blocos tipados por canal, montado por template no
+   * backend (M12). NÃO é mais nulável nem string: mesmo sem achado o backend
+   * devolve o script mínimo de segurança (alerta + regra de pagamento), porque
+   * validação de canal é proteção, não argumento (ADR 0021).
+   */
+  script: ScriptNegociacao;
   fundamentos: string[];
   /** data de vigência do teto que embasou algum achado (ISO). */
   baseLegalVigenteEm?: IsoDate | null;
+}
+
+/**
+ * Por onde a negociação acontece (M12). O MESMO motor de valor justo produz os
+ * três — muda o formato e o momento da oferta, nunca o número (docs/domain.md).
+ */
+export type Canal = 'telefone' | 'chat' | 'email';
+
+/**
+ * O momento de um bloco na conversa. A tela o usa para separar VISUALMENTE
+ * segurança (`abertura`/`fechamento`) de contestação (`argumento`) — texto de
+ * alerta e de argumento mal separados leem como "a dívida tem problema" quando
+ * ninguém disse isso.
+ */
+export type MomentoScript = 'abertura' | 'argumento' | 'oferta' | 'fechamento';
+
+/**
+ * Um bloco do script. `copiavel` é `true` só nos canais escritos, onde cada
+ * bloco tem botão de copiar próprio (guardrail 1.2).
+ */
+export interface BlocoScript {
+  id: string;
+  titulo?: string | null;
+  texto: string;
+  momento: MomentoScript;
+  copiavel: boolean;
+}
+
+/** O script inteiro de um canal: os blocos e o canal que os produziu. */
+export interface ScriptNegociacao {
+  canal: Canal;
+  blocos: BlocoScript[];
 }
 
 // --- Módulo de caixa (M7) ----------------------------------------------------

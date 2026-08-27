@@ -25,7 +25,10 @@ export function ValorJustoCard({ data }: { data: ValorJustoCardData }) {
   const economia = data.valorCobrado - data.valorJusto;
 
   async function copiarScript() {
-    await Clipboard.setStringAsync(data.script);
+    // O script virou blocos tipados por canal (M12). No chat o card mantém um
+    // copiar único — junta os blocos na ordem em que se mandam. A leitura bloco
+    // a bloco, com seletor de canal, mora na tela de revisão (ScriptCard).
+    await Clipboard.setStringAsync(data.script.blocos.map((b) => b.texto).join('\n\n'));
     setCopiado(true);
     setTimeout(() => setCopiado(false), 2000);
   }
