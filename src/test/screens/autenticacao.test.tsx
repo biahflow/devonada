@@ -1,3 +1,4 @@
+import { Linking } from 'react-native';
 import { screen, fireEvent, waitFor } from '@testing-library/react-native';
 import Login from '../../../app/(auth)/login';
 import Registro from '../../../app/(auth)/registro';
@@ -110,6 +111,30 @@ describe('Login', () => {
     // O botão continua tendo nome enquanto carrega — o spinner substitui o
     // texto, e sem `accessibilityLabel` ele ficaria mudo para o leitor de tela.
     await waitFor(() => expect(screen.getByRole('button', { name: 'Entrar com e-mail', busy: true })).toBeTruthy());
+  });
+
+  it('leva aos Termos e à Política quando as URLs existem', async () => {
+    // O `jest.setup.js` preenche as duas, como o `.env` faria. Sem elas a linha
+    // volta a ser texto — ver o teste seguinte.
+    const abrir = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+    renderizarTela(<Login />);
+
+    fireEvent.press(screen.getByRole('link', { name: 'Termos' }));
+    expect(abrir).toHaveBeenCalledWith('https://exemplo.test/termos');
+
+    fireEvent.press(screen.getByRole('link', { name: 'Política de Privacidade' }));
+    expect(abrir).toHaveBeenCalledWith('https://exemplo.test/privacidade');
+  });
+
+  it('a frase legal continua legível inteira, com ou sem link', () => {
+    // O texto não pode se perder na fatiação: quem lê precisa ver a frase, não
+    // três pedaços soltos.
+    renderizarTela(<Login />);
+    expect(
+      screen.getByText(/Ao continuar você aceita os/),
+    ).toBeTruthy();
+    expect(screen.getByText('Termos')).toBeTruthy();
+    expect(screen.getByText('Política de Privacidade')).toBeTruthy();
   });
 
   it('oferece os dois caminhos de quem não consegue entrar', () => {

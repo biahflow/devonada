@@ -65,7 +65,8 @@ identidade/     ÚNICO lugar que confere token de Sign in with Apple e Google Si
                 (M13, ADR 0023) — mesmo desenho: apple · google · memoria
 juridico/       o CORPUS: as normas que o produto cita, com id estável, e as
                 trilhas "como calculamos" (M14, ADR 0024). Dado curado, sem I/O
-web/            exclusao.html, a página pública servida em GET /exclusao
+web/            as páginas públicas: exclusao.html, termos.html, privacidade.html e a
+                folha compartilhada publico.css. Fora de /v1/, sem auth, fora do OpenAPI
 assistente/     o assistente do chat, sobre a camada llm/
 extracao/       base.py (Protocol) · regras.py (prompt) · extrator_llm.py · factory
 alembic/        migrations

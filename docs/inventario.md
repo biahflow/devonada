@@ -302,8 +302,8 @@ Deep link sempre por campo tipado, nunca por id extraído de texto.
 
 | Suíte | Números |
 |---|---|
-| Jest | **654 testes em 52 suítes**, verdes em 01/09/2026 na integração do F-017 (M14) com o F-016 já na `main` — número MEDIDO na árvore integrada, não somado; eram 643 / 51 no F-016 e 620 / 50 no F-015 (documento inline na fila + conserto do vínculo `extracaoId`); eram 611 / 50 no fechamento integrado do M13 (data de origem + F-013 + F-014) e 606 / 50 no M12. O processo **conclui a suíte e não encerra**, por handle aberto — a contagem sai antes disso, e `--forceExit` é o contorno. Há avisos de `act(...)` a investigar. |
-| pytest | **800 testes**, verdes em SQLite em 01/09/2026 na integração do F-017 (M14) com o F-016 já na `main` — número MEDIDO na árvore integrada, não somado; eram 773 no F-016, 733 no fechamento do M13 e 721 no M12; avisos são `HTTP_422_UNPROCESSABLE_ENTITY` depreciado, Starlette/httpx e `InsecureKeyLength` do JWT de teste — nenhuma classe nova. Rodado em Python 3.12 via `uv` (o `python3` do sistema é 3.9), sem `pysqlite3` (não é importado por teste; o dialeto `sqlite+pysqlite` usa o `sqlite3` da stdlib). A execução contra Postgres continua obrigatória antes de release e **não** foi feita aqui. |
+| Jest | **656 testes em 52 suítes**, verdes em 01/09/2026 no fechamento do F-018 (páginas legais); eram 654 / 52 na integração do F-017 com o F-016, número MEDIDO na árvore integrada e não somado; 643 / 51 no F-016 e 620 / 50 no F-015 (documento inline na fila + conserto do vínculo `extracaoId`); eram 611 / 50 no fechamento integrado do M13 (data de origem + F-013 + F-014) e 606 / 50 no M12. O processo **conclui a suíte e não encerra**, por handle aberto — a contagem sai antes disso, e `--forceExit` é o contorno. Há avisos de `act(...)` a investigar. |
+| pytest | **815 testes**, verdes em SQLite em 01/09/2026 no fechamento do F-018 (páginas legais); eram 800 na integração do F-017 com o F-016 (medido, não somado), 773 no F-016, 733 no fechamento do M13 e 721 no M12; avisos são `HTTP_422_UNPROCESSABLE_ENTITY` depreciado, Starlette/httpx e `InsecureKeyLength` do JWT de teste — nenhuma classe nova. Rodado em Python 3.12 via `uv` (o `python3` do sistema é 3.9), sem `pysqlite3` (não é importado por teste; o dialeto `sqlite+pysqlite` usa o `sqlite3` da stdlib). A execução contra Postgres continua obrigatória antes de release e **não** foi feita aqui. |
 
 Gates locais, **seis** desde 19/08/2026: `npm run typecheck`, `npm run lint`, `npm test`,
 `npm run bundle:check`, `npm run palette:check` e `npm run digits:check`, mais `pytest` no backend.
@@ -409,9 +409,15 @@ Estão aqui porque escondê-las inverteria o princípio do projeto. Íntegras em
     `DEVONADA_GOOGLE_CLIENT_IDS` e `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` precisam de conta na Apple
     Developer e projeto no Google Cloud. Vazias, os botões seguem desligados com a legenda e a rota
     recusa com `503`. **Nada disso foi validado em aparelho.**
-17. **A linha "Termos e Política de Privacidade" da tela de entrada é texto, não link.** Não há URL
-    dessas páginas em `src/config/env.ts`, `app.json` nem `.env.example`; a única página pública do
-    backend é `/exclusao`. Vira link quando as páginas existirem — é item de pré-lançamento.
+17. **~~A linha "Termos e Política de Privacidade" é texto, não link~~ — RESOLVIDO no F-018;
+    FALTA REVISÃO JURÍDICA E URL PÚBLICA.** As duas páginas existem em `GET /termos` e
+    `GET /privacidade`, no padrão da `/exclusao`, com conteúdo derivado do código — o levantamento
+    que o sustenta está em [`docs/legal/inventario-de-dados.md`](legal/inventario-de-dados.md). A
+    linha da tela de entrada virou link, e **volta a ser texto quando a URL não está configurada**:
+    um 404 de política na frente do revisor da loja é reprovação.
+    **O que falta é humano:** revisão por advogado (as páginas carregam faixa de minuta até lá, com
+    teste que confirma), hospedar em `devonada.com.br` e apontar o DNS — a mesma pendência que a
+    `/exclusao` já tinha.
 18. **Duas coisas chamadas "metas"** (ADR 0017): `/v1/caixa/metas` são os potes da cascata do
     fechamento; `/v1/metas` são as metas nomeadas da aba. Custo assumido de não migrar, porque
     mover os potes mudaria a capacidade de todo mundo em silêncio.

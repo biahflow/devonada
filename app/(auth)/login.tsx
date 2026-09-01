@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ScrollView, View, Text, StyleSheet } from 'react-native';
+import { Linking, ScrollView, View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Screen } from '../../src/components/ui/Screen';
 import { Brand } from '../../src/components/ui/Brand';
@@ -13,6 +13,7 @@ import { useEntrar, useEntrarComProvedor } from '../../src/hooks/useConta';
 import { ErroSocial, provedoresDisponiveis } from '../../src/social';
 import type { ProvedorSocial } from '../../src/api/types';
 import { ApiError } from '../../src/api/client';
+import { env } from '../../src/config/env';
 import { colors, spacing, typography } from '../../src/theme/theme';
 
 /**
@@ -192,12 +193,37 @@ export default function Login() {
 
         <NotaDePrivacidade />
 
-        {/* SEM LINK, de propósito: não existe URL de termos nem de política em
-            `src/config/env.ts`, `app.json` ou `.env.example` — a única página
-            pública do backend é `/exclusao`. Link que não vai a lugar nenhum é
-            pior que a frase sozinha. Vira link quando as páginas existirem. */}
+        {/* AS DUAS PÁGINAS EXISTEM DESDE O F-018, e a frase virou link — mas só
+            onde há para onde ir. Sem URL configurada, ela volta a ser texto:
+            link quebrado numa linha legal é pior que a frase sozinha, e um 404
+            de política de privacidade na frente do revisor da loja é
+            reprovação. */}
         <Text style={styles.legal}>
-          Ao continuar você aceita os Termos e a Política de Privacidade.
+          Ao continuar você aceita os{' '}
+          {env.urlTermos ? (
+            <Text
+              style={styles.legalLink}
+              accessibilityRole="link"
+              onPress={() => Linking.openURL(env.urlTermos)}
+            >
+              Termos
+            </Text>
+          ) : (
+            'Termos'
+          )}{' '}
+          e a{' '}
+          {env.urlPrivacidade ? (
+            <Text
+              style={styles.legalLink}
+              accessibilityRole="link"
+              onPress={() => Linking.openURL(env.urlPrivacidade)}
+            >
+              Política de Privacidade
+            </Text>
+          ) : (
+            'Política de Privacidade'
+          )}
+          .
         </Text>
       </ScrollView>
     </Screen>
@@ -238,4 +264,6 @@ const styles = StyleSheet.create({
   rodape: { gap: spacing.sm, marginTop: spacing.xl, alignItems: 'stretch' },
   explicacao: { ...typography.caption, color: colors.inkSoft, textAlign: 'center' },
   legal: { ...typography.caption, color: colors.inkSoft, textAlign: 'center', lineHeight: 18 },
+  // `primary` sobre `background` é o par de link já declarado no gate de paleta.
+  legalLink: { color: colors.primary },
 });

@@ -928,8 +928,15 @@ tem de vir antes do esforço. O M7 já tinha provado isso com o "Nível 0" do ca
       `DEVONADA_GOOGLE_CLIENT_IDS`, `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`) e a validação em aparelho —
       é gate humano, não trabalho pendente de código. Vazias, os botões continuam desligados com a
       legenda e a rota recusa com `503`.
-- [ ] **Páginas de Termos e Política de Privacidade.** A linha legal da tela de entrada é texto sem
-      link porque as URLs não existem. Item de pré-lançamento, não polimento: as duas lojas pedem.
+- [x] **Páginas de Termos e Política de Privacidade** (F-018). As duas existem em
+      `GET /termos` e `GET /privacidade`, no mesmo padrão da `/exclusao`, e a linha legal da tela de
+      entrada virou link — **só onde há URL configurada**: vazia, ela volta a ser texto, porque um
+      404 de política na frente do revisor da loja é reprovação.
+      O conteúdo foi **derivado do código**, não de modelo genérico: cada afirmação corresponde a
+      uma coluna de `orm.py`, a uma rota ou a um guardrail com teste — inclusive a divulgação de
+      que o documento enviado vai a um provedor de IA, que era item separado desta lista.
+      **As duas carregam faixa de MINUTA até a revisão por advogado**, e há teste que confirma que
+      ela continua lá. Falta hospedar em `devonada.com.br` e apontar o DNS.
 - [x] Extração de **boleto, carta e print de cobrança** (F-013) — a rota `POST /v1/contratos`
       passou a receber `tipo` no multipart (default `contrato`, retrocompatível), e a camada de
       extração roteia prompt e schema por tipo: `CamposBoleto`, `CamposCartaCobranca` e
@@ -1021,14 +1028,20 @@ claro e nenhum bloqueia o lançamento:
 
 **Declarações — nenhuma escrita.**
 
-- [ ] Política de privacidade com URL pública.
-- [ ] *App Privacy* (Apple) e *Data safety* (Google) preenchidos. Renda, gastos, dívidas e o
-      contrato são o dado mais sensível do produto, e declarar errado é motivo comum de remoção.
+- [~] Política de privacidade **escrita** (F-018), servida em `GET /privacidade`. Falta a
+      **revisão por advogado** — a página carrega faixa de minuta até lá — e a **URL pública**, que
+      depende de hospedar a API e apontar o DNS, exatamente como a `/exclusao`.
+- [~] *App Privacy* (Apple) e *Data safety* (Google): o **guia de preenchimento** está em
+      [`docs/legal/inventario-de-dados.md`](docs/legal/inventario-de-dados.md), seção 6 — cada dado
+      do app mapeado para a categoria exata dos dois formulários, com a resposta sugerida e de onde
+      ela sai no código. Preencher continua sendo trabalho humano, no console de cada loja.
+      Renda, gastos, dívidas e o contrato são o dado mais sensível do produto, e declarar errado é
+      motivo comum de remoção.
 - [ ] Declaração de recursos financeiros no Play Console. O app não empresta, mas administra
       dívida — essa seção do formulário precisa ser lida com atenção.
-- [ ] Divulgar que o contrato é enviado a um provedor de LLM. A ADR 0005 e o guardrail 8 já
-      sustentam o texto: o arquivo é **descartado** após a extração. O PDF pode conter CPF e
-      dados de terceiros, e isso precisa estar dito.
+- [x] **Divulgar que o contrato é enviado a um provedor de LLM** — dito com todas as letras na
+      Política de Privacidade (F-018), com o caminho de saída para quem preferir não correr esse
+      risco: cadastrar a dívida pelo valor. Há teste que falha se a frase sumir.
 - [~] **Caixa de e-mail `contato@devonada.com.br` funcionando.** O domínio foi definido em
       20/08/2026 e o endereço já está na página pública `GET /exclusao`, no lugar do da marca
       anterior (ADR 0020, item 3). **O que falta é a caixa existir e alguém

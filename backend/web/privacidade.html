@@ -1,0 +1,223 @@
+<!doctype html>
+<!--
+  MINUTA. O bloco `.minuta` logo abaixo do <main> existe para impedir que este
+  texto seja lido como documento final antes da revisão por advogado, que o
+  roadmap.md lista como gate de pré-lançamento. DEPOIS DA REVISÃO, apague o
+  bloco inteiro (ele está marcado com um comentário) e atualize a data no rodapé.
+
+  O CONTEÚDO FOI DERIVADO DO CÓDIGO, não de um modelo genérico de política: cada
+  afirmação daqui corresponde a uma coluna de `backend/orm.py`, a uma rota, ou a
+  um guardrail com teste. O levantamento está em docs/legal/inventario-de-dados.md,
+  e é ele que deve ser conferido junto quando esta página mudar.
+-->
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Política de Privacidade — devo.nada</title>
+    <link rel="stylesheet" href="/publico.css" />
+  </head>
+  <body>
+    <main>
+      <p class="rotulo">devo.nada</p>
+      <h1>Política de Privacidade</h1>
+
+      <!-- APAGUE ESTE BLOCO DEPOIS DA REVISÃO JURÍDICA -->
+      <div class="minuta">
+        <strong>Minuta pendente de revisão jurídica.</strong> Este texto foi redigido a partir do
+        funcionamento real do aplicativo, mas ainda não foi revisado por advogado. Não o publique
+        como documento final antes disso.
+      </div>
+      <!-- FIM DO BLOCO A APAGAR -->
+
+      <p>
+        O devo.nada ajuda você a organizar dívidas. Para isso, precisamos guardar o que você nos
+        conta. Esta página explica exatamente o quê, por quê, por quanto tempo e quem mais vê.
+      </p>
+      <p class="discreto">
+        Escrevemos em português comum de propósito. Onde a lei exige um termo técnico, ele está
+        entre parênteses.
+      </p>
+
+      <h2>Quem é responsável pelos seus dados</h2>
+      <p>
+        O devo.nada é o controlador dos dados descritos aqui. Para qualquer assunto desta política —
+        acesso, correção, exclusão ou dúvida —, escreva para
+        <a href="mailto:contato@devonada.com.br">contato@devonada.com.br</a>. Respondemos em até
+        30 dias.
+      </p>
+
+      <h2>O que guardamos, e por quê</h2>
+
+      <h3>Para você entrar na sua conta</h3>
+      <ul>
+        <li><strong>Seu e-mail.</strong> É como identificamos sua conta e como enviamos o código
+          quando você esquece a senha.</li>
+        <li><strong>Sua senha, sempre embaralhada.</strong> Guardamos um resumo criptográfico
+          (<em>hash</em> bcrypt), nunca a senha em si. Ninguém no devo.nada consegue lê-la — nem nós.</li>
+        <li><strong>Se você entrou pela Apple ou pelo Google:</strong> o identificador que o
+          provedor nos dá para reconhecer você, e o e-mail que ele informa. Nada além disso —
+          não pedimos nem guardamos seu nome nem sua foto.</li>
+        <li><strong>Suas sessões abertas</strong> e quantas tentativas de senha falharam
+          seguidas, para bloquear temporariamente quem estiver tentando adivinhar.</li>
+      </ul>
+
+      <h3>Para o aplicativo fazer o que promete</h3>
+      <ul>
+        <li><strong>Suas dívidas:</strong> credor, valor cobrado, quando começou, tipo, juros,
+          parcelas, e o que você já pagou.</li>
+        <li><strong>Suas renegociações e o resultado das conversas</strong> com credores —
+          inclusive quando não houve acordo, porque é isso que permite mostrar o que costuma
+          funcionar.</li>
+        <li><strong>Seu caixa:</strong> de onde vem sua renda e quanto, seus gastos, provisões,
+          metas, o fechamento de cada mês e quantas pessoas dependem de você.</li>
+        <li><strong>Sua conversa com o assistente</strong>, inteira, para que ela continue de onde
+          parou quando você voltar.</li>
+        <li><strong>O que foi lido dos documentos que você enviou</strong> — os campos extraídos e
+          os trechos curtos que comprovam cada um. <strong>O arquivo em si não é guardado</strong>;
+          veja a seção sobre ele abaixo.</li>
+      </ul>
+
+      <h3>Para a assinatura funcionar</h3>
+      <ul>
+        <li>O identificador da compra que a App Store ou o Google Play nos devolve, o produto
+          assinado e até quando ele vale. <strong>Não recebemos nem guardamos dados do seu cartão</strong>
+          — quem cobra é a loja do seu celular, e o pagamento nunca passa por nós.</li>
+      </ul>
+
+      <h2>O que NÃO coletamos</h2>
+      <div class="cartao">
+        <ul>
+          <li>Não pedimos seu nome, seu CPF, seu telefone nem sua foto.</li>
+          <li>Não coletamos sua localização.</li>
+          <li>Não lemos sua agenda, seus contatos, suas fotos nem seus SMS.</li>
+          <li>Não temos rastreador de comportamento, ferramenta de análise de uso nem relatório
+            automático de falhas. O aplicativo não envia telemetria.</li>
+          <li>Não usamos identificadores de publicidade, e o aplicativo não tem anúncios.</li>
+          <li>Não nos conectamos ao seu banco e não lemos seu extrato. Tudo o que sabemos sobre
+            seu dinheiro é o que você digitou.</li>
+        </ul>
+      </div>
+
+      <h2>O documento que você envia é lido e descartado</h2>
+      <p>
+        Quando você manda um contrato, boleto, carta ou print de cobrança, o arquivo é enviado ao
+        nosso servidor, lido uma vez e <strong>descartado na mesma requisição</strong>. Ele não é
+        gravado em disco em momento nenhum e não fica em nenhuma cópia de segurança.
+      </p>
+      <p>
+        O que permanece é o resultado da leitura: os campos encontrados e os trechos curtos do
+        documento que comprovam cada um — é isso que permite mostrar a você de onde saiu cada
+        número, em vez de pedir que você acredite.
+      </p>
+      <p>
+        <strong>Para ler o documento, ele é enviado a um provedor de inteligência artificial</strong>
+        (hoje a OpenAI). Isso importa e por isso está dito com todas as letras: seu contrato pode
+        conter CPF, endereço e dados de outras pessoas. Se você preferir não correr esse caminho,
+        cadastre a dívida pelo valor — o aplicativo funciona sem o documento, com uma triagem mais
+        simples.
+      </p>
+
+      <h2>Quem mais vê seus dados</h2>
+      <p>Ninguém compra nem aluga seus dados. Nós não vendemos, não repassamos e não usamos seus
+        dados para oferecer crédito. Só compartilhamos o mínimo com quem é necessário para o
+        aplicativo funcionar:</p>
+      <table>
+        <thead>
+          <tr><th>Quem</th><th>O que recebe</th><th>Para quê</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Provedor de IA (OpenAI)</td>
+            <td>O arquivo que você envia, quando você envia um. E, na conversa com o assistente,
+              o texto que você escreve mais a <em>identificação</em> das suas dívidas (credor, tipo
+              e situação) — <strong>nunca os valores</strong>.</td>
+            <td>Ler o documento e conduzir a conversa</td>
+          </tr>
+          <tr>
+            <td>Apple e Google</td>
+            <td>O comprovante da sua assinatura, para conferirmos com a loja se ela está válida</td>
+            <td>Cobrança da assinatura</td>
+          </tr>
+          <tr>
+            <td>Serviço de e-mail</td>
+            <td>Seu e-mail e um código de seis dígitos</td>
+            <td>Recuperar sua senha</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="discreto">
+        O e-mail que enviamos leva <strong>o código e nada mais</strong>: nenhum valor, nenhum
+        credor, nenhum saldo. E-mail atravessa servidores que não controlamos e fica guardado em
+        caixas que não controlamos.
+      </p>
+
+      <h2>Por quanto tempo guardamos</h2>
+      <p>
+        Enquanto sua conta existir. <strong>Quando você exclui a conta, tudo é apagado de uma vez e
+        em definitivo</strong> — não fica cópia marcada como excluída, e não há período de
+        carência. A exclusão acontece dentro do aplicativo, sem precisar falar com ninguém, e está
+        explicada em <a href="/exclusao">devonada.com.br/exclusao</a>.
+      </p>
+      <p>
+        Uma dívida que você apaga dentro do aplicativo sai da sua lista mas permanece no seu
+        histórico, para que os totais dos meses anteriores não mudem depois de você já os ter visto.
+        Ela some junto com todo o resto quando você exclui a conta.
+      </p>
+
+      <h2>Como protegemos</h2>
+      <ul>
+        <li>Sua senha vira um <em>hash</em> bcrypt e nunca é armazenada nem trafegada em texto.</li>
+        <li>O acesso ao aplicativo usa um token de curta duração, renovado por um segundo token do
+          qual guardamos apenas o resumo criptográfico — o valor em si existe só no seu aparelho.</li>
+        <li>No celular, esses tokens ficam no armazenamento seguro do sistema operacional, nunca em
+          arquivo comum.</li>
+        <li>Trocar a senha encerra todas as sessões, em todos os aparelhos.</li>
+        <li>Valor, credor, e-mail e senha não aparecem em registro técnico (<em>log</em>) nenhum.</li>
+      </ul>
+      <p class="discreto">
+        Nenhum sistema é imune. O que podemos afirmar é o que está acima, e é verificável no código
+        do aplicativo.
+      </p>
+
+      <h2>Seus direitos</h2>
+      <p>A Lei Geral de Proteção de Dados (Lei 13.709/2018, art. 18) garante a você:</p>
+      <ul>
+        <li><strong>Saber o que temos sobre você</strong> — tudo o que guardamos está visível
+          dentro do próprio aplicativo, nas telas em que você o cadastrou.</li>
+        <li><strong>Corrigir</strong> qualquer dado, editando-o no aplicativo.</li>
+        <li><strong>Apagar tudo</strong>, a qualquer momento, sem justificar e sem falar com
+          ninguém.</li>
+        <li><strong>Saber com quem compartilhamos</strong> — é a tabela acima, e ela é a lista
+          completa.</li>
+      </ul>
+      <p>
+        <strong>Nada disso depende de assinatura em dia.</strong> Ver e apagar seus próprios dados
+        nunca é recurso pago, mesmo que o período de teste tenha acabado.
+      </p>
+
+      <h2>Crianças e adolescentes</h2>
+      <p>
+        O devo.nada é para maiores de 18 anos. Não coletamos conscientemente dados de menores de
+        idade; se isso acontecer, escreva para nós e apagamos.
+      </p>
+
+      <h2>Quando esta política mudar</h2>
+      <p>
+        Avisaremos dentro do aplicativo antes de qualquer mudança que amplie o que coletamos ou com
+        quem compartilhamos. A data da versão vigente fica no rodapé desta página.
+      </p>
+
+      <footer>
+        <p class="discreto">
+          Versão de 1º de setembro de 2026 · <a href="/termos">Termos de Uso</a> ·
+          <a href="/exclusao">Excluir sua conta</a>
+        </p>
+        <p class="discreto">
+          devo.nada — assistente de dívidas. Não somos instituição financeira: o aplicativo
+          não empresta dinheiro, não intermedeia crédito e não guarda dinheiro de ninguém.
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>

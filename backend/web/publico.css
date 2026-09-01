@@ -1,0 +1,95 @@
+/*
+ * Estilo das páginas públicas do devo.nada — /exclusao, /termos e /privacidade.
+ *
+ * EXTRAÍDO QUANDO A TERCEIRA PÁGINA NASCEU. Com uma, o `<style>` embutido era o
+ * certo; com três, são três cópias dos mesmos tokens, e a que ninguém atualizar
+ * fica com outra cor de fundo que a irmã. Estas páginas são lidas por revisor de
+ * loja e por quem perdeu acesso à conta — divergir de aparência entre elas é
+ * exatamente o tipo de detalhe que levanta pergunta.
+ *
+ * Paleta CLARA, e não a do app. Estas páginas são web e são lidas em navegador,
+ * muitas vezes num link mandado por e-mail; a interface escura do produto
+ * (ADR 0015) não se aplica aqui.
+ *
+ * Sem fonte remota de propósito: uma página legal precisa abrir com a conexão
+ * ruim de quem está tentando resolver um problema.
+ */
+
+:root {
+  color-scheme: light;
+  --tinta: #1c2b2a;
+  --tinta-suave: #55635f;
+  --fundo: #faf7f2;
+  --papel: #ffffff;
+  --borda: #e6e0d6;
+  --pine: #1f4c43;
+  --aviso-fundo: #fff8e6;
+  --aviso-borda: #e8d9a8;
+  --aviso-tinta: #6b5310;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 2.5rem 1.25rem 4rem;
+  background: var(--fundo);
+  color: var(--tinta);
+  font-family: "Nunito Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.6;
+}
+
+main { max-width: 40rem; margin: 0 auto; }
+
+.rotulo {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--pine);
+  margin: 0 0 0.5rem;
+}
+
+h1 { font-size: 1.9rem; line-height: 1.25; margin: 0 0 0.75rem; }
+h2 { font-size: 1.15rem; margin: 2rem 0 0.5rem; }
+h3 { font-size: 1rem; margin: 1.5rem 0 0.4rem; }
+
+.cartao {
+  background: var(--papel);
+  border: 1px solid var(--borda);
+  border-radius: 14px;
+  padding: 1.25rem 1.4rem;
+  margin: 1.5rem 0;
+}
+
+ol, ul { padding-left: 1.25rem; }
+li { margin: 0.35rem 0; }
+.discreto { color: var(--tinta-suave); font-size: 0.9rem; }
+a { color: var(--pine); }
+
+footer {
+  margin-top: 2.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--borda);
+}
+
+/*
+ * Faixa de MINUTA. Ela existe para impedir que um texto não revisado por
+ * advogado seja lido como documento final — e some com uma linha, no dia em que
+ * a revisão acontecer. Ver o comentário no topo de cada página.
+ */
+.minuta {
+  background: var(--aviso-fundo);
+  border: 1px solid var(--aviso-borda);
+  border-radius: 14px;
+  padding: 1rem 1.2rem;
+  margin: 0 0 2rem;
+  color: var(--aviso-tinta);
+  font-size: 0.92rem;
+}
+
+.minuta strong { color: var(--aviso-tinta); }
+
+table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.92rem; }
+th, td { border: 1px solid var(--borda); padding: 0.5rem 0.6rem; text-align: left; vertical-align: top; }
+th { background: var(--papel); font-weight: 700; }
