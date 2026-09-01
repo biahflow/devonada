@@ -104,7 +104,35 @@ describe('Disclosure "como calculamos"', () => {
     // A VIGÊNCIA JUNTO DO LINK: é ela que diz a idade do fundamento. O mínimo
     // existencial já foi 25% do salário mínimo, e a redação velha custava
     // R$ 220,50 de piso a quem estava negociando.
-    expect(screen.getByText(/vigente desde 2023-06-19/)).toBeTruthy();
+    expect(screen.getByText(/vigente desde 19\/06\/2023/)).toBeTruthy();
+  });
+
+  it('fonte sem data fixa mostra a frase inteira, sem "vigente desde" grudado', async () => {
+    // O teto do consignado não tem data no texto da norma — ele vem de config
+    // datada. Concatenar o prefixo produziria "vigente desde ver tetosVigentesEm
+    // na resposta da revisão" na cara do usuário.
+    const semData: FonteJuridica = {
+      id: 'cnps-teto-consignado',
+      norma: 'Conselho Nacional de Previdência Social',
+      dispositivo: 'Resolução vigente sobre o teto de juros do consignado do INSS',
+      ementa: 'O CNPS fixa o teto e o revê periodicamente.',
+      vigencia: 'ver `tetosVigentesEm` na resposta da revisão',
+      url: 'https://www.gov.br/exemplo',
+    };
+    responderPorRota({
+      '/v1/juridico/fontes': { fontes: [semData] },
+      '/v1/caixa': {
+        caixa: umCaixa({
+          trilhas: [{ ...TRILHA_CAPACIDADE, fonteIds: ['cnps-teto-consignado'] }],
+        }),
+      },
+    });
+    renderizarTela(<CaixaScreen />);
+
+    fireEvent.press((await screen.findAllByRole('button', { name: /Como chegamos/ }))[0]!);
+
+    expect(await screen.findByText(/ver `tetosVigentesEm` na resposta da revisão/)).toBeTruthy();
+    expect(screen.queryByText(/vigente desde ver/)).toBeNull();
   });
 
   it('sem o corpus, o número continua na tela e a fonte apenas não aparece', async () => {

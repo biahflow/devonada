@@ -1135,6 +1135,12 @@ cenário.
    fazem o certo — citar fonte, nunca afirmar ilegalidade, não redigir petição, disclaimer no
    card, teste que quebra em "ilegal" e "é seu direito". É o único item da lista que pode
    **encerrar** o produto em vez de atrasar um release.
+   **O pacote está pronto:** [`docs/legal/pacote-de-revisao-juridica.md`](docs/legal/pacote-de-revisao-juridica.md)
+   traz todo o texto jurídico que o produto exibe — 15 normas, 4 trilhas e as duas páginas
+   públicas —, onde cada trecho aparece, e **sete perguntas de resposta curta**. Uma passada de
+   conferência de citação já foi feita antes de mandar: ela achou e corrigiu três erros (a Súmula
+   566 citando a norma da 539, e duas datas de vigência que eram a data da lei), e deixou dois
+   pontos como pergunta. Conferir citação **não é** revisar juridicamente.
 2. **Publicar sob CNPJ**, não conta pessoal.
 
 E um risco que não é técnico e merece ser dito: **o que decide este lançamento não é o roadmap, é

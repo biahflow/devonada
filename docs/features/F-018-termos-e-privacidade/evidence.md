@@ -13,11 +13,11 @@ suítes** e **800 pytest**, todos verdes. Nenhuma falha pré-existente, nenhuma 
 |---|---|---|
 | typecheck | `npm run typecheck` | passa |
 | lint | `npm run lint` | passa |
-| test | `npm test -- --forceExit` | **656 testes em 52 suítes** (era 654/52) |
+| test | `npm test -- --forceExit` | **657 testes em 52 suítes** (era 654/52) |
 | bundle | `npm run bundle:check` | passa |
 | palette | `npm run palette:check` | passa — o link legal usa `primary` sobre `background`, par já declarado |
 | digits | `npm run digits:check` | passa |
-| pytest | `pytest backend -q` | **815 testes** (era 800) |
+| pytest | `pytest backend -q` | **819 testes** (era 800) |
 
 ## Testes novos
 
@@ -61,6 +61,40 @@ site ao endereço do servidor, que muda.
   respondem, se apontam e dizem o que precisam dizer — não que estão bonitas ou bem quebradas em
   telas estreitas.
 - **O texto não foi revisado por advogado**, e é por isso que a faixa de minuta existe.
+
+## Passada de conferência de citação — e os três erros que ela achou
+
+Antes de declarar o item pronto para o advogado, cada uma das 15 citações do corpus foi conferida
+**contra a fonte que ela alega**, com busca na web. Não é revisão jurídica — quem conferiu não é
+advogado, e o que foi checado é se a citação corresponde à norma, não se o uso dela está correto.
+
+**Três erros confirmados e corrigidos, todos travados por teste:**
+
+1. **A ementa da Súmula 566/STJ citava a MP 1.963-17/2000.** Essa é a norma da **Súmula 539**
+   (capitalização de juros); a 566 trata da **Resolução-CMN 3.518/2007**, vigente desde 30/04/2008.
+   Era informação jurídica errada exibida na tela.
+2. **Os dispositivos originais do CDC declaravam vigência 11/09/1990** — a data da *lei*. O CDC só
+   entrou em vigor em **11/03/1991**, porque o art. 118 lhe deu 180 dias de vacatio. A tela dizia
+   "vigente desde 1990" para um código que ainda não valia naquela data.
+3. **As seis entradas da Lei 14.181/2021 traziam 01/07/2021**, de novo a data da lei; a publicação
+   no DOU foi em **02/07/2021**.
+
+**Uma armadilha de renderização, corrigida junto:** `cnps-teto-consignado` tem uma *frase* no campo
+de vigência — o teto vem de config datada, não do texto da norma —, e a tela concatenava "vigente
+desde " com ela. Hoje nenhuma trilha a cita, então não aparecia; era defeito esperando. A tela
+passou a usar o prefixo só quando o valor é data (e a formatar a data em BR), e o backend declara a
+exceção em `SEM_DATA_FIXA`, com teste dos dois lados.
+
+**Dois pontos não puderam ser verificados** e viraram pergunta objetiva no pacote: o número do
+artigo do Decreto 11.150 que trata das exclusões, e a tese do Tema 972/STJ. O Planalto recusou as
+requisições, e nenhuma fonte alternativa trouxe o texto literal.
+
+## O pacote de revisão
+
+`docs/legal/pacote-de-revisao-juridica.md` é a tarefa inteira para quem for revisar: todo o texto
+jurídico que o produto exibe — 15 normas com a paráfrase que o usuário lê, 4 trilhas com as
+limitações declaradas, e as duas páginas —, onde cada trecho aparece, e **sete perguntas de
+resposta curta**. Não é preciso ler código.
 
 ## Aprovações humanas ainda necessárias
 
