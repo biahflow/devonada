@@ -970,6 +970,39 @@ demais recebem um UUID novo. Nada disso é visível no contrato — é comportam
 A indistinguibilidade do `401` é requisito, não detalhe de implementação: mensagens diferentes
 transformariam a rota num verificador de cadastro.
 
+#### `POST /v1/auth/social`
+
+```json
+{ "provedor": "apple", "token": "eyJraWQiOi..." }
+```
+
+`200` com o corpo de sessão. **Entrar e cadastrar pela mesma rota** — do lado de quem toca no botão
+não existem dois atos, e uma rota de "cadastro social" separada obrigaria o app a adivinhar, antes
+de perguntar ao servidor, se a pessoa já tem conta.
+
+`token` é o **ID token do provedor**, e nada mais. O app não manda e-mail, nome nem `sub` ao lado:
+tudo isso está dentro do token, assinado, e o servidor ignora o que vier por fora (guardrail 1).
+
+| Status | Quando |
+|---|---|
+| `401` | token recusado — assinatura, `iss`, `aud` ou `exp`; ou o provedor não entregou e-mail verificado |
+| `409` | o e-mail já tem conta **com senha** — a `message` manda entrar por e-mail e senha |
+| `422` | `provedor` fora de `apple` / `google` |
+| `503` | o servidor não tem a audiência daquele provedor configurada |
+
+**A conta é `(provedor, sub)`, nunca o e-mail** (ADR 0023). Quando o `sub` é desconhecido e o
+provedor afirma ter verificado o e-mail: conta com senha devolve `409`; conta **sem** senha é
+religada ao novo provedor; nenhuma conta, cria — sem senha. O `409` fecha o *pre-hijacking*: este
+servidor não verifica e-mail no cadastro, e ligar por coincidência de e-mail entregaria a conta
+plantada por um terceiro. Nada disso é visível no contrato — é comportamento de servidor.
+
+**A trava de força bruta do login não se aplica aqui**, e entrar por esta rota zera o contador: ela
+existe contra quem chuta senha, e quem chega com token assinado provou identidade por outro caminho.
+
+**Conta social não entra por senha.** `POST /v1/auth/login` para uma conta sem `senha_hash` devolve
+o mesmo `401`, com a mesma frase e o mesmo tempo do e-mail inexistente — a verificação roda contra o
+hash falso. Distinguir contaria por onde cada conta entra.
+
 #### `POST /v1/auth/refresh`
 
 ```json
@@ -1026,8 +1059,28 @@ acesso ao e-mail.
 { "senha": "uma senha boa" }
 ```
 
-`204`. Autenticada, **e** reconfirmando a senha: exclusão é irreversível, e um celular desbloqueado
-esquecido na mesa não pode apagar a vida financeira de alguém em dois toques.
+ou, para conta que entrou por provedor e **não tem senha** (ADR 0023):
+
+```json
+{ "provedor": "apple", "token": "eyJraWQiOi..." }
+```
+
+`204`. Autenticada, **e** reconfirmando a credencial que a conta tem: exclusão é irreversível, e um
+celular desbloqueado esquecido na mesa não pode apagar a vida financeira de alguém em dois toques.
+
+**Serve qualquer credencial que aquela conta comprovadamente tem** — a senha, se ela tem senha; o
+provedor, se ela tem provedor. Quem decide é o servidor. O `sub` do token precisa ser o **mesmo**
+gravado na conta (`401` com "Essa não é a conta que está aberta aqui"); sem essa comparação, alguém
+com o aparelho na mão entraria na própria conta do provedor e apagaria a de outra pessoa. Conta
+nascida de e-mail e senha não tem provedor, então token social nela é recusado com `401` mesmo sendo
+válido.
+
+Aceitar só uma das duas criaria beco sem saída pelo caminho normal: quem entra pela Apple e depois
+ganha senha pela recuperação por e-mail passa a ter as duas, e a tela — que sabe que a sessão veio
+da Apple — ofereceria o botão do provedor contra um servidor que só aceita senha.
+
+Exigir senha de quem nunca escolheu uma deixaria essa pessoa sem como excluir a conta — o que
+reprova na diretriz 5.1.1(v) da Apple, que é a diretriz que esta rota existe para cumprir.
 
 Apaga **fisicamente**, numa transação, todas as linhas do tenant em todas as tabelas, mais o
 usuário, as sessões e os códigos de recuperação. É o oposto da regra de `divida`, e pelo motivo
@@ -1611,6 +1664,10 @@ e dois deles são código.*
 
 - [~] `usuario`, `sessao` e `codigo_recuperacao` — migration `a71d4e9c05b2`, exercitada em
       Postgres com `upgrade`, `downgrade` e `upgrade` de novo
+- [~] `POST /v1/auth/social` — Sign in with Apple e Google Sign-In (M13, ADR 0023). Camada de
+      identidade plugável em `backend/identidade/` (`apple` · `google` · `memoria`), no padrão da
+      loja; a conta é `(provedor, sub)`; audiência vazia recusa com `503` em vez de aceitar
+      qualquer uma. **Falta credencial real nas duas plataformas** — é gate humano.
 - [~] `POST /v1/auth/registro` · `/login` · `/refresh` · `/logout` — JWT de 15 min mais refresh
       opaco rotacionado a cada uso (ADR 0012)
 - [~] `POST /v1/auth/senha/recuperacao` · `/senha/redefinicao` — código de 6 dígitos por e-mail,

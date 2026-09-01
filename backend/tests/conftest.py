@@ -40,6 +40,15 @@ os.environ["DEVONADA_ASSISTENTE"] = "determinista"
 # existiam. Quem quer o outro lado usa a fixture `assinatura_vencida`.
 os.environ["DEVONADA_LOJA"] = "memoria"
 
+# O LOGIN SOCIAL TAMBÉM NÃO TOCA A REDE. O adaptador de memória confere um token
+# que descreve a si mesmo, então dá para exercitar primeiro login, login
+# repetido, reconhecimento de conta e recusa sem conta na Apple Developer nem
+# projeto no Google Cloud — e sem mock, que provaria menos e quebraria mais.
+#
+# NENHUM TESTE ANTERIOR MUDA POR CAUSA DISTO. A fixture `auth` continua criando
+# a conta pela rota de e-mail e senha; quem quer o outro lado usa `social`.
+os.environ["DEVONADA_IDENTIDADE"] = "memoria"
+
 # NENHUM TESTE TOCA A REDE. Variável de ambiente vence o `.env` no
 # pydantic-settings, então zerar as chaves aqui garante que uma chave real na
 # máquina do desenvolvedor não transforme a suíte em chamada paga — e não faça
@@ -154,6 +163,27 @@ def auth(client) -> dict[str, str]:
     r = client.post("/v1/auth/registro", json={"email": CONTA_EMAIL, "senha": CONTA_SENHA})
     assert r.status_code == 201, r.text
     return {"Authorization": f"Bearer {r.json()['sessao']['acesso']}"}
+
+
+@pytest.fixture
+def token_social():
+    """
+    Um token do adaptador de identidade de memória: um JSON que descreve a si
+    mesmo, no mesmo espírito do recibo da loja de memória.
+
+    Assinar um token de verdade exigiria a chave privada da Apple — que não
+    existe nesta máquina e não deve existir. O que a suíte precisa provar é o
+    que a ROTA faz com uma identidade conferida, e isso o adaptador entrega
+    inteiro. Que a conferência real recusa token forjado é responsabilidade do
+    PyJWT, e o teste que a exercitasse estaria testando a biblioteca.
+    """
+
+    def montar(sub: str, email: str | None = None, email_verificado: bool = True) -> str:
+        return json.dumps(
+            {"sub": sub, "email": email, "emailVerificado": email_verificado}
+        )
+
+    return montar
 
 
 @pytest.fixture(autouse=True)

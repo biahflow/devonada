@@ -1,12 +1,16 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   entrar,
+  entrarComProvedor,
   excluirConta,
   pedirCodigo,
   redefinirSenha,
   registrar,
   sair,
 } from '../api/auth';
+import type { ReconfirmacaoDeExclusao } from '../api/auth';
+import { obterTokenSocial } from '../social';
+import type { ProvedorSocial } from '../api/types';
 
 /**
  * Conta é MUTAÇÃO, nunca query.
@@ -38,6 +42,33 @@ export function useEntrar() {
   });
 }
 
+/**
+ * Entrar pela Apple ou pelo Google.
+ *
+ * O FLUXO DO PROVEDOR E A CHAMADA À NOSSA API VIVEM NA MESMA MUTAÇÃO, e não em
+ * duas: da tela para o usuário é um toque só, e separá-las obrigaria a screen a
+ * orquestrar dois estados de carregando que descrevem a mesma espera.
+ *
+ * DESISTIR NÃO É ERRO. Quem fecha a folha do provedor recebe `cancelado: true`
+ * e a tela não mostra mensagem nenhuma — nem sucesso, nem falha. Tratar
+ * cancelamento como erro faria o app acusar de problema um gesto normal.
+ */
+export function useEntrarComProvedor() {
+  const limpar = useLimparCache();
+  return useMutation({
+    mutationFn: async (provedor: ProvedorSocial) => {
+      const token = await obterTokenSocial(provedor);
+      if (token === null) return { cancelado: true as const };
+
+      await entrarComProvedor(provedor, token);
+      return { cancelado: false as const };
+    },
+    onSuccess: (resultado) => {
+      if (!resultado.cancelado) limpar();
+    },
+  });
+}
+
 export function useRegistrar() {
   const limpar = useLimparCache();
   return useMutation({
@@ -66,5 +97,35 @@ export function useSair() {
 
 export function useExcluirConta() {
   const limpar = useLimparCache();
-  return useMutation({ mutationFn: (senha: string) => excluirConta(senha), onSuccess: limpar });
+  return useMutation({
+    mutationFn: (reconfirmacao: ReconfirmacaoDeExclusao) => excluirConta(reconfirmacao),
+    onSuccess: limpar,
+  });
+}
+
+/**
+ * Exclusão de conta que não tem senha (ADR 0023).
+ *
+ * ABRE A FOLHA DO PROVEDOR E EXCLUI NA MESMA MUTAÇÃO, pelo mesmo motivo de
+ * `useEntrarComProvedor`: para quem está na tela é uma espera só, e dois estados
+ * de carregando descreveriam a mesma coisa duas vezes.
+ *
+ * DESISTIR NO PROVEDOR NÃO EXCLUI NADA e não é erro — `cancelado: true`, e a
+ * conta continua lá. É a terceira chance de voltar atrás, depois do botão e do
+ * alerta nativo.
+ */
+export function useExcluirContaComProvedor() {
+  const limpar = useLimparCache();
+  return useMutation({
+    mutationFn: async (provedor: ProvedorSocial) => {
+      const token = await obterTokenSocial(provedor);
+      if (token === null) return { cancelado: true as const };
+
+      await excluirConta({ provedor, token });
+      return { cancelado: false as const };
+    },
+    onSuccess: (resultado) => {
+      if (!resultado.cancelado) limpar();
+    },
+  });
 }

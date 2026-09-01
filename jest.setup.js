@@ -61,6 +61,44 @@ jest.mock('expo-iap', () => ({
 }));
 
 /**
+ * Login social. Os dois módulos nativos não existem sob jest — nem no Expo Go,
+ * o que é o motivo de o M13 continuar exigindo *development build*.
+ *
+ * O QUE A SUÍTE VERIFICA AQUI é o que a TELA faz com cada resposta possível do
+ * provedor: token, cancelamento e falha. Que a Apple mostre a folha certa só se
+ * prova em aparelho, e o teste não finge o contrário.
+ *
+ * `isAvailableAsync` devolve `false` POR PADRÃO, que é o estado do Expo Go e o
+ * da máquina de quem roda a suíte. O teste que quer o botão ligado sobrescreve —
+ * o mesmo desenho do `fetchProducts` da loja.
+ */
+jest.mock('expo-apple-authentication', () => ({
+  isAvailableAsync: jest.fn().mockResolvedValue(false),
+  signInAsync: jest.fn().mockResolvedValue({ identityToken: 'token-da-apple' }),
+  AppleAuthenticationScope: { EMAIL: 0, FULL_NAME: 1 },
+}));
+
+jest.mock('@react-native-google-signin/google-signin', () => ({
+  GoogleSignin: {
+    configure: jest.fn(),
+    hasPlayServices: jest.fn().mockResolvedValue(true),
+    signIn: jest.fn().mockResolvedValue({
+      type: 'success',
+      data: { idToken: 'token-do-google' },
+    }),
+  },
+  statusCodes: { SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED' },
+}));
+
+/**
+ * Client id do Google. `src/social/` devolve lista sem o Google sem ele — de
+ * propósito, porque abrir a folha do provedor para terminar em recusa é pior
+ * que dizer antes. Sem esta linha, todo teste do botão do Google exercitaria o
+ * caminho de "não configurado" achando que exercita o caminho feliz.
+ */
+process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID = 'cliente-web-de-teste.apps.googleusercontent.com';
+
+/**
  * Navegação. Os testes de tela verificam o que o usuário LÊ, não para onde o
  * app navega — por isso as funções são espiões vazios. `mockRouter` fica
  * exposto para o teste que precise afirmar que uma ação leva a algum lugar.

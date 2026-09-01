@@ -26,12 +26,16 @@ interface Props {
  * pictogramas, e nenhum conjunto geométrico os traz. Usar um `smartphone` no
  * lugar seria pior: o reconhecimento do botão social É o logotipo.
  *
- * HOJE OS DOIS NASCEM DESLIGADOS. Não existe Sign in with Apple nem Google
- * Sign-In no backend — o que há em `backend/` sobre Apple e Google é compra
- * in-app e exclusão de conta, coisa diferente. Enquanto for assim, o botão é
- * `disabled` de verdade (com `accessibilityState`, para o leitor de tela dizer o
- * mesmo que o olho vê) e quem explica é a legenda embaixo do par. Botão que
- * aceita o toque e não faz nada é pior que botão apagado.
+ * SEM `onPress` ELE NASCE INERTE, e a regra não mudou com o M13 (ADR 0023): quem
+ * decide se há para onde mandar o toque é a tela, consultando
+ * `src/social/provedoresDisponiveis()`. Aqui a única regra é que botão sem
+ * destino fica `disabled` DE VERDADE — com `accessibilityState`, para o leitor
+ * de tela dizer o mesmo que o olho vê. Botão que aceita o toque e não faz nada
+ * é pior que botão apagado.
+ *
+ * ELE TAMBÉM É O BOTÃO DA EXCLUSÃO DE CONTA de quem entrou por provedor: lá o
+ * gesto é reconfirmar identidade, e usar o mesmo botão da entrada é o que faz a
+ * pessoa reconhecer o que vai acontecer antes de tocar.
  */
 export function BotaoSocial({ provedor, label, onPress, disabled }: Props) {
   const inerte = disabled || !onPress;

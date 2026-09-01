@@ -137,6 +137,35 @@ class Settings(BaseSettings):
     google_service_account_json: str = ""
     google_package_name: str = ""
 
+    # ------------------------------------------------------------------ #
+    # Login social (M13, ADR 0023)
+    # ------------------------------------------------------------------ #
+
+    # Provedor de identidade, no mesmo padrão plugável do LLM, do correio e da
+    # loja: `real` confere o ID token contra a chave pública da Apple e do
+    # Google, `memoria` confere um token que descreve a si mesmo e é o que a
+    # suíte usa. A regra "nenhum teste toca a rede" passa a valer para o login
+    # social também.
+    identidade: str = "real"
+
+    # AUDIÊNCIAS ACEITAS no ID token de cada provedor, separadas por vírgula.
+    #
+    # SEM DEFAULT, e vazio NÃO significa "aceita qualquer uma": significa
+    # recusar com a frase de não configurado. Assinatura válida só prova que o
+    # provedor emitiu o token para ALGUM app; é o `aud` que prova que foi para o
+    # nosso. Aceitar audiência qualquer entregaria a conta de qualquer usuário a
+    # quem controle outro app do mesmo provedor.
+    #
+    # Apple: o bundle id do app, mais o Services ID no dia do login pela web.
+    # NÃO cai de volta em `apple_bundle_id`, que é da compra in-app — as duas
+    # são do mesmo app, e deixar uma valer pela outra é decidir por acidente.
+    apple_client_ids: str = ""
+
+    # Google: um client id por plataforma (iOS, Android e web). A biblioteca do
+    # app manda o `webClientId` como audiência do `idToken` nas duas
+    # plataformas, então o da web é o que quase nunca pode faltar.
+    google_client_ids: str = ""
+
     # As chaves NÃO levam o prefixo DEVONADA_ — são as variáveis que os próprios
     # SDKs usam. Elas passam por aqui de propósito: um SDK lê `os.environ`, e
     # `pydantic-settings` carrega o `.env` para dentro do objeto de settings,

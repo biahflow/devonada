@@ -24,6 +24,7 @@ from auth import (
 from config import Settings, get_settings
 from correio import ErroDeCorreio, Mensagem, obter_correio
 from db import get_db
+from identidade import ErroDeIdentidade, Identidade, IdentidadeNaoConfigurada, obter_verificador
 
 router = APIRouter(prefix="/v1/auth", tags=["Conta"])
 
@@ -139,7 +140,13 @@ def entrar(
             },
         )
 
-    confere = senha_confere(entrada.senha, usuario.senha_hash if usuario else hash_falso())
+    # `usuario.senha_hash` é NULO em conta só-social (ADR 0023), e cai no mesmo
+    # hash falso do e-mail inexistente: quem entrou pela Apple e digita uma senha
+    # aqui recebe o mesmo 401 e o mesmo TEMPO de quem errou a senha. Distinguir
+    # contaria, para quem perguntasse, por onde cada conta entra — e a rota
+    # voltaria a ser o verificador de cadastro que ela existe para não ser.
+    guardado = usuario.senha_hash if usuario and usuario.senha_hash else hash_falso()
+    confere = senha_confere(entrada.senha, guardado)
 
     if usuario is None or not confere:
         if usuario is not None:
@@ -160,6 +167,158 @@ def entrar(
     resposta = _abrir_sessao(db, settings, usuario)
     db.commit()
     return resposta
+
+
+@router.post("/social", response_model=schemas.RespostaSessao)
+def entrar_com_provedor(
+    entrada: schemas.EntradaSocial,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+):
+    """
+    Entrar pela Apple ou pelo Google (M13, ADR 0023).
+
+    UMA ROTA SÓ PARA ENTRAR E PARA CADASTRAR, e por isso responde `200` nos dois
+    casos. Do lado de quem toca no botão não existem dois atos: ela autoriza o
+    app no provedor e está dentro. Uma rota de "cadastro social" separada
+    obrigaria o app a adivinhar, antes de perguntar ao servidor, se aquela pessoa
+    já tem conta — e a resposta certa para essa pergunta é 401 de quem não pode
+    saber.
+
+    A CONTA É IDENTIFICADA POR `sub`, não por e-mail. O e-mail é o caminho de
+    RECONHECIMENTO quando o `sub` não é conhecido, e só quando o provedor afirma
+    tê-lo verificado.
+
+    A TRAVA DE FORÇA BRUTA NÃO SE APLICA AQUI. Ela existe contra quem chuta
+    senha; quem chega com token assinado pelo provedor provou identidade por
+    outro caminho, e manter a conta bloqueada puniria o dono dela por tentativas
+    que não foram dele. Entrar por aqui ZERA o contador, como o login com senha
+    certa faz.
+    """
+    try:
+        identidade = obter_verificador(entrada.provedor).verificar(entrada.token)
+    except IdentidadeNaoConfigurada as e:
+        # 503 e não 401: a credencial pode estar perfeita: quem está incompleto
+        # é o servidor. Ver `identidade/base.IdentidadeNaoConfigurada`.
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"message": str(e)},
+        ) from e
+    except ErroDeIdentidade as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"message": str(e)},
+        ) from e
+
+    usuario = db.scalar(
+        select(orm.Usuario).where(
+            orm.Usuario.provedor == identidade.provedor,
+            orm.Usuario.provedor_sub == identidade.sub,
+        )
+    )
+
+    if usuario is None:
+        usuario = _reconhecer_ou_criar(db, settings, identidade)
+
+    usuario.falhas_login = 0
+    usuario.bloqueado_ate = None
+    resposta = _abrir_sessao(db, settings, usuario)
+    db.commit()
+    return resposta
+
+
+def _reconhecer_ou_criar(db: Session, settings: Settings, identidade: Identidade) -> orm.Usuario:
+    """
+    Primeiro login deste `sub`: ou é gente nova, ou é gente conhecida por outro
+    caminho.
+
+    O E-MAIL PRECISA VIR VERIFICADO. Sem verificação, reconhecer uma conta pelo
+    e-mail seria aceitar que qualquer pessoa escreva o e-mail do vizinho no
+    cadastro do provedor e entre na conta dele. E sem e-mail nenhum não há como
+    criar conta: `usuario.email` é a chave por onde o código de recuperação
+    chega, e inventar um endereço para preencher a coluna seria gravar um dado
+    que não existe.
+
+    CONTA COM SENHA NÃO É RECONHECIDA AUTOMATICAMENTE. Este servidor não
+    verifica e-mail no cadastro — nada impede alguém de registrar hoje uma conta
+    com o e-mail de outra pessoa. Ligar o login social a ela por coincidência de
+    e-mail entregaria ao dono da conta plantada tudo o que a vítima cadastrasse
+    depois (o ataque conhecido como *pre-hijacking*). Quem cai aqui entra com a
+    senha; a pessoa que de fato controla o e-mail chega lá pela recuperação.
+
+    CONTA SÓ-SOCIAL É RELIGADA ao novo provedor. Ela só pôde nascer de um e-mail
+    que um provedor já havia verificado, e agora outro verifica o mesmo — é a
+    mesma pessoa trocando de botão. O custo é o declarado na ADR 0023: uma conta
+    guarda um provedor, então o vínculo anterior é substituído.
+    """
+    if not identidade.email or not identidade.email_verificado:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "message": (
+                    "Não recebemos do provedor um e-mail confirmado, e ele é o que usamos "
+                    "para recuperar seu acesso. Crie sua conta com e-mail e senha."
+                )
+            },
+        )
+
+    existente = db.scalar(select(orm.Usuario).where(orm.Usuario.email == identidade.email))
+
+    if existente is not None:
+        if existente.senha_hash is not None:
+            # ESTE 409 NÃO É O VERIFICADOR DE CADASTRO que o login recusa ser.
+            # Lá, qualquer pessoa digita qualquer e-mail e lê a resposta. Aqui é
+            # preciso apresentar um token assinado pelo provedor para AQUELE
+            # e-mail — quem consegue isso já é dono dele, e está descobrindo
+            # sobre a própria conta.
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "message": (
+                        "Esse e-mail já tem conta com senha. Entre com e-mail e senha — "
+                        "é a mesma conta."
+                    ),
+                    "campo": "email",
+                },
+            )
+
+        existente.provedor = identidade.provedor
+        existente.provedor_sub = identidade.sub
+        db.flush()
+        return existente
+
+    primeiro = db.scalar(select(func.count()).select_from(orm.Usuario)) == 0
+    usuario = orm.Usuario(
+        # Mesma regra do cadastro por e-mail: o PRIMEIRO usuário de um banco
+        # vazio adota o tenant do beta (ADR 0012, item 2), para o que já existe
+        # não ficar órfão. Ela não podia morar só na outra rota — um banco novo
+        # cujo primeiro acesso fosse pela Apple criaria tenant novo e deixaria
+        # os dados do beta inalcançáveis.
+        tenant_id=settings.tenant_id if primeiro else orm.novo_id(),
+        email=identidade.email,
+        # SEM SENHA, e não com um hash de valor inventado: ninguém digitou
+        # senha nenhuma, e gravar uma faria toda pergunta futura sobre "esta
+        # conta tem senha?" responder sim para quem nunca teve.
+        senha_hash=None,
+        provedor=identidade.provedor,
+        provedor_sub=identidade.sub,
+    )
+    db.add(usuario)
+
+    try:
+        db.flush()
+    except IntegrityError as e:
+        # A unicidade é do banco, e não do SELECT acima: dois toques
+        # simultâneos no botão passariam os dois pelo mesmo SELECT sem achar
+        # nada, e a pessoa acabaria com duas contas, cada uma com metade da
+        # vida financeira dela.
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"message": "Essa conta já está sendo criada. Tente entrar de novo."},
+        ) from e
+
+    return usuario
 
 
 @router.post("/refresh", response_model=schemas.RespostaSessao)
