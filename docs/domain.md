@@ -259,6 +259,40 @@ superendividado": a definição legal (CDC art. 54-A, § 1º) exige boa-fé e d�
 software não apura. A copy nomeia a repactuação como caminho a investigar, no tom de
 `possivelPrescricao`.
 
+Desde o M14 o fato aparece em **duas** telas — Caixa e Rota —, e nas duas com a mesma frase: o que
+a subtração deu, e o caminho. Na **triagem do onboarding** ele não aparece, e a ausência é
+deliberada: ali a renda ainda não foi informada, então o app não tem os dois lados da conta. O que
+a triagem faz, para quem marcou duas ou mais dívidas, é **convidar** — "informe sua renda e eu
+mostro se as parcelas cabem". Afirmar sem os dois lados seria inventar o diagnóstico que o
+parágrafo acima proíbe.
+
+### repactuação
+O caminho previsto no CDC, art. 104-A (incluído pela Lei 14.181/2021): uma audiência com **todos os
+credores de uma vez**, em que o consumidor apresenta um plano de pagamento de até cinco anos,
+preservado o mínimo existencial. A fase conciliatória também corre nos órgãos do Sistema Nacional
+de Defesa do Consumidor — Procon —, sem precisar começar pelo Judiciário (art. 104-C).
+
+**O produto NOMEIA o caminho; ele não afirma que a pessoa se enquadra.** O enquadramento exige
+boa-fé e dívida de consumo, apurados caso a caso na conciliação, e a lei exclui do tratamento
+dívida com garantia real, financiamento imobiliário, crédito rural, dívida contraída com fraude ou
+má-fé e compra de luxo de alto valor. Nada disso é apurável por software.
+
+### fonte
+Uma norma citável, com **id estável** no registro de `backend/juridico/fontes.py`: norma,
+dispositivo, ementa (frase nossa), texto literal quando conferido, vigência e link para o Planalto.
+
+O id é o que viaja na API; o texto vem de `GET /v1/juridico/fontes`. **O registro é exatamente o
+que alguma regra cita** — fonte guardada "porque um dia serve" é convite a citá-la sem que ninguém
+tenha decidido que ela se aplica, e há teste que falha se alguma ficar órfã.
+
+### trilha ("como calculamos")
+A explicação de **um** número derivado: a fórmula em palavras, os passos, os ids das fontes e — o
+campo que mais importa — as **limitações**: o que aquela conta não faz.
+
+**A trilha não carrega valor nenhum.** Os números vivem uma vez só, no campo que a resposta já traz
+ao lado; duas cópias divergiriam, e a tela mostraria uma sobra na cascata e outra na explicação da
+cascata.
+
 ---
 
 ## 3. Pagamento

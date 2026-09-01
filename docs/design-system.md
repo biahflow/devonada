@@ -441,6 +441,23 @@ Ver a regra de navegação na seção 5.
 **`Card`** — superfície `surface`, `radius.lg`, `shadow.card`, padding `spacing.lg`, **sem
 borda**. Base de todo agrupamento de conteúdo.
 
+**`ComoCalculamos`** — o disclosure da trilha de auditoria (M14, ADR 0024). Gatilho de 44pt com
+rótulo `caption` em `inkSoft` e chevron; aberto, um bloco `neutralSurface` com a fórmula em
+itálico, os passos, **o que a conta não faz** e as normas citadas.
+
+Três regras não negociáveis deste componente:
+
+1. **Nasce fechado.** Quem abre a tela do caixa quer saber quanto sobra — despejar a memória de
+   cálculo junto faria a explicação competir com a resposta.
+2. **`limitacoes` nunca é escondido.** Uma variante que renderize os passos e omita esse bloco
+   transforma prestação de contas em propaganda da própria conta.
+3. **`ementa` e `texto` têm pesos diferentes.** A ementa é paráfrase do backend, em `inkSoft`; o
+   `texto` é o dispositivo literal, entre aspas e com barra à esquerda em `border`. Renderizar os
+   dois iguais faria a nossa frase ser lida como se fosse a lei.
+
+O link para a norma usa `primaryDeep` sobre `neutralSurface` (10,51:1, medido) — `primary` puro
+não alcança o piso de texto nessa superfície.
+
 **`FormField`** — label `bodyStrong` em `ink`, campo com borda `border` (foco: borda `primary`
 + anel `primarySoft`), `minHeight: 48`, e abaixo ou a mensagem de erro em `danger` ou a dica em
 `caption`/`inkSoft`. Nunca as duas. Marcador "Opcional" à direita do label quando aplicável.

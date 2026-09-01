@@ -248,6 +248,18 @@ export interface ResumoDividas {
   comprometimentoRenda?: number;
   minimoExistencial?: number;
   margemDisponivel?: number;
+  /**
+   * As parcelas mínimas não cabem nem cortando o não essencial (M14) — o MESMO
+   * campo do caixa, servido na Rota porque ela é a tela de abertura e quem está
+   * nessa situação não deveria precisar procurar a informação.
+   *
+   * Ausente é "não sabemos", e não "está tudo bem": sem caixa preenchido a
+   * conta não tem os dois lados. Nunca renderize a ausência como tranquilidade.
+   *
+   * **Fato aritmético, nunca diagnóstico.** A copy não diz o que a pessoa é;
+   * ela diz o que a subtração deu e nomeia a repactuação como caminho.
+   */
+  naoFecha?: boolean | null;
 
   porCriticidade: TotalPorCriticidade[];
   proximosVencimentos: VencimentoProximo[];
@@ -421,6 +433,54 @@ export interface RespostaSimulacao {
 }
 
 // ---------------------------------------------------------------------------
+// M14 — corpus jurídico e trilha de auditoria
+// ---------------------------------------------------------------------------
+
+/**
+ * Uma norma citável, como a tela a mostra.
+ *
+ * `texto` é o dispositivo LITERAL e pode ser ausente; `ementa` é a frase do
+ * backend sobre ele e nunca é. A tela renderiza os dois com pesos diferentes de
+ * propósito: a paráfrase não pode ser lida como se fosse a lei.
+ *
+ * `vigencia` existe para o usuário ver a IDADE do fundamento. O mínimo
+ * existencial já foi 25% do salário mínimo, e a redação velha custava R$ 220,50
+ * de piso a quem estava negociando.
+ */
+export interface FonteJuridica {
+  id: string;
+  norma: string;
+  dispositivo: string;
+  ementa: string;
+  /** ISO, ou uma frase quando a vigência mora em outro campo da resposta. */
+  vigencia: string;
+  url: string;
+  texto?: string | null;
+}
+
+/**
+ * "Como calculamos" um número derivado (M14).
+ *
+ * NÃO CARREGA VALOR NENHUM, e isso é decisão de contrato, não omissão: os
+ * números vivem uma vez só, no campo que a resposta já traz ao lado. Duas
+ * cópias divergiriam, e a tela mostraria uma sobra na cascata e outra na
+ * explicação da cascata.
+ *
+ * `limitacoes` é onde mora o que o app sabe que não sabe. Uma tela que renderize
+ * a trilha e esconda esse campo transforma prestação de contas em propaganda da
+ * conta — não faça isso.
+ *
+ * `chave` é o nome do campo explicado, exato como ele aparece na resposta.
+ */
+export interface Trilha {
+  chave: string;
+  titulo: string;
+  formula: string;
+  passos: string[];
+  fonteIds: string[];
+  limitacoes: string[];
+}
+
 // M6 — Revisão de cobrança
 // ---------------------------------------------------------------------------
 
@@ -443,6 +503,15 @@ export interface Achado {
   explicacao: string;
   /** artigo de lei, súmula ou tema repetitivo — texto curado no backend */
   fonte: string;
+  /**
+   * Os ids das normas em `GET /v1/juridico/fontes` (M14).
+   *
+   * VIAJA AO LADO de `fonte`, e não no lugar dele: `fonte` é a citação pronta e
+   * continua sendo o que app já instalado exibe; os ids são como a tela nova
+   * abre ementa, vigência e link. É lista porque um achado pode se apoiar em
+   * duas normas — o do seguro prestamista sempre se apoiou.
+   */
+  fonteIds: string[];
   comoConferir: string;
   /** em centavos. Ausente = achado sem número. */
   valorContestavel?: number | null;
@@ -475,6 +544,11 @@ export interface RevisaoCobranca {
   fundamentos: string[];
   /** data de vigência do teto que embasou algum achado (ISO). */
   baseLegalVigenteEm?: IsoDate | null;
+  /**
+   * Como o `valorJusto` foi obtido (M14). Presente mesmo sem achado nenhum —
+   * é justamente quando não há número que explicar por que não há importa mais.
+   */
+  trilha?: Trilha | null;
 }
 
 /**
@@ -643,6 +717,14 @@ export interface Caixa {
    * exige boa-fé e dívida de consumo, que nenhum software apura).
    */
   naoFecha: boolean;
+  /**
+   * "Como calculamos" a sobra por mês e o "não fecham" (M14).
+   *
+   * A tela liga cada trilha ao número pela `chave`, e não por posição na lista:
+   * um campo novo no meio não deve mudar a explicação que aparece ao lado da
+   * cascata.
+   */
+  trilhas: Trilha[];
   preenchimento: NivelPreenchimento;
   /**
    * Quando o usuário confirmou os números pela última vez. Os três são

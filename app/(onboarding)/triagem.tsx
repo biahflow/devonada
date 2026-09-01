@@ -126,6 +126,35 @@ export default function Triagem() {
           </Card>
         )}
 
+        {/* O PERFIL DE MUITOS CREDORES, nomeado sem diagnóstico nenhum (M14).
+            Duas ou mais dívidas na fila é o caso em que o script individual não
+            resolve — a lei prevê renegociar todas de uma vez, com todos os
+            credores juntos.
+
+            AQUI O APP AINDA NÃO SABE SE OS NÚMEROS FECHAM, e não finge que
+            sabe: a renda só é informada no Caixa, depois do onboarding. Sem os
+            dois lados da conta, a única frase honesta é o CONVITE — "informe a
+            renda e eu mostro se cabem" —, jamais uma afirmação sobre a situação
+            de quem acabou de cadastrar duas dívidas.
+
+            A palavra que a lei usa para o instituto não aparece: a definição
+            legal exige boa-fé e dívida de consumo, e software não apura nenhuma
+            das duas (CDC, art. 54-A, § 1º). Quem apura é a conciliação. */}
+        {outras > 0 ? (
+          <Card>
+            <Text style={styles.tituloSecao}>Você marcou mais de uma</Text>
+            <Text style={styles.corpo}>
+              Quando são várias, negociar uma de cada vez costuma não resolver — e existe um
+              caminho previsto em lei para renegociar todas de uma vez, com todos os credores
+              na mesma conversa.
+            </Text>
+            <Text style={styles.corpo}>
+              Informe sua renda no Caixa e eu mostro se as parcelas cabem no que sobra. É essa
+              conta que diz se vale procurar o Procon ou a Defensoria.
+            </Text>
+          </Card>
+        ) : null}
+
         <View style={styles.rodape}>
           {temJusto ? (
             <Button

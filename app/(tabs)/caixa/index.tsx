@@ -21,10 +21,15 @@ import {
 } from '../../../src/hooks/useCaixa';
 import { isoParaBR } from '../../../src/util/date';
 import { formatMesCurto } from '../../../src/util/mes';
+import { ComoCalculamos } from '../../../src/components/ui/ComoCalculamos';
+import { trilhaDe, useFontesJuridicas } from '../../../src/hooks/useJuridico';
 import { colors, spacing, typography } from '../../../src/theme/theme';
 
 export default function CaixaScreen() {
   const router = useRouter();
+  // O corpus jurídico. NÃO bloqueia a tela: os números vêm da resposta do
+  // caixa, e o disclosure só precisa dele para abrir a norma citada.
+  const { porId: fontes } = useFontesJuridicas();
   const { caixa, isPending, error, refetch, isRefetching } = useCaixa();
   const registrarUso = useRegistrarUsoDeRespiro();
   useLembreteFechamento();
@@ -77,6 +82,11 @@ export default function CaixaScreen() {
       </Screen>
     );
   }
+
+  // Por CHAVE, e não por posição na lista: um campo novo no meio não pode mudar
+  // a explicação que aparece ao lado da cascata.
+  const trilhaCapacidade = trilhaDe(caixa.trilhas, 'capacidadeHoje');
+  const trilhaNaoFecha = trilhaDe(caixa.trilhas, 'naoFecha');
 
   const degraus: Degrau[] = [];
   if (caixa.impostoReservado > 0) {
@@ -140,10 +150,18 @@ export default function CaixaScreen() {
         ) : null}
 
         {caixa.naoFecha ? (
-          <Feedback
-            tone="warning"
-            message="As parcelas que você já paga não cabem no que sobra, nem cortando o não essencial. Vale procurar o Procon ou a Defensoria para conhecer a repactuação de dívidas — é um caminho previsto em lei."
-          />
+          <View style={styles.blocoNaoFecha}>
+            <Feedback
+              tone="warning"
+              message="As parcelas que você já paga não cabem no que sobra, nem cortando o não essencial. Vale procurar o Procon ou a Defensoria para conhecer a repactuação de dívidas — é um caminho previsto em lei."
+            />
+            {/* A LEI QUE SUSTENTA A FRASE, ao alcance de um toque (M14). Sem
+                isto, "é um caminho previsto em lei" seria exatamente o tipo de
+                afirmação sem procedência que o produto recusa no resto da tela.
+                Aqui ela ganha artigo, ementa e link — e, no mesmo lugar, o que
+                a conta NÃO faz. */}
+            {trilhaNaoFecha ? <ComoCalculamos trilha={trilhaNaoFecha} fontes={fontes} /> : null}
+          </View>
         ) : null}
 
         <Card>
@@ -153,6 +171,13 @@ export default function CaixaScreen() {
             totalRotulo="Sobra por mês"
             total={caixa.capacidadeHoje}
           />
+          {/* DENTRO do card da cascata, e não solto embaixo: a explicação
+              pertence ao número que ela explica. Fechado por padrão — quem abre
+              esta tela quer saber quanto sobra, e despejar a memória de cálculo
+              junto faria a explicação competir com a resposta. */}
+          {trilhaCapacidade ? (
+            <ComoCalculamos trilha={trilhaCapacidade} fontes={fontes} />
+          ) : null}
         </Card>
 
         <RespiroCard
@@ -249,6 +274,7 @@ export default function CaixaScreen() {
 }
 
 const styles = StyleSheet.create({
+  blocoNaoFecha: { gap: spacing.sm },
   conteudo: { paddingBottom: spacing.xxxl, gap: spacing.lg },
   tiles: { gap: spacing.lg },
   notaTitulo: { ...typography.bodyStrong, color: colors.ink, marginBottom: spacing.xs },

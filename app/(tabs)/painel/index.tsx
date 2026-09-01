@@ -22,6 +22,7 @@ import { useResumo } from '../../../src/hooks/usePainel';
 import { mesAtual } from '../../../src/util/mes';
 import { formatBasisPoints } from '../../../src/util/percent';
 import { isoParaBR } from '../../../src/util/date';
+import { Feedback } from '../../../src/components/ui/Feedback';
 import { colors, spacing, typography } from '../../../src/theme/theme';
 
 /** Limite saudável de comprometimento de renda, em basis points (30%). */
@@ -130,6 +131,27 @@ export default function Painel() {
                   <MoneyText centavos={resumo.margemDisponivel} size="body" tone="accent" />
                 </View>
               ) : null}
+
+              {/* O MESMO FATO QUE O CAIXA MOSTRA, na tela de abertura (M14).
+                  Quem está nessa situação não deveria precisar procurar a
+                  informação numa aba adiante.
+
+                  `=== true` de propósito: ausente é "não sabemos", e nunca
+                  "está tudo bem". Um `?` aqui trataria os dois como iguais.
+
+                  A COPY DIZ O QUE A SUBTRAÇÃO DEU e nomeia o caminho — nunca o
+                  que a pessoa é. A definição legal exige boa-fé e dívida de
+                  consumo, e nenhuma das duas é apurável por software; quem
+                  apura é a conciliação. Âmbar, não vermelho: vermelho é status
+                  de dívida (ADR 0015), e não cabe a esta tela alarmar. */}
+              {resumo.naoFecha === true ? (
+                <View style={styles.naoFecha}>
+                  <Feedback
+                    tone="warning"
+                    message="As parcelas que você já paga não cabem no que sobra. Há um caminho previsto em lei para renegociar todas de uma vez, com todos os credores juntos — o Caixa explica em que ele se apoia."
+                  />
+                </View>
+              ) : null}
             </>
           ) : (
             <View style={styles.convite}>
@@ -203,6 +225,7 @@ const styles = StyleSheet.create({
   duplo: { flexDirection: 'row', gap: spacing.md },
   metade: { flex: 1 },
   tituloSecao: { ...typography.bodyStrong, color: colors.ink, marginBottom: spacing.md },
+  naoFecha: { marginTop: spacing.md },
   margem: {
     flexDirection: 'row',
     justifyContent: 'space-between',

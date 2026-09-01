@@ -293,6 +293,15 @@ class ResumoDividas(Camel):
     comprometimentoRenda: int | None = None
     minimoExistencial: int | None = None
     margemDisponivel: int | None = None
+    # As parcelas mínimas não cabem nem cortando todo o não essencial (M14). O
+    # MESMO campo do caixa, servido aqui porque a Rota é a tela de abertura e
+    # quem está nessa situação não deveria precisar procurar a informação.
+    #
+    # `None` é "não sabemos", e não "está tudo bem": sem caixa preenchido a
+    # conta não tem os dois lados. Mesma disciplina de `abaixoDoPiso`.
+    #
+    # FATO ARITMÉTICO, não diagnóstico — nunca se chama `superendividado`.
+    naoFecha: bool | None = None
 
     porCriticidade: list[TotalPorCriticidade]
     proximosVencimentos: list[VencimentoProximo]
@@ -513,15 +522,75 @@ class Achado(Camel):
     o que seria estimativa disfarçada de apuração (ADR 0008).
     `evidencia` é o trecho literal do contrato, ausente quando o achado não
     nasceu da extração.
+
+    `fonte` e `fonteIds` viajam JUNTOS, e não é redundância (M14): `fonte` é a
+    citação pronta, e continua sendo o que app já instalado exibe; `fonteIds`
+    aponta para `GET /v1/juridico/fontes`, de onde a tela nova tira ementa,
+    vigência e link. Tirar `fonte` quebraria todo cliente que não atualizou;
+    mandar só ele deixaria a tela sem como abrir a norma.
     """
 
     id: str
     titulo: str
     explicacao: str
     fonte: str
+    fonteIds: list[str]
     comoConferir: str
     valorContestavel: int | None = None
     evidencia: str | None = None
+
+
+# --- Corpus jurídico e trilha de auditoria (M14) -----------------------------
+
+
+class FonteJuridica(Camel):
+    """
+    Uma norma citável, como a tela a mostra. Espelho de `juridico.fontes.Fonte`.
+
+    `texto` é o dispositivo LITERAL e pode ser nulo; `ementa` é a nossa frase
+    sobre ele e nunca é. A distinção é o que impede a paráfrase de ser lida como
+    se fosse a lei — a tela renderiza as duas com pesos diferentes de propósito.
+
+    `vigencia` viaja porque o usuário precisa ver a IDADE do fundamento. O
+    mínimo existencial já foi 25% do salário mínimo, e usar a redação velha
+    custava R$ 220,50 de piso a quem estava negociando.
+    """
+
+    id: str
+    norma: str
+    dispositivo: str
+    ementa: str
+    vigencia: str
+    url: str
+    texto: str | None = None
+
+
+class RespostaFontes(Camel):
+    fontes: list[FonteJuridica]
+
+
+class Trilha(Camel):
+    """
+    "Como calculamos" um número derivado. Espelho de `juridico.trilhas.Trilha`.
+
+    NÃO CARREGA VALOR NENHUM, e é a decisão que evita o defeito óbvio: se ela
+    repetisse os números que a resposta já traz ao lado, existiriam duas cópias
+    do mesmo dado, e um dia a tela mostraria uma sobra na cascata e outra na
+    explicação da cascata.
+
+    `limitacoes` não é rodapé de cortesia — é onde mora o que o app sabe que não
+    sabe. Sem ele, "como calculamos" viraria propaganda da conta.
+
+    `chave` é o nome do campo explicado, exato como aparece na resposta, para a
+    tela ligar o disclosure ao número certo em vez de por posição na lista.
+    """
+
+    chave: str
+    titulo: str
+    formula: str
+    passos: list[str]
+    fonteIds: list[str]
+    limitacoes: list[str]
 
 
 # --- Script de negociação por canal (M12, F-012, ADR 0021) -------------------
@@ -585,6 +654,10 @@ class RevisaoCobranca(Camel):
     script: ScriptNegociacao
     fundamentos: list[str]
     baseLegalVigenteEm: str | None = None
+    # Como o `valorJusto` foi obtido, e o que essa conta NÃO faz (M14). Presente
+    # sempre — inclusive sem achado nenhum, que é quando explicar por que não há
+    # número mais importa.
+    trilha: Trilha | None = None
 
 
 class RespostaRevisao(Camel):
@@ -774,6 +847,10 @@ class Caixa(Camel):
     # definição legal (CDC art. 54-A, § 1º) exige boa-fé e dívida de consumo, e
     # nenhum dos dois é apurável por software.
     naoFecha: bool
+    # As trilhas dos dois números que esta tela mais decide: a sobra por mês e o
+    # "não fecham" (M14). Lista, e não campo por número, porque a tela mostra o
+    # disclosure ao lado de cada um e liga pelo `chave`.
+    trilhas: list[Trilha] = []
     preenchimento: NivelPreenchimento
     # Quando o usuário confirmou os números pela última vez. `None` nos dois
     # significa que ele nunca fechou um mês — que NÃO é o mesmo que estar

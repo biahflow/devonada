@@ -54,6 +54,16 @@ const pares = [
   { fg: 'primary', bg: 'surface', intencao: 'texto', nota: 'rótulo do Button secondary' },
   { fg: 'onPrimary', bg: 'primary', intencao: 'texto', nota: 'rótulo do Button primary' },
   { fg: 'primaryDeep', bg: 'primarySurface', intencao: 'texto', nota: 'Badge primario' },
+  {
+    fg: 'primaryDeep',
+    bg: 'neutralSurface',
+    intencao: 'texto',
+    // M14: o link "ler na fonte oficial" dentro do disclosure "como calculamos",
+    // que é área recuada. `primary` puro sobre `neutralSurface` não alcança o
+    // piso de texto; `primaryDeep` é o token que existe justamente para o verde
+    // virar TEXTO sobre fundo escuro.
+    nota: 'link para a norma no ComoCalculamos',
+  },
   { fg: 'accent', bg: 'background', intencao: 'texto' },
   { fg: 'accent', bg: 'surface', intencao: 'texto' },
   {

@@ -12,6 +12,8 @@ import { ScriptCard } from '../../../../src/components/cards/ScriptCard';
 import { useRevisao } from '../../../../src/hooks/useRevisao';
 import type { Canal } from '../../../../src/api/types';
 import { isoParaBR } from '../../../../src/util/date';
+import { ComoCalculamos } from '../../../../src/components/ui/ComoCalculamos';
+import { useFontesJuridicas } from '../../../../src/hooks/useJuridico';
 import { colors, radius, spacing, typography } from '../../../../src/theme/theme';
 
 /**
@@ -26,6 +28,8 @@ export default function RevisaoDeCobranca() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const [canal, setCanal] = useState<Canal>('email');
+  // Não bloqueia a tela: o número e a citação legível já vieram na revisão.
+  const { porId: fontes } = useFontesJuridicas();
   const { revisao, isPending, error, refetch } = useRevisao(id, canal);
 
   const cabecalho = (
@@ -122,6 +126,14 @@ export default function RevisaoDeCobranca() {
             Tetos de juros vigentes em {isoParaBR(revisao.baseLegalVigenteEm)}.
           </Text>
         ) : null}
+
+        {/* DEPOIS dos achados e ANTES do script (M14): a explicação vem quando a
+            pessoa já viu o número e os pontos que o sustentam, e antes de ela
+            levar o roteiro para o credor. Aparece nos TRÊS casos da tela acima —
+            inclusive sem achado nenhum, que é quando explicar por que não há
+            número importa mais: ele seria uma subtração de achados, não uma
+            estimativa que deixamos de fazer. */}
+        {revisao.trilha ? <ComoCalculamos trilha={revisao.trilha} fontes={fontes} /> : null}
 
         <ScriptCard script={revisao.script} onSelectCanal={setCanal} />
 

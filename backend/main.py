@@ -16,6 +16,7 @@ from routers import (
     conta,
     contratos,
     dividas,
+    juridico,
     lembretes,
     marcos,
     metas,
@@ -104,6 +105,7 @@ app.include_router(marcos.router)
 app.include_router(auth.router)
 app.include_router(conta.router)
 app.include_router(assinatura.router)
+app.include_router(juridico.router)
 
 
 @app.get("/")

@@ -5,6 +5,7 @@ import type {
   PerfilFinanceiro,
   RespostaSimulacao,
   ResumoDividas,
+  RevisaoCobranca,
   Simulacao,
 } from '../api/types';
 
@@ -195,7 +196,32 @@ export function umCaixa(over: Partial<Caixa> = {}): Caixa {
     minimoExistencialVigenteEm: '2023-06-19',
     abaixoDoPiso: false,
     naoFecha: false,
+    // Vazio por padrão: a maioria dos testes de tela não fala de "como
+    // calculamos", e quem fala declara a trilha que quer exercitar.
+    trilhas: [],
     preenchimento: 'nivel_0',
+    ...over,
+  };
+}
+
+/**
+ * Uma revisão de cobrança sem achado — o caso do cadastro manual.
+ *
+ * SUBIU PARA CÁ NO M14, quando a terceira tela passou a precisar dela
+ * (`triagem`, `revisao` e `como-calculamos`). A terceira cópia de um builder é
+ * onde as três começam a divergir em silêncio: uma ganha `trilha`, outra não, e
+ * o teste que deveria proteger o campo novo passa sem exercitá-lo.
+ */
+export function umaRevisao(over: Partial<RevisaoCobranca> = {}): RevisaoCobranca {
+  return {
+    dividaId: 'divida-1',
+    credor: 'Banco Teste',
+    valorCobrado: 987000,
+    achados: [],
+    // O script é sempre presente (M12); nem toda tela o exibe, mas o tipo o
+    // exige. Sem achado, o backend devolve o script mínimo de segurança.
+    script: { canal: 'email', blocos: [] },
+    fundamentos: [],
     ...over,
   };
 }

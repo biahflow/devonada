@@ -51,6 +51,7 @@ distinção é do `roadmap.md` e este documento não a apaga.
 | M11 | Respiro: a fatia de viver entra na cascata antes do corte, e o marco vira evento que não se desfaz (ADR 0019) | Entregue em 20/08/2026; **falta device** — `RespiroCard`, a tela de declaração e a `MarcoScreen` não foram vistas em aparelho, e é o gate humano que fecha o milestone. |
 | M12 | Metas nomeadas e a aba da fase verde (ADR 0017); **renda tipada e compromisso percentual (F-011)** e **negociação por canal e registro de resultado (F-012)** (ADR 0021) | Entregue; **falta device**. F-011 e F-012 fechados em 27/08/2026 (T1–T6 cada), integrados em `m12-integration`. |
 | M13 | Entrada pelo alívio: onboarding em 3 passos, escolha **múltipla** de dívida e fila de cadastro (ADR 0016) | **Parcialmente entregue**: fluxo central, **data de origem no onboarding**, **extração de boleto/carta/print (F-013)**, **notificação discreta (F-014)**, **documento inline na fila multi-dívida (F-015, ADR 0022)** e **login social (F-016, ADR 0023)** entregues — este último **sem credencial real**, que é gate humano; **páginas de Termos/Privacidade** continuam pendentes. **Falta device**. |
+| M14 | Lei do Superendividamento no corpus (ADR 0024) | **Entregue no código**: `backend/juridico/` com id estável e a Lei 14.181/2021; a repactuação nomeada no Caixa e na Rota, e **convite** (não afirmação) na triagem, onde a renda ainda não existe; trilha "como calculamos" em `GET /v1/juridico/fontes` + caixa + revisão. **Falta a revisão da copy jurídica por advogado** (gate de pré-lançamento) e **falta device**. |
 | — | Navegação: seta de voltar em toda tela empilhada (ADR 0016) | Entregue; **falta device** |
 
 ## Stack, em uma tabela
@@ -301,8 +302,8 @@ Deep link sempre por campo tipado, nunca por id extraído de texto.
 
 | Suíte | Números |
 |---|---|
-| Jest | **643 testes em 51 suítes**, verdes em 01/09/2026 no fechamento do F-016 (login social); eram 620 / 50 no F-015 (documento inline na fila + conserto do vínculo `extracaoId`); eram 611 / 50 no fechamento integrado do M13 (data de origem + F-013 + F-014) e 606 / 50 no M12. O processo **conclui a suíte e não encerra**, por handle aberto — a contagem sai antes disso, e `--forceExit` é o contorno. Há avisos de `act(...)` a investigar. |
-| pytest | **773 testes**, verdes em SQLite em 01/09/2026 no fechamento do F-016 (login social); eram 733 no fechamento do M13 e 721 no M12; avisos são `HTTP_422_UNPROCESSABLE_ENTITY` depreciado, Starlette/httpx e `InsecureKeyLength` do JWT de teste — nenhuma classe nova. Rodado em Python 3.12 via `uv` (o `python3` do sistema é 3.9), sem `pysqlite3` (não é importado por teste; o dialeto `sqlite+pysqlite` usa o `sqlite3` da stdlib). A execução contra Postgres continua obrigatória antes de release e **não** foi feita aqui. |
+| Jest | **654 testes em 52 suítes**, verdes em 01/09/2026 na integração do F-017 (M14) com o F-016 já na `main` — número MEDIDO na árvore integrada, não somado; eram 643 / 51 no F-016 e 620 / 50 no F-015 (documento inline na fila + conserto do vínculo `extracaoId`); eram 611 / 50 no fechamento integrado do M13 (data de origem + F-013 + F-014) e 606 / 50 no M12. O processo **conclui a suíte e não encerra**, por handle aberto — a contagem sai antes disso, e `--forceExit` é o contorno. Há avisos de `act(...)` a investigar. |
+| pytest | **800 testes**, verdes em SQLite em 01/09/2026 na integração do F-017 (M14) com o F-016 já na `main` — número MEDIDO na árvore integrada, não somado; eram 773 no F-016, 733 no fechamento do M13 e 721 no M12; avisos são `HTTP_422_UNPROCESSABLE_ENTITY` depreciado, Starlette/httpx e `InsecureKeyLength` do JWT de teste — nenhuma classe nova. Rodado em Python 3.12 via `uv` (o `python3` do sistema é 3.9), sem `pysqlite3` (não é importado por teste; o dialeto `sqlite+pysqlite` usa o `sqlite3` da stdlib). A execução contra Postgres continua obrigatória antes de release e **não** foi feita aqui. |
 
 Gates locais, **seis** desde 19/08/2026: `npm run typecheck`, `npm run lint`, `npm test`,
 `npm run bundle:check`, `npm run palette:check` e `npm run digits:check`, mais `pytest` no backend.
@@ -324,7 +325,7 @@ alguém rodá-los.
 cobre o campo, que a notificação toca na hora certa e que a permissão de câmera se comporta.
 Isso é o "falta device" que aparece em quase todos os milestones.
 
-## 8. Decisões arquiteturais — 18 ADRs
+## 8. Decisões arquiteturais — 24 ADRs
 
 | # | Decisão |
 |---|---|
@@ -346,6 +347,15 @@ Isso é o "falta device" que aparece em quase todos os milestones.
 | 0016 | Toda tela empilhada tem volta, e o onboarding aceita mais de uma dívida |
 | 0017 | `Meta` é entidade nova, e a fase verde troca a aba sem esconder as dívidas |
 | 0018 | A medição de contraste volta para dentro do repositório e vira gate; o vermelho ganha token de texto |
+| 0019 | O respiro é o piso do corte, e quem diz o valor dele é o usuário |
+| 0020 | O assistente se chama Tino, e a marca antiga sai da página pública |
+| 0021 | O tipo da renda ganha efeito por adição, e o canal decide quando a oferta é dita |
+| 0022 | Documento lido inline na fila multi-dívida do onboarding, sem sair do grupo |
+| 0023 | Login social: a conta é o `sub` do provedor, e conta sem senha exclui pelo provedor |
+| 0024 | O corpus jurídico é registro curado com id estável, e a trilha não carrega valor |
+
+As linhas 0019 a 0022 **estavam faltando** nesta tabela desde o M11 — o inventário é visão
+derivada, e a fonte canônica é [`docs/adr/README.md`](adr/README.md). Corrigidas aqui.
 
 ADR aceita nunca é reescrita — decisão que muda vira ADR nova.
 
@@ -408,6 +418,19 @@ Estão aqui porque escondê-las inverteria o princípio do projeto. Íntegras em
 19. **A troca de aba da fase verde não tem teste.** `jest-expo` mocka `Tabs` como `View`, então
     `href: null` é invisível para a suíte — mesma situação de `gestureEnabled` no onboarding. São
     configuração de navegação, e a verificação é em device, nos dois sistemas.
+
+20. **As ementas do corpus jurídico são paráfrase nossa, ainda não revisada por advogado.**
+    `backend/juridico/fontes.py` guarda quinze normas com id estável (M14, ADR 0024), e é ele que
+    alimenta o disclosure "como calculamos" e o `fonte` de cada achado. O `texto` **literal** só
+    está preenchido onde a citação já estava conferida no repositório; nas seis entradas da Lei
+    14.181/2021 ele é `None` de propósito — e `None` significa "leia na fonte", com o link do
+    Planalto viajando junto. A revisão por advogado já era gate de pré-lançamento do `roadmap.md`;
+    o que mudou é que ela agora tem alvo delimitado: um arquivo, quinze entradas.
+
+21. **A trilha "como calculamos" é convenção, não obrigação.** Quatro números derivados têm a sua
+    (`capacidadeHoje`, `naoFecha`, `valorJusto`, `possivelPrescricao`), e o teste cobre esses
+    quatro. Nada no código força uma regra nova de domínio que produza número exposto a ganhar
+    trilha — e a que não ganhar volta a ser número sem procedência na tela.
 
 (Duas limitações antigas foram **resolvidas** no M3 e não constam acima: `comprometimentoRenda`
 deixou de ser aproximação e `proximosVencimentos` deixou de voltar vazio.)

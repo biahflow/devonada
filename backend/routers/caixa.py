@@ -10,6 +10,8 @@ import schemas
 from auth import tenant_atual
 from config import Settings, get_settings
 from db import get_db
+from juridico import trilhas as trilhas_juridicas
+from routers.juridico import para_schema as trilha_para_schema
 from domain.caixa import (
     EntradaCaixa,
     ProvisaoPendente,
@@ -106,6 +108,14 @@ def _caixa_schema(db: Session, tenant: str, settings: Settings) -> schemas.Caixa
         minimoExistencialVigenteEm=settings.minimo_existencial_vigente_em or None,
         abaixoDoPiso=caixa.abaixo_do_piso,
         naoFecha=caixa.nao_fecha,
+        # AS DUAS SEMPRE, mesmo com `naoFecha` falso (M14). A trilha explica
+        # como o número foi obtido; escondê-la quando a resposta é a boa faria
+        # "como calculamos" aparecer só junto de má notícia, e a explicação
+        # viraria sinal de alarme em vez de prestação de contas.
+        trilhas=[
+            trilha_para_schema(trilhas_juridicas.CAPACIDADE),
+            trilha_para_schema(trilhas_juridicas.NAO_FECHA),
+        ],
         preenchimento=caixa.preenchimento,  # type: ignore[arg-type]
         ultimoFechamentoMes=ultimo,
         mesesDesdeFechamento=meses,
