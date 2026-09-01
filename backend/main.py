@@ -114,14 +114,60 @@ def raiz():
     return {"status": "ok", "message": "devo.nada API"}
 
 
+WEB = Path(__file__).parent / "web"
+
+"""
+As páginas públicas.
+
+TRÊS, e todas fora de `/v1/` e sem autenticação de propósito: exclusão de conta,
+termos e política de privacidade são exigidas pelas duas lojas como URL que o
+revisor abre no navegador, e quem perdeu o acesso à conta é justamente quem mais
+precisa da primeira. Servir daqui dá URL real desde o primeiro dia; são arquivos
+estáticos e mudam de host quando o DNS de `devonada.com.br` apontar.
+
+`include_in_schema=False` nas quatro: elas não são contrato de API, e listá-las
+no OpenAPI faria a superfície documentada mentir sobre o próprio tamanho.
+"""
+
+
+@app.get("/publico.css", response_class=FileResponse, include_in_schema=False)
+def estilo_publico():
+    """
+    A folha compartilhada das três páginas.
+
+    EXTRAÍDA QUANDO A TERCEIRA NASCEU: com uma página, `<style>` embutido era o
+    certo; com três, seriam três cópias dos mesmos tokens, e a que ninguém
+    atualizasse ficaria com outra cor que as irmãs. Estas páginas são lidas por
+    revisor de loja, e divergir de aparência entre elas levanta pergunta.
+    """
+    return FileResponse(WEB / "publico.css", media_type="text/css")
+
+
 @app.get("/exclusao", response_class=FileResponse, include_in_schema=False)
 def pagina_de_exclusao():
     """
     Página pública de solicitação de exclusão de conta — exigência do Google,
     ADICIONAL à exclusão dentro do app, não substituta dela.
-
-    Fora de `/v1/` e sem autenticação de propósito: quem perdeu o acesso à conta
-    é justamente quem mais precisa dela. Servir daqui dá URL real desde o
-    primeiro dia; é um arquivo estático e muda de host quando houver domínio.
     """
-    return FileResponse(Path(__file__).parent / "web" / "exclusao.html")
+    return FileResponse(WEB / "exclusao.html")
+
+
+@app.get("/termos", response_class=FileResponse, include_in_schema=False)
+def pagina_de_termos():
+    """Termos de Uso. Exigência das duas lojas, e linkada da tela de entrada."""
+    return FileResponse(WEB / "termos.html")
+
+
+@app.get("/privacidade", response_class=FileResponse, include_in_schema=False)
+def pagina_de_privacidade():
+    """
+    Política de Privacidade. Exigência das duas lojas, e o documento que sustenta
+    o preenchimento do *App Privacy* e do *Data safety*.
+
+    O CONTEÚDO É DERIVADO DO CÓDIGO, e o levantamento que o sustenta está em
+    `docs/legal/inventario-de-dados.md`. Quando uma coluna nova guardar dado do
+    usuário, ou um provedor novo passar a receber alguma coisa, os dois mudam
+    juntos — uma política que descreve um sistema que não existe mais é pior que
+    nenhuma.
+    """
+    return FileResponse(WEB / "privacidade.html")

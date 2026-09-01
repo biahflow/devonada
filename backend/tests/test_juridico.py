@@ -2,7 +2,7 @@ import re
 
 from domain import revisao as dominio
 from juridico import FONTES, TRILHAS
-from juridico.fontes import FonteDesconhecida, citar, obter
+from juridico.fontes import SEM_DATA_FIXA, FonteDesconhecida, citar, obter
 
 """
 O corpus jurídico e a trilha de auditoria (M14).
@@ -87,6 +87,39 @@ class TestRegistroDeFontes:
             assert f.ementa.strip(), f.id
             assert f.vigencia.strip(), f.id
             assert f.url.startswith("https://"), f.id
+
+    def test_a_vigencia_e_data_iso_salvo_excecao_declarada(self):
+        """
+        A tela renderiza "vigente desde {vigencia}". Uma frase nesse lugar vira
+        copy quebrada — "vigente desde ver tetosVigentesEm na resposta" —, e a
+        única fonte que legitimamente não tem data fixa está declarada.
+        """
+        for f in FONTES.values():
+            if f.id in SEM_DATA_FIXA:
+                continue
+            assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", f.vigencia), f"{f.id}: {f.vigencia}"
+
+    def test_a_excecao_de_vigencia_nao_cresce_sozinha(self):
+        # Cada id aqui é uma fonte que a tela precisa renderizar de outro jeito.
+        # Crescer sem decisão é como a exceção vira regra.
+        assert SEM_DATA_FIXA == {"cnps-teto-consignado"}
+        assert SEM_DATA_FIXA <= set(FONTES)
+
+    def test_o_cdc_vale_desde_1991_e_nao_desde_a_data_da_lei(self):
+        """
+        O CDC é de 11/09/1990 e entrou em vigor em 11/03/1991 — art. 118, 180
+        dias de vacatio. A tela dizia "vigente desde 1990" para um código que
+        ainda não valia. Achado F2 do pacote de revisão jurídica.
+        """
+        for id_original in ("cdc-39-i", "cdc-52-ii"):
+            assert FONTES[id_original].vigencia == "1991-03-11", id_original
+
+    def test_a_sumula_566_nao_cita_a_norma_da_sumula_539(self):
+        # A MP 1.963-17/2000 é da Súmula 539 (capitalização de juros). Esta é da
+        # Resolução-CMN 3.518/2007. Achado F1 do pacote de revisão jurídica.
+        ementa = FONTES["stj-sumula-566"].ementa
+        assert "1.963" not in ementa
+        assert "3.518/2007" in ementa
 
     def test_a_citacao_legivel_junta_norma_e_dispositivo(self):
         assert citar("cdc-52-1") == "Código de Defesa do Consumidor, art. 52, § 1º"

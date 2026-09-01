@@ -127,11 +127,30 @@ function FonteLinha({ fonte }: { fonte: FonteJuridica }) {
         {/* A VIGÊNCIA FICA JUNTO DO LINK, e não escondida: é ela que diz a
             IDADE do fundamento. O mínimo existencial já foi 25% do salário
             mínimo, e usar a redação velha custava R$ 220,50 de piso a quem
-            estava negociando — o usuário merece ver de quando é o número. */}
-        <Text style={styles.fonteLink}>Ler na fonte oficial · vigente desde {fonte.vigencia}</Text>
+            estava negociando — o usuário merece ver de quando é o número.
+
+            O PREFIXO SÓ ENTRA SE FOR DATA. Uma fonte legitimamente sem data
+            fixa existe — o teto do consignado vem de config datada, não do
+            texto da norma —, e concatenar "vigente desde" com a frase dela
+            produziria copy quebrada na tela. O backend declara a exceção em
+            `SEM_DATA_FIXA`; aqui a tela só não assume que todo valor é data. */}
+        <Text style={styles.fonteLink}>
+          Ler na fonte oficial{fonte.vigencia ? ` · ${vigenciaLegivel(fonte.vigencia)}` : ''}
+        </Text>
       </Pressable>
     </View>
   );
+}
+
+/**
+ * "vigente desde 19/06/2023" para data; a própria frase, intacta, para o resto.
+ *
+ * A data também vira BR aqui: `2023-06-19` no meio de uma frase em português é
+ * ruído para quem lê, e a tela já formata data em todo lugar.
+ */
+function vigenciaLegivel(vigencia: string): string {
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(vigencia);
+  return iso ? `vigente desde ${iso[3]}/${iso[2]}/${iso[1]}` : vigencia;
 }
 
 const styles = StyleSheet.create({

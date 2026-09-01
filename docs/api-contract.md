@@ -1106,11 +1106,29 @@ usuário, as sessões e os códigos de recuperação. É o oposto da regra de `d
 certo: lá a exclusão lógica protege o histórico do usuário; aqui ele está pedindo que o histórico
 suma. Senha errada devolve `401`.
 
-#### `GET /exclusao` — página pública
+#### Páginas públicas — `GET /exclusao`, `/termos`, `/privacidade` e `/publico.css`
 
-HTML, **fora de `/v1/`** e sem autenticação. Exigência do Google, adicional à exclusão dentro do
-app — não a substitui. Diz o que é apagado, em quanto tempo, como fazer pelo app, e um contato
-para quem perdeu o acesso.
+HTML (e CSS), **fora de `/v1/`**, **sem autenticação** e **fora do OpenAPI**
+(`include_in_schema=False`) — elas não são contrato de API, e listá-las faria a superfície
+documentada mentir sobre o próprio tamanho.
+
+| Rota | O que é |
+|---|---|
+| `/exclusao` | exigência do Google, adicional à exclusão dentro do app — não a substitui. Diz o que é apagado, em quanto tempo, como fazer pelo app, e um contato para quem perdeu o acesso |
+| `/termos` | Termos de Uso (F-018). Exigidos pelas duas lojas |
+| `/privacidade` | Política de Privacidade (F-018). Exigida pelas duas lojas, e é o documento que sustenta o *App Privacy* e o *Data safety* |
+| `/publico.css` | a folha compartilhada. Extraída quando a terceira página nasceu: três cópias dos mesmos tokens divergem, e páginas legais com aparências diferentes levantam pergunta em revisão |
+
+**Sem autenticação de propósito, e vale para as quatro:** quem perdeu o acesso à conta é justamente
+quem mais precisa da primeira, e o revisor da loja abre as três num navegador anônimo.
+
+**O conteúdo das duas novas é derivado do código**, não de modelo genérico — cada afirmação
+corresponde a uma coluna de `orm.py`, a uma rota ou a um guardrail com teste. O levantamento está
+em [`docs/legal/inventario-de-dados.md`](legal/inventario-de-dados.md), e ele muda **junto** com a
+política: uma política que descreve um sistema que não existe mais é pior que nenhuma.
+
+As duas carregam faixa de **minuta** até a revisão por advogado, e há teste que confirma que ela
+continua lá — sair é decisão humana, não esquecimento.
 
 ### 3.11 M9 · assinatura (ADR 0013)
 
@@ -1780,7 +1798,9 @@ e dois deles são código.*
 - [x] **A varredura de exclusão é derivada do metadata**, não uma lista à mão: tabela nova com
       `tenant_id` entra na exclusão no commit em que nasce. Há teste que falha se alguma tabela
       ficar fora — sem ele, a próxima migration deixaria dado órfão em silêncio
-- [~] `GET /exclusao` — página pública, exigência do Google
+- [~] `GET /exclusao` · `/termos` · `/privacidade` · `/publico.css` — as páginas públicas, fora de
+      `/v1/`, sem autenticação e fora do OpenAPI. As duas legais nasceram no F-018 com conteúdo
+      derivado do código; **falta revisão por advogado e URL pública**
 - [x] Correio plugável (`DEVONADA_CORREIO`), no padrão da ADR 0007. A suíte usa o de memória: e-mail
       entra na regra de que **nenhum teste toca a rede**
 - [x] O token fixo do beta **saiu** de `config.py`, de `auth.py` e do app

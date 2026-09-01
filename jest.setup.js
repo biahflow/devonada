@@ -99,6 +99,15 @@ jest.mock('@react-native-google-signin/google-signin', () => ({
 process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID = 'cliente-web-de-teste.apps.googleusercontent.com';
 
 /**
+ * URLs das páginas legais. Sem elas, `src/config/env.ts` deixa `urlTermos` e
+ * `urlPrivacidade` vazias e a linha legal da tela de entrada vira texto — então
+ * todo teste do link exercitaria o caminho de "não configurado" achando que
+ * exercita o caminho feliz. Mesmo desenho dos ids de produto da assinatura.
+ */
+process.env.EXPO_PUBLIC_URL_TERMOS = 'https://exemplo.test/termos';
+process.env.EXPO_PUBLIC_URL_PRIVACIDADE = 'https://exemplo.test/privacidade';
+
+/**
  * Navegação. Os testes de tela verificam o que o usuário LÊ, não para onde o
  * app navega — por isso as funções são espiões vazios. `mockRouter` fica
  * exposto para o teste que precise afirmar que uma ação leva a algum lugar.

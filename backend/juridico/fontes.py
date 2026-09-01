@@ -48,6 +48,20 @@ class Fonte:
     usuário vê a idade do fundamento em vez de confiar nele às cegas. E porque
     a redação MUDA — o mínimo existencial já foi 25% do salário mínimo, e usar a
     redação velha custava R$ 220,50 de piso a quem estava negociando.
+
+    É A DATA EM QUE O DISPOSITIVO PASSOU A VALER, e não a data da lei — as duas
+    divergem, e confundi-las já produziu erro aqui. O CDC é de 11/09/1990 e só
+    entrou em vigor em **11/03/1991**, porque o art. 118 lhe deu 180 dias de
+    vacatio; a tela dizia "vigente desde 1990" para um código que ainda não
+    valia naquela data. Quando as duas divergirem e a cláusula de vigência não
+    tiver sido conferida na fonte, use a data de PUBLICAÇÃO e registre a dúvida
+    no pacote de revisão — publicação é, no pior caso, um limite inferior.
+
+    FORMATO ISO (`AAAA-MM-DD`), com UMA exceção declarada: o teto do consignado
+    não tem data fixa aqui, porque ele vem de config datada. Ela está na lista
+    `SEM_DATA_FIXA` abaixo, e há teste que falha se uma segunda aparecer sem
+    decisão — a tela renderiza "vigente desde {vigencia}", e uma frase nesse
+    lugar viraria copy quebrada.
     """
 
     id: str
@@ -92,7 +106,7 @@ _ANTES_DO_M14: tuple[Fonte, ...] = (
             "No fornecimento de crédito, o consumidor tem de ser informado antes da "
             "contratação sobre os juros de mora e a taxa efetiva anual — o CET."
         ),
-        vigencia="1990-09-11",
+        vigencia="1991-03-11",
         url=_PLANALTO_CDC,
     ),
     Fonte(
@@ -103,7 +117,7 @@ _ANTES_DO_M14: tuple[Fonte, ...] = (
             "Condicionar a venda de um produto ou serviço à compra de outro é prática abusiva — "
             "é a chamada venda casada."
         ),
-        vigencia="1990-09-11",
+        vigencia="1991-03-11",
         url=_PLANALTO_CDC,
     ),
     Fonte(
@@ -111,9 +125,14 @@ _ANTES_DO_M14: tuple[Fonte, ...] = (
         norma="Superior Tribunal de Justiça",
         dispositivo="Súmula 566",
         ementa=(
-            "Nos contratos bancários posteriores à MP 1.963-17/2000, a cobrança de tarifa de "
-            "cadastro só é válida no início do relacionamento, e uma vez só."
+            "Nos contratos bancários posteriores a 30/04/2008 (início da vigência da "
+            "Resolução-CMN 3.518/2007), a tarifa de cadastro pode ser cobrada no INÍCIO do "
+            "relacionamento entre o consumidor e a instituição financeira."
         ),
+        # A redação anterior desta ementa citava a MP 1.963-17/2000, que é a norma
+        # da Súmula 539 (capitalização de juros) — não desta. Erro conferido
+        # contra o enunciado do STJ e corrigido em 01/09/2026; ver
+        # `docs/legal/pacote-de-revisao-juridica.md`, achado F1.
         vigencia="2016-02-24",
         url="https://www.stj.jus.br/sites/portalp/Jurisprudencia/Sumulas",
     ),
@@ -203,7 +222,7 @@ _LEI_14181: tuple[Fonte, ...] = (
             "existencial. Boa-fé e natureza de consumo são apuradas caso a caso — não por "
             "software."
         ),
-        vigencia="2021-07-01",
+        vigencia="2021-07-02",
         url=_PLANALTO_14181,
     ),
     Fonte(
@@ -214,7 +233,7 @@ _LEI_14181: tuple[Fonte, ...] = (
             "O tratamento do superendividamento não alcança dívidas contraídas com fraude ou "
             "má-fé, nem as de produtos e serviços de luxo de alto valor."
         ),
-        vigencia="2021-07-01",
+        vigencia="2021-07-02",
         url=_PLANALTO_14181,
     ),
     Fonte(
@@ -226,7 +245,7 @@ _LEI_14181: tuple[Fonte, ...] = (
             "TODOS os credores de uma vez, em que ela apresenta um plano de pagamento de até "
             "cinco anos, preservado o mínimo existencial."
         ),
-        vigencia="2021-07-01",
+        vigencia="2021-07-02",
         url=_PLANALTO_14181,
     ),
     Fonte(
@@ -237,7 +256,7 @@ _LEI_14181: tuple[Fonte, ...] = (
             "Ficam de fora da repactuação as dívidas de crédito com garantia real, de "
             "financiamento imobiliário e de crédito rural."
         ),
-        vigencia="2021-07-01",
+        vigencia="2021-07-02",
         url=_PLANALTO_14181,
     ),
     Fonte(
@@ -248,7 +267,7 @@ _LEI_14181: tuple[Fonte, ...] = (
             "A fase conciliatória da repactuação também corre nos órgãos públicos de defesa do "
             "consumidor, como o Procon — não é preciso começar pelo Judiciário."
         ),
-        vigencia="2021-07-01",
+        vigencia="2021-07-02",
         url=_PLANALTO_14181,
     ),
     Fonte(
@@ -259,10 +278,16 @@ _LEI_14181: tuple[Fonte, ...] = (
             "É direito básico do consumidor a prevenção e o tratamento do superendividamento, "
             "preservado o mínimo existencial, inclusive pela revisão e repactuação da dívida."
         ),
-        vigencia="2021-07-01",
+        vigencia="2021-07-02",
         url=_PLANALTO_14181,
     ),
 )
+
+
+# As fontes cuja vigência NÃO é uma data — a exceção declarada de `Fonte.vigencia`.
+# Uma lista, e não um `if` espalhado: a tela precisa saber que ali não cabe o
+# prefixo "vigente desde", e o teste precisa saber que a exceção foi decidida.
+SEM_DATA_FIXA = frozenset({"cnps-teto-consignado"})
 
 
 # O REGISTRO É EXATAMENTE O QUE ALGUMA REGRA CITA, e nada além. Fonte guardada

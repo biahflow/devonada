@@ -47,4 +47,19 @@ export const env = {
    */
   googleWebClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '',
   googleIosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? '',
+
+  /**
+   * As duas páginas legais, exigidas pelas lojas (F-018).
+   *
+   * VARIÁVEL, e não `apiBaseUrl + '/termos'`. Elas são servidas pelo backend
+   * hoje, mas o destino delas é um domínio público — e derivar a URL da base da
+   * API amarraria um link que vai para o site ao endereço do servidor, que muda.
+   * No dia em que o DNS apontar, muda o `.env` e nada de código.
+   *
+   * VAZIO DESLIGA O LINK, e a linha legal da tela de entrada volta a ser texto.
+   * Link que não vai a lugar nenhum é pior que a frase sozinha — e um `404` de
+   * política de privacidade na frente do revisor da loja é reprovação.
+   */
+  urlTermos: process.env.EXPO_PUBLIC_URL_TERMOS ?? '',
+  urlPrivacidade: process.env.EXPO_PUBLIC_URL_PRIVACIDADE ?? '',
 };
