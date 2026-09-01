@@ -260,7 +260,13 @@ O `tenant_id` passou a vir do `sub` do access token. O que muda de regra:
   servidor não o alcança.
 - **Exclusão de conta é FÍSICA**, e é a única exclusão do produto que é. O `excluido_em` de
   `divida` protege o histórico do usuário; aqui é o usuário pedindo que o histórico deixe de
-  existir. Ela reconfirma a senha, além do Bearer.
+  existir. Ela reconfirma, além do Bearer, com **qualquer credencial que aquela conta tem**: a
+  senha, se ela tem senha; o token do provedor, se ela tem provedor — com o `sub` conferido contra o
+  gravado na conta (ADR 0023).
+  *Modo de falha que isso previne:* exigir senha de quem entrou pela Apple a deixaria sem como
+  excluir a conta, e a diretriz 5.1.1(v) reprova nisso — a mesma diretriz que a rota cumpre. Do
+  outro lado, aceitar um token social **qualquer** deixaria alguém com o aparelho na mão entrar na
+  própria conta do provedor e apagar a de outra pessoa.
 - **Tabela nova com `tenant_id` entra na exclusão de conta automaticamente.** A varredura é
   derivada de `orm.Base.metadata`, e há teste que falha se alguma tabela ficar fora. Se a sua
   tabela for chaveada por outra coisa, declare-a em `routers.conta.TABELAS_POR_USUARIO` e apague-a
@@ -269,6 +275,27 @@ O `tenant_id` passou a vir do `sub` do access token. O que muda de regra:
 - **E-mail não carrega dado financeiro.** O único e-mail do produto leva um código de seis
   dígitos. Um e-mail atravessa servidores que não controlamos e fica guardado em caixas que não
   controlamos.
+
+### 6.2 Login social (M13, ADR 0023)
+
+- **Quem confere o token é o servidor, contra a chave pública do provedor.** Um app modificado que
+  diga "a Apple confirmou que sou o fulano" é trivial de construir; a única resposta é não
+  perguntar a ele. O app manda o ID token e nada mais — e-mail, nome e `sub` estão dentro dele,
+  assinados, e o que vier por fora é ignorado.
+- **Audiência vazia RECUSA, nunca aceita qualquer uma.** Assinatura válida só prova que o provedor
+  emitiu o token para **algum** app; é o `aud` que prova que foi para o nosso.
+  *Modo de falha que isso previne:* quem controla outro app do mesmo provedor entra na conta de
+  qualquer usuário nosso.
+- **A conta é `(provedor, sub)`, nunca o e-mail.** E-mail muda — encaminhamento privado da Apple
+  desligado, domínio corporativo trocado. Identificar por e-mail faria essa pessoa perder tudo o
+  que cadastrou.
+- **E-mail verificado reconhece; conta COM SENHA não é ligada automaticamente.** Enquanto o
+  cadastro não verificar e-mail, ligar por coincidência de e-mail é *pre-hijacking*: alguém
+  registra hoje uma conta com o e-mail da vítima e recebe tudo o que ela cadastrar depois.
+- **Nome e foto não são coletados.** Os dois SDKs os oferecem; nenhuma tela os mostra. Coletar o
+  que ninguém usa é o oposto de minimização.
+- **O token do provedor não é guardado no aparelho.** Ele vale minutos e serve para uma troca só; o
+  que persiste é a sessão do nosso servidor, no SecureStore como sempre.
 
 ---
 

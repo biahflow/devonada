@@ -914,11 +914,20 @@ tem de vir antes do esforço. O M7 já tinha provado isso com o "Nível 0" do ca
       linha `extracao`, nunca `divida`. Junto veio o conserto de um bug pré-existente — a ligação
       dívida→extração estava quebrada no cliente (`extracaoId` nunca era enviado), então até a
       revisão de contrato de UMA dívida nascia sem achado.
-- [ ] **Login social (Apple e Google).** A tela de entrada já tem os dois botões do desenho da
-      tela 11, **desligados**, com legenda dizendo quando chegam. Falta tudo do servidor: troca de
-      token, coluna de provedor no usuário, `expo-apple-authentication` e Google Sign-In no app, e
-      credenciais reais nas duas plataformas. Sign in with Apple é **exigência** da Apple para app
-      que ofereça qualquer login social, então os dois andam juntos.
+- [x] **Login social (Apple e Google)** — F-016, ADR 0023. `POST /v1/auth/social` com camada de
+      identidade plugável em `backend/identidade/` (`apple` · `google` · `memoria`, no padrão da
+      loja), colunas `provedor`/`provedor_sub` no usuário e `senha_hash` nulável. A conta é
+      `(provedor, sub)`, nunca o e-mail; e-mail verificado reconhece conta só-social e **recusa com
+      409** conta que tem senha, que é o que fecha o *pre-hijacking* enquanto o cadastro não
+      verificar e-mail. `DELETE /v1/conta` passou a reconfirmar pela credencial que a conta tem —
+      senha, ou o provedor com o `sub` conferido —, porque exigir senha de quem nunca escolheu uma
+      reprovaria na diretriz 5.1.1(v) enquanto a 4.8 obriga o botão a existir. No app,
+      `expo-apple-authentication` e `@react-native-google-signin/google-signin` atrás de
+      `src/social/`; botão só aparece onde há para onde mandar o toque.
+      **FALTA A CREDENCIAL REAL nas duas plataformas** (`DEVONADA_APPLE_CLIENT_IDS`,
+      `DEVONADA_GOOGLE_CLIENT_IDS`, `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`) e a validação em aparelho —
+      é gate humano, não trabalho pendente de código. Vazias, os botões continuam desligados com a
+      legenda e a rota recusa com `503`.
 - [ ] **Páginas de Termos e Política de Privacidade.** A linha legal da tela de entrada é texto sem
       link porque as URLs não existem. Item de pré-lançamento, não polimento: as duas lojas pedem.
 - [x] Extração de **boleto, carta e print de cobrança** (F-013) — a rota `POST /v1/contratos`

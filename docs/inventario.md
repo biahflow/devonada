@@ -50,7 +50,7 @@ distinção é do `roadmap.md` e este documento não a apaga.
 | M10 | Fork e marca devo.nada: paleta escura, wordmark, splash, ícone (ADR 0014, 0015 e 0018) | Entregue, **sem débito aberto** desde 19/08/2026: contrastes remedidos e virados gate, dígito medido, ícone refeito, `custoDiarioJuros` no resumo. **Falta device.** |
 | M11 | Respiro: a fatia de viver entra na cascata antes do corte, e o marco vira evento que não se desfaz (ADR 0019) | Entregue em 20/08/2026; **falta device** — `RespiroCard`, a tela de declaração e a `MarcoScreen` não foram vistas em aparelho, e é o gate humano que fecha o milestone. |
 | M12 | Metas nomeadas e a aba da fase verde (ADR 0017); **renda tipada e compromisso percentual (F-011)** e **negociação por canal e registro de resultado (F-012)** (ADR 0021) | Entregue; **falta device**. F-011 e F-012 fechados em 27/08/2026 (T1–T6 cada), integrados em `m12-integration`. |
-| M13 | Entrada pelo alívio: onboarding em 3 passos, escolha **múltipla** de dívida e fila de cadastro (ADR 0016) | **Parcialmente entregue**: fluxo central, **data de origem no onboarding**, **extração de boleto/carta/print (F-013)**, **notificação discreta (F-014)** e **documento inline na fila multi-dívida (F-015, ADR 0022)** entregues; **login social** e **páginas de Termos/Privacidade** continuam pendentes. **Falta device**. |
+| M13 | Entrada pelo alívio: onboarding em 3 passos, escolha **múltipla** de dívida e fila de cadastro (ADR 0016) | **Parcialmente entregue**: fluxo central, **data de origem no onboarding**, **extração de boleto/carta/print (F-013)**, **notificação discreta (F-014)**, **documento inline na fila multi-dívida (F-015, ADR 0022)** e **login social (F-016, ADR 0023)** entregues — este último **sem credencial real**, que é gate humano; **páginas de Termos/Privacidade** continuam pendentes. **Falta device**. |
 | M14 | Lei do Superendividamento no corpus (ADR 0024) | **Entregue no código**: `backend/juridico/` com id estável e a Lei 14.181/2021; a repactuação nomeada no Caixa e na Rota, e **convite** (não afirmação) na triagem, onde a renda ainda não existe; trilha "como calculamos" em `GET /v1/juridico/fontes` + caixa + revisão. **Falta a revisão da copy jurídica por advogado** (gate de pré-lançamento) e **falta device**. |
 | — | Navegação: seta de voltar em toda tela empilhada (ADR 0016) | Entregue; **falta device** |
 
@@ -102,6 +102,7 @@ Números lidos das fontes, não de memória. Fonte de cada bloco indicada no cab
 | `expo-clipboard` · `expo-linking` · `expo-constants` | ~8.0.8 · ~8.0.12 · ~18.0.13 |
 | `@expo-google-fonts/nunito-sans` · `@expo/vector-icons` | ^0.4.2 · ^15.0.3 |
 | `@react-native-community/slider` · `datetimepicker` | 5.0.1 · 8.4.4 |
+| `expo-apple-authentication` · `@react-native-google-signin/google-signin` | ~8.0.8 · ^16.1.4 |
 
 Dev: `jest` ^29 · `jest-expo` ^57 · `@testing-library/react-native` ^13 · `eslint` ^9 ·
 `typescript-eslint` ^8.66 · `prettier` ^3.9 · `qrcode-terminal` ^0.12.
@@ -301,8 +302,8 @@ Deep link sempre por campo tipado, nunca por id extraído de texto.
 
 | Suíte | Números |
 |---|---|
-| Jest | **631 testes em 51 suítes**, verdes em 01/09/2026 no fechamento do F-017 (M14); eram 620 / 50 no F-015 (documento inline na fila + conserto do vínculo `extracaoId`); eram 611 / 50 no fechamento integrado do M13 (data de origem + F-013 + F-014) e 606 / 50 no M12. O processo **conclui a suíte e não encerra**, por handle aberto — a contagem sai antes disso, e `--forceExit` é o contorno. Há avisos de `act(...)` a investigar. |
-| pytest | **760 testes**, verdes em SQLite em 01/09/2026 no fechamento do F-017 (M14); eram 733 no fechamento do M13 e 721 no M12; avisos são `HTTP_422_UNPROCESSABLE_ENTITY` depreciado, Starlette/httpx e `InsecureKeyLength` do JWT de teste — nenhuma classe nova. Rodado em Python 3.12 via `uv` (o `python3` do sistema é 3.9), sem `pysqlite3` (não é importado por teste; o dialeto `sqlite+pysqlite` usa o `sqlite3` da stdlib). A execução contra Postgres continua obrigatória antes de release e **não** foi feita aqui. |
+| Jest | **654 testes em 52 suítes**, verdes em 01/09/2026 na integração do F-017 (M14) com o F-016 já na `main` — número MEDIDO na árvore integrada, não somado; eram 643 / 51 no F-016 e 620 / 50 no F-015 (documento inline na fila + conserto do vínculo `extracaoId`); eram 611 / 50 no fechamento integrado do M13 (data de origem + F-013 + F-014) e 606 / 50 no M12. O processo **conclui a suíte e não encerra**, por handle aberto — a contagem sai antes disso, e `--forceExit` é o contorno. Há avisos de `act(...)` a investigar. |
+| pytest | **800 testes**, verdes em SQLite em 01/09/2026 na integração do F-017 (M14) com o F-016 já na `main` — número MEDIDO na árvore integrada, não somado; eram 773 no F-016, 733 no fechamento do M13 e 721 no M12; avisos são `HTTP_422_UNPROCESSABLE_ENTITY` depreciado, Starlette/httpx e `InsecureKeyLength` do JWT de teste — nenhuma classe nova. Rodado em Python 3.12 via `uv` (o `python3` do sistema é 3.9), sem `pysqlite3` (não é importado por teste; o dialeto `sqlite+pysqlite` usa o `sqlite3` da stdlib). A execução contra Postgres continua obrigatória antes de release e **não** foi feita aqui. |
 
 Gates locais, **seis** desde 19/08/2026: `npm run typecheck`, `npm run lint`, `npm test`,
 `npm run bundle:check`, `npm run palette:check` e `npm run digits:check`, mais `pytest` no backend.
@@ -324,7 +325,7 @@ alguém rodá-los.
 cobre o campo, que a notificação toca na hora certa e que a permissão de câmera se comporta.
 Isso é o "falta device" que aparece em quase todos os milestones.
 
-## 8. Decisões arquiteturais — 23 ADRs
+## 8. Decisões arquiteturais — 24 ADRs
 
 | # | Decisão |
 |---|---|
@@ -350,13 +351,11 @@ Isso é o "falta device" que aparece em quase todos os milestones.
 | 0020 | O assistente se chama Tino, e a marca antiga sai da página pública |
 | 0021 | O tipo da renda ganha efeito por adição, e o canal decide quando a oferta é dita |
 | 0022 | Documento lido inline na fila multi-dívida do onboarding, sem sair do grupo |
+| 0023 | Login social: a conta é o `sub` do provedor, e conta sem senha exclui pelo provedor |
 | 0024 | O corpus jurídico é registro curado com id estável, e a trilha não carrega valor |
 
 As linhas 0019 a 0022 **estavam faltando** nesta tabela desde o M11 — o inventário é visão
 derivada, e a fonte canônica é [`docs/adr/README.md`](adr/README.md). Corrigidas aqui.
-
-O **0023** (login social) não aparece porque chega em outra branch, junto do F-016. Quem integrar
-as duas acrescenta a linha e ajusta a contagem.
 
 ADR aceita nunca é reescrita — decisão que muda vira ADR nova.
 
@@ -399,10 +398,17 @@ Estão aqui porque escondê-las inverteria o princípio do projeto. Íntegras em
     porque extração grava linha `extracao`, nunca `divida`. O F-015 também consertou um bug
     pré-existente: o cliente nunca enviava `extracaoId`, então dívida vinda de contrato não ligava a
     extração e a triagem dela não mostrava achado.
-16. **Não existe login social** (Apple ou Google). A tela de entrada mostra os dois botões do
-    desenho da concepção, **desligados**, com legenda dizendo quando chegam. O backend não tem nada
-    de Sign in with Apple nem Google Sign-In — o que existe em `backend/` sobre as duas empresas é
-    compra in-app e exclusão de conta.
+16. **~~Não existe login social~~ — CÓDIGO RESOLVIDO no F-016 (ADR 0023); FALTA CREDENCIAL.**
+    `POST /v1/auth/social` confere o ID token pela camada plugável `backend/identidade/`
+    (`apple` · `google` · `memoria`), a conta é `(provedor, sub)`, e `DELETE /v1/conta` reconfirma
+    pela credencial que a conta tem — senha, ou o provedor com o `sub` conferido, sem o que quem
+    entra pela Apple ficaria sem como excluir a conta (diretriz 5.1.1(v)). No app,
+    `expo-apple-authentication` e `@react-native-google-signin/google-signin` atrás de
+    `src/social/`, e o botão só aparece onde há para onde mandar o toque.
+    **O que falta é humano, não código:** `DEVONADA_APPLE_CLIENT_IDS`,
+    `DEVONADA_GOOGLE_CLIENT_IDS` e `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` precisam de conta na Apple
+    Developer e projeto no Google Cloud. Vazias, os botões seguem desligados com a legenda e a rota
+    recusa com `503`. **Nada disso foi validado em aparelho.**
 17. **A linha "Termos e Política de Privacidade" da tela de entrada é texto, não link.** Não há URL
     dessas páginas em `src/config/env.ts`, `app.json` nem `.env.example`; a única página pública do
     backend é `/exclusao`. Vira link quando as páginas existirem — é item de pré-lançamento.

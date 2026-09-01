@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollView, View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Screen } from '../../src/components/ui/Screen';
@@ -9,7 +9,9 @@ import { FormField } from '../../src/components/ui/FormField';
 import { Feedback } from '../../src/components/ui/Feedback';
 import { BotaoSocial } from '../../src/components/auth/BotaoSocial';
 import { Divisor } from '../../src/components/auth/Divisor';
-import { useEntrar } from '../../src/hooks/useConta';
+import { useEntrar, useEntrarComProvedor } from '../../src/hooks/useConta';
+import { ErroSocial, provedoresDisponiveis } from '../../src/social';
+import type { ProvedorSocial } from '../../src/api/types';
 import { ApiError } from '../../src/api/client';
 import { colors, spacing, typography } from '../../src/theme/theme';
 
@@ -20,12 +22,19 @@ import { colors, spacing, typography } from '../../src/theme/theme';
  * chega aqui está ansioso e cada campo é uma chance de desistir. Os dois botões
  * de cima existem no desenho porque um dia serão o caminho de menor esforço.
  *
- * ELES AINDA NÃO FUNCIONAM, e a tela não finge que funcionam — ver
- * `BotaoSocial`. Não há Sign in with Apple nem Google Sign-In no backend, então
- * nascem `disabled` com a legenda dizendo o porquê.
+ * ELES FUNCIONAM DESDE O M13 (ADR 0023) — quando o aparelho e a configuração
+ * permitem. Quem responde por isso é `src/social/provedoresDisponiveis()`: a
+ * Apple pergunta ao próprio aparelho (`isAvailableAsync`, que é falso no Expo Go
+ * e no Android), e o Google depende do client id estar configurado.
+ *
+ * O QUE NÃO ESTÁ DISPONÍVEL NÃO APARECE COMO BOTÃO MORTO. Com nenhum dos dois
+ * disponíveis, a tela volta ao par desligado com a legenda — que é o estado de
+ * quem abre no Expo Go ou antes de as credenciais existirem. Botão que aceita o
+ * toque e não faz nada é pior que botão apagado; botão apagado ao lado de um
+ * aceso, pior ainda, porque parece defeito.
  *
  * A CONCEPÇÃO MOSTRAVA UM CAMPO SÓ ("Entrar com e-mail"), o que sugere link
- * mágico. O backend é e-mail + senha (`POST /v1/sessao`). Os dois campos ficam
+ * mágico. O backend é e-mail + senha (`POST /v1/auth/login`). Os dois campos ficam
  * abaixo do divisor: preserva a ordem da tela sem inventar um fluxo que o
  * servidor não tem.
  */
@@ -34,7 +43,42 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [erroLocal, setErroLocal] = useState<string | undefined>();
+  // `null` é AINDA PERGUNTANDO, e é diferente de lista vazia. Com os dois
+  // colapsados num só, quem tem a Apple disponível via o par desligado e a
+  // legenda 'chega com a publicação nas lojas' piscarem antes do botão de
+  // verdade aparecer — a tela afirmava por um instante o contrário do que ia
+  // mostrar. Perguntando, o bloco social não desenha nada.
+  const [sociais, setSociais] = useState<ProvedorSocial[] | null>(null);
   const entrar = useEntrar();
+  const entrarPorProvedor = useEntrarComProvedor();
+
+  // A disponibilidade é uma pergunta ao aparelho, e ela é assíncrona: quem sabe
+  // se há Sign in with Apple neste binário é o próprio aparelho.
+  useEffect(() => {
+    let vivo = true;
+    provedoresDisponiveis()
+      .then((lista) => {
+        if (vivo) setSociais(lista);
+      })
+      // Falhar em PERGUNTAR é o mesmo que não ter: a tela cai no par desligado
+      // com a legenda, em vez de ficar em branco para sempre.
+      .catch(() => {
+        if (vivo) setSociais([]);
+      });
+    return () => {
+      vivo = false;
+    };
+  }, []);
+
+  function entrarCom(provedor: ProvedorSocial) {
+    setErroLocal(undefined);
+    entrarPorProvedor.mutate(provedor, {
+      onSuccess: (resultado) => {
+        // Cancelou a folha do provedor: nada acontece, e nada é dito.
+        if (!resultado.cancelado) router.replace('/');
+      },
+    });
+  }
 
   function submeter() {
     if (!email.trim() || !senha) {
@@ -46,6 +90,8 @@ export default function Login() {
     // login depois de entrar.
     entrar.mutate({ email, senha }, { onSuccess: () => router.replace('/') });
   }
+
+  const erroDeEntrada = mensagemDeErro(entrar.error) ?? mensagemDeErro(entrarPorProvedor.error);
 
   return (
     <Screen>
@@ -71,26 +117,37 @@ export default function Login() {
         </View>
 
         <View style={styles.social}>
-          <BotaoSocial provedor="apple" label="Continuar com Apple" />
-          <BotaoSocial provedor="google" label="Continuar com Google" />
-          <Text style={styles.legendaSocial}>
-            Entrar pela Apple ou pelo Google chega com a publicação nas lojas. Por enquanto, é por
-            e-mail.
-          </Text>
+          {sociais === null ? null : sociais.length === 0 ? (
+            <>
+              <BotaoSocial provedor="apple" label="Continuar com Apple" />
+              <BotaoSocial provedor="google" label="Continuar com Google" />
+              <Text style={styles.legendaSocial}>
+                Entrar pela Apple ou pelo Google chega com a publicação nas lojas. Por enquanto, é
+                por e-mail.
+              </Text>
+            </>
+          ) : (
+            sociais.map((provedor) => (
+              <BotaoSocial
+                key={provedor}
+                provedor={provedor}
+                label={provedor === 'apple' ? 'Continuar com Apple' : 'Continuar com Google'}
+                onPress={() => entrarCom(provedor)}
+                // Os dois se desligam juntos enquanto um deles está em voo: dois
+                // fluxos de identidade abertos ao mesmo tempo terminariam em duas
+                // sessões, e a última a chegar sobrescreveria a outra em silêncio.
+                disabled={entrarPorProvedor.isPending}
+              />
+            ))
+          )}
         </View>
 
         <Divisor />
 
-        {entrar.error ? (
-          <Feedback
-            tone="error"
-            message={
-              entrar.error instanceof ApiError
-                ? entrar.error.message
-                : 'Não deu para entrar agora. Tente de novo.'
-            }
-          />
-        ) : null}
+        {/* UM LUGAR SÓ PARA O ERRO das três entradas. A frase do servidor vem
+            do `ApiError`; a do provedor, do `ErroSocial`, que já nasce em pt-BR
+            dentro de `src/social/`. O `else` genérico cobre queda de rede. */}
+        {erroDeEntrada ? <Feedback tone="error" message={erroDeEntrada} /> : null}
 
         <View style={styles.form}>
           <FormField
@@ -145,6 +202,20 @@ export default function Login() {
       </ScrollView>
     </Screen>
   );
+}
+
+/**
+ * A frase que a tela mostra para um erro de entrada.
+ *
+ * `ApiError` e `ErroSocial` já trazem texto em pt-BR pensado para leigo — o
+ * primeiro veio do servidor, o segundo de `src/social/`. Qualquer outra coisa é
+ * falha de rede ou defeito, e aí a frase é nossa: mostrar `e.message` cru
+ * colocaria "Network request failed" na cara de quem está ansioso.
+ */
+function mensagemDeErro(erro: unknown): string | undefined {
+  if (!erro) return undefined;
+  if (erro instanceof ApiError || erro instanceof ErroSocial) return erro.message;
+  return 'Não deu para entrar agora. Tente de novo.';
 }
 
 const styles = StyleSheet.create({

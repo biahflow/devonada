@@ -7,8 +7,9 @@
 Partindo da `main` em `653224d`: **620 testes Jest em 50 suítes** e **733 pytest**, todos verdes.
 Nenhuma falha pré-existente encontrada, nenhuma introduzida.
 
-**Esta branch NÃO contém o F-016** (login social, PR #18), que estava em curso na mesma árvore. As
-duas features foram separadas antes de o M14 começar, justamente para os diffs não se misturarem.
+**A branch nasceu SEM o F-016** (login social, PR #18), que estava em curso na mesma árvore. As
+duas features foram separadas antes de o M14 começar, justamente para os diffs não se misturarem —
+e é por isso que os números das duas colunas abaixo são de árvores diferentes.
 
 ## Gates locais — todos verdes em 01/09/2026
 
@@ -75,11 +76,40 @@ que o inventário é visão derivada e o `README.md` das ADRs é a fonte canôni
   exigia; as ementas da Lei 14.181/2021 são paráfrase nossa, e o `texto` literal ficou `None` nelas
   exatamente por isso.
 
+## Integração com o F-016, depois que ele entrou na `main`
+
+O PR #18 foi mergeado em 01/09/2026, e a `main` passou a ter o login social. `main` foi trazida
+para esta branch por **merge** (não rebase: rebase exigiria force-push, que os guardrails de Git
+deste repositório não autorizam sem aprovação explícita).
+
+**Quatro conflitos, todos em documento, nenhum em código.** As duas features não se tocam no
+runtime: uma vive em `backend/identidade/` e nas telas de entrada e exclusão de conta, a outra em
+`backend/juridico/` e nas telas de caixa, rota, revisão e triagem. O que elas dividem são os
+documentos que toda feature atualiza.
+
+| Arquivo | Conflito | Resolução |
+|---|---|---|
+| `docs/adr/README.md` | as duas acrescentavam a última linha da tabela | as duas linhas, 0023 antes de 0024 |
+| `docs/backend.md` | as duas acrescentavam uma camada ao mapa de pastas | `identidade/` e `juridico/`, nessa ordem |
+| `docs/api-contract.md` | as duas acrescentavam item à mesma lista do Bloco 10 | **erro meu, corrigido no caminho**: o `GET /v1/juridico/fontes` estava pendurado no bloco de conta de usuário porque foi ancorado na linha de auth. Ganhou o Bloco 16, que é onde um leitor o procuraria |
+| `docs/inventario.md` | linha do M13, contagem de testes, e a nota sobre a ADR 0023 | linha do M13 da `main` (ela traz o F-016) mais a do M14; contagens **remedidas**; a nota que dizia "a 0023 chega em outra branch" cumpriu o papel e saiu, com a linha entrando na tabela |
+
+**Os números foram medidos de novo na árvore integrada, não somados:** `npm install` limpo, e os
+sete gates rodados inteiros.
+
+| Gate | Antes do merge (só M14) | Depois do merge |
+|---|---|---|
+| jest | 631 / 51 | **654 / 52** |
+| pytest | 760 | **800** |
+| typecheck · lint · bundle · palette · digits | passam | passam |
+
+Nenhum teste precisou ser alterado para as duas features conviverem, e nenhuma asserção de uma
+passou a depender da outra.
+
 ## Aprovações humanas ainda necessárias
 
 1. **Revisão da copy jurídica por advogado** — quinze entradas em `backend/juridico/fontes.py` e
    quatro trilhas em `trilhas.py`. É o único item do roadmap que pode **encerrar** o produto em vez
    de atrasar um release, e agora ele tem alvo delimitado.
 2. **Validação em aparelho** das quatro telas alteradas.
-3. **Merge do PR** — e, na integração com o F-016, resolver `docs/adr/README.md`, `roadmap.md`,
-   `docs/inventario.md` e `docs/api-contract.md`, que as duas branches tocam.
+3. **Merge do PR.** A integração com o F-016 **já foi feita** nesta branch — ver a seção acima.

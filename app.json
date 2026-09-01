@@ -14,7 +14,8 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "br.com.devonada.app"
+      "bundleIdentifier": "br.com.devonada.app",
+      "usesAppleSignIn": true
     },
     "android": {
       "package": "br.com.devonada.app",
@@ -22,7 +23,9 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#101216"
       },
-      "permissions": ["com.android.vending.BILLING"]
+      "permissions": [
+        "com.android.vending.BILLING"
+      ]
     },
     "plugins": [
       "expo-router",
@@ -37,7 +40,9 @@
           "photosPermission": "Para ler o contrato a partir de uma imagem já salva no seu aparelho.",
           "cameraPermission": "Para fotografar o contrato e extrair os dados. A foto é lida e descartada — não guardamos o arquivo."
         }
-      ]
+      ],
+      "expo-apple-authentication",
+      "@react-native-google-signin/google-signin"
     ]
   }
 }
