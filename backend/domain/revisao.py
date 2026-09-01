@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from domain.dinheiro import decimal_para_centavos, centavos_para_decimal, bps_para_decimal
+from juridico.fontes import citar
 
 """
 Revisão de cobrança — os pontos do contrato que valem contestar.
@@ -56,10 +57,30 @@ class Achado:
     id: str
     titulo: str
     explicacao: str
-    fonte: str
+    # OS IDS das normas no registro de `juridico/fontes.py`, não o texto delas.
+    #
+    # TUPLA, e não um id só: o achado do seguro prestamista sempre se apoiou em
+    # DUAS — o CDC sobre venda casada e o Tema 972 do STJ sobre a escolha da
+    # seguradora —, e elas viviam concatenadas numa string que nenhum código
+    # conseguia separar de novo. Uma fonte por achado teria obrigado a jogar uma
+    # das duas fora na primeira refatoração.
+    fonte_ids: tuple[str, ...]
     como_conferir: str
     valor_contestavel: int | None = None
     evidencia: str | None = None
+
+    @property
+    def fonte(self) -> str:
+        """
+        A citação legível: "Norma, dispositivo", separadas por ponto e vírgula.
+
+        DERIVADA do registro, e não mais escrita à mão em cada achado. Antes,
+        cinco achados carregavam cinco strings independentes — e nada garantia
+        que a citação de um batesse com a do outro nem com a docstring da regra
+        logo acima. Agora existe um lugar onde a norma está escrita, e ele é o
+        mesmo que a tela lê para mostrar ementa, vigência e link.
+        """
+        return "; ".join(citar(i) for i in self.fonte_ids)
 
 
 @dataclass(frozen=True)
@@ -144,7 +165,7 @@ def multa_acima_do_teto(contrato: Contrato, parcelas_atrasadas: list[int]) -> Ac
             f"Consumidor limita a multa de mora a {_pct(TETO_MULTA_MORATORIA_BPS)} do valor da "
             "prestação. Vale contestar a diferença."
         ),
-        fonte="Código de Defesa do Consumidor, art. 52, §1º",
+        fonte_ids=("cdc-52-1",),
         como_conferir=(
             "Procure no contrato a cláusula de multa por atraso e confira o percentual."
         ),
@@ -189,7 +210,7 @@ def juros_acima_do_teto(contrato: Contrato, tetos: Tetos) -> Achado | None:
             f"A taxa contratada é de {_pct(taxa)} ao mês. O teto vigente para {rotulo} é de "
             f"{_pct(teto)} ao mês. Vale pedir a revisão da taxa."
         ),
-        fonte="Resolução do Conselho Nacional de Previdência Social (CNPS)",
+        fonte_ids=("cnps-teto-consignado",),
         como_conferir=(
             "Confira a taxa de juros mensal no seu contrato e compare com o teto da data em "
             "que você contratou."
@@ -228,7 +249,7 @@ def tarifa_de_cadastro_repetida(
             "relacionamento com a instituição. Se este não foi seu primeiro contrato com ela, "
             "vale contestar."
         ),
-        fonte="Superior Tribunal de Justiça, Súmula 566",
+        fonte_ids=("stj-sumula-566",),
         como_conferir=(
             "Este foi seu primeiro contrato com este credor? Se você já era cliente, procure a "
             "linha da tarifa de cadastro no contrato."
@@ -267,7 +288,7 @@ def seguro_prestamista_embutido(contrato: Contrato) -> Achado | None:
             "aceitar a seguradora indicada pelo banco. Se você não teve essa escolha, vale "
             "contestar o valor."
         ),
-        fonte="Código de Defesa do Consumidor, art. 39, I; STJ, Tema 972",
+        fonte_ids=("cdc-39-i", "stj-tema-972"),
         como_conferir=(
             "Na contratação, foi oferecida a opção de não contratar o seguro? Você pôde escolher "
             "a seguradora?"
@@ -301,7 +322,7 @@ def cet_nao_informado(contrato: Contrato) -> Achado | None:
             "exige que a taxa efetiva anual seja informada antes da contratação. Vale pedir "
             "esse demonstrativo ao credor."
         ),
-        fonte="Código de Defesa do Consumidor, art. 52, II",
+        fonte_ids=("cdc-52-ii",),
         como_conferir=(
             "Procure no contrato por 'CET' ou 'Custo Efetivo Total'. Se não houver, peça ao "
             "credor por escrito."

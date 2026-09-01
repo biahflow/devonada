@@ -11,12 +11,16 @@ CREDOR = "Banco Exemplo"
 # Dois achados com o mesmo formato dos produtores reais de `domain/revisao.py`
 # — id, título, explicação e fonte —, usados para provar que o CONTEÚDO não
 # muda entre canais, só o formato.
+#
+# `fonte_ids` são ids REAIS do registro de `juridico/fontes.py` (M14), e não
+# strings inventadas: `Achado.fonte` os resolve, então um id fantasia
+# estouraria aqui — que é o comportamento certo e vale ser exercitado.
 ACHADOS = [
     Achado(
         id="multa-acima-do-teto",
         titulo="Multa acima do teto",
         explicacao="A multa moratória contratada é 5% e o teto é 2%.",
-        fonte="CDC, art. 52, §1º",
+        fonte_ids=("cdc-52-1",),
         como_conferir="Confira a cláusula de multa por atraso no contrato.",
         valor_contestavel=30_000,
     ),
@@ -24,7 +28,7 @@ ACHADOS = [
         id="tarifa-de-cadastro-repetida",
         titulo="Tarifa de cadastro repetida",
         explicacao="A tarifa de cadastro já foi cobrada no início do relacionamento.",
-        fonte="STJ, Súmula 566",
+        fonte_ids=("stj-sumula-566",),
         como_conferir="Veja se já pagou tarifa semelhante com este credor antes.",
         valor_contestavel=50_000,
     ),

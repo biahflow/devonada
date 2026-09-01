@@ -11,6 +11,8 @@ from domain import revisao as dominio
 from domain.parcelas import situacao_da_parcela
 from domain.script import montar_script
 from extracao.base import limpar_campos_sem_evidencia
+from juridico import trilhas as trilhas_juridicas
+from routers.juridico import para_schema as trilha_para_schema
 from leitura import capacidade_atual, carregar_dividas_simulaveis
 
 router = APIRouter(prefix="/v1", tags=["Revisão"])
@@ -196,7 +198,10 @@ def revisar_divida(
             id=a.id,
             titulo=a.titulo,
             explicacao=a.explicacao,
+            # `fonte` é derivado do registro (M14) — a citação legível continua
+            # viajando para o app instalado que não conhece `fonteIds`.
             fonte=a.fonte,
+            fonteIds=list(a.fonte_ids),
             comoConferir=a.como_conferir,
             valorContestavel=a.valor_contestavel,
             evidencia=a.evidencia,
@@ -222,6 +227,11 @@ def revisar_divida(
         ),
         fundamentos=fundamentos,
         baseLegalVigenteEm=resultado.base_legal_vigente_em,
+        # SEMPRE presente, inclusive sem achado nenhum: é justamente quando não
+        # há `valorJusto` que explicar por que não há importa mais. A trilha diz
+        # que o número seria uma subtração de achados, e que não existe lei
+        # dizendo quanto uma dívida deveria custar.
+        trilha=trilha_para_schema(trilhas_juridicas.VALOR_JUSTO),
     )
 
 

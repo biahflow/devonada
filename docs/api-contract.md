@@ -691,7 +691,8 @@ Response `200`:
         "id": "multa_acima_do_teto",
         "titulo": "Multa de atraso acima do limite do CDC",
         "explicacao": "O contrato prevê multa de 5% por atraso. O Código de Defesa do Consumidor limita a multa de mora a 2% do valor da prestação. Vale contestar a diferença.",
-        "fonte": "Código de Defesa do Consumidor, art. 52, §1º",
+        "fonte": "Código de Defesa do Consumidor, art. 52, § 1º",
+        "fonteIds": ["cdc-52-1"],
         "comoConferir": "Procure no contrato a cláusula de multa por atraso e confira o percentual.",
         "valorContestavel": 18000,
         "evidencia": "Multa por atraso: 5% sobre o valor da parcela"
@@ -707,11 +708,29 @@ Response `200`:
         { "id": "regra-pagamento", "titulo": "Como pagar", "texto": "Pagamento só por boleto ou Pix em nome do credor…", "momento": "fechamento", "copiavel": true }
       ]
     },
-    "fundamentos": ["Código de Defesa do Consumidor, art. 52, §1º"],
-    "baseLegalVigenteEm": "2025-03-25"
+    "fundamentos": ["Código de Defesa do Consumidor, art. 52, § 1º"],
+    "baseLegalVigenteEm": "2025-03-25",
+    "trilha": {
+      "chave": "valorJusto",
+      "titulo": "Como chegamos no valor justo",
+      "formula": "valor cobrado − soma dos achados que têm valor",
+      "passos": ["Lemos o contrato e separamos os pontos que valem contestar.", "…"],
+      "fonteIds": ["cdc-52-1", "cdc-52-ii", "cdc-39-i", "stj-sumula-566", "stj-tema-972"],
+      "limitacoes": ["Não é uma estimativa de quanto a dívida deveria custar…", "…"]
+    }
   }
 }
 ```
+
+**`fonteIds` viaja AO LADO de `fonte`, não no lugar dele** (M14, ADR 0024). `fonte` é a citação
+pronta e continua sendo o que app já instalado exibe; os ids resolvem em `GET /v1/juridico/fontes`,
+de onde a tela nova tira ementa, vigência e link. É lista porque um achado pode se apoiar em duas
+normas — o do seguro prestamista sempre se apoiou, e as duas viviam concatenadas numa string que
+nenhum código conseguia separar de novo.
+
+**`trilha` é sempre presente, inclusive sem achado nenhum.** É justamente quando não há `valorJusto`
+que explicar por que não há importa mais: o número seria uma subtração de achados, não uma
+estimativa que deixamos de fazer.
 
 Regras de forma — **não negociáveis**:
 
@@ -1467,6 +1486,85 @@ rota de leitura que antes **não existia** (sem ela não há benchmark).
 
 ---
 
+### M14 — Lei do Superendividamento no corpus
+
+Decisões na ADR 0024; FDD em `docs/features/F-017-lei-do-superendividamento/`.
+
+#### `GET /v1/juridico/fontes`
+
+O corpus jurídico inteiro, numa requisição. **Autenticada** — não há nada de pessoal aqui, e ainda
+assim: abrir a única rota de leitura fora da trava para economizar um header é como a exceção
+seguinte é justificada. A trava de **assinatura** não se aplica (é `GET`, e leitura nunca é
+bloqueada — guardrail 9.1).
+
+```json
+{
+  "fontes": [
+    {
+      "id": "cdc-52-1",
+      "norma": "Código de Defesa do Consumidor",
+      "dispositivo": "art. 52, § 1º",
+      "ementa": "A multa por atraso não pode passar de 2% do valor da prestação.",
+      "vigencia": "1996-08-02",
+      "url": "https://www.planalto.gov.br/…",
+      "texto": "As multas de mora decorrentes do inadimplemento…"
+    }
+  ]
+}
+```
+
+| Regra | Motivo |
+|---|---|
+| Corpus **inteiro** numa requisição, sem paginar | Ele é pequeno e estático, e é lido por quase toda tela que mostra número derivado. Buscar norma por norma faria cada disclosure aberto custar uma ida à rede. |
+| `texto` pode ser `null`; `ementa` nunca | `texto` é o dispositivo **literal**; `ementa` é a nossa paráfrase. `null` significa "leia na fonte", nunca "não existe" — só é preenchido onde a citação já estava conferida no repositório. |
+| `vigencia` sempre presente | É ela que diz a **idade** do fundamento. O mínimo existencial já foi 25% do salário mínimo, e a redação velha custava R$ 220,50 de piso a quem estava negociando. |
+| Ordem **estável** | A tela não reordena; quem lê duas vezes vê a mesma lista. |
+| O registro é **exatamente o que alguma regra cita** | Fonte órfã é convite a citá-la sem que ninguém tenha decidido que ela se aplica. Há teste que falha se alguma ficar sem consumidor. |
+
+**Isto NÃO é um RAG e não deve virar um.** O guardrail 3 proíbe o assistente de gerar fundamento
+jurídico; toda citação que chega ao usuário é escrita no registro e passa pelo gate de revisão por
+advogado do `roadmap.md`. Recuperar parágrafo por similaridade para um modelo parafrasear é
+exatamente o que esse guardrail existe para impedir.
+
+#### Trilha "como calculamos"
+
+O tipo novo, embutido nas respostas que já trazem o número:
+
+```json
+{
+  "chave": "capacidadeHoje",
+  "titulo": "Como chegamos na sua sobra por mês",
+  "formula": "renda típica − impostos e reservas − mínimo existencial − respiro − gastos",
+  "passos": ["Partimos da sua renda típica, não da do melhor mês.", "…"],
+  "fonteIds": ["decreto-11150-3", "cdc-6-xi"],
+  "limitacoes": ["O mínimo existencial da lei é um valor único e NÃO cresce por dependente.", "…"]
+}
+```
+
+| Regra | Motivo |
+|---|---|
+| A trilha **não carrega valor nenhum** | Os números vivem uma vez só, no campo que a resposta já traz ao lado. Duas cópias divergiriam, e a tela mostraria uma sobra na cascata e outra na explicação da cascata. |
+| `limitacoes` nunca é vazio | É onde mora o que o app sabe que não sabe. Sem ele, "como calculamos" vira propaganda da conta. |
+| `chave` é o nome do campo explicado | A tela liga o disclosure ao número por ela, não por posição na lista. |
+
+**Onde ela viaja:** `GET /v1/caixa` ganha `trilhas: [capacidadeHoje, naoFecha]` — as duas
+**sempre**, inclusive com `naoFecha: false`, porque esconder a explicação quando a resposta é boa
+faria "como calculamos" aparecer só junto de má notícia. `GET /v1/dividas/{id}/revisao` ganha
+`trilha` de `valorJusto`.
+
+#### `naoFecha` na Rota
+
+`GET /v1/dividas/resumo` ganha `naoFecha: boolean | null` — o **mesmo** campo do caixa, servido
+aqui porque a Rota é a tela de abertura e quem está nessa situação não deveria precisar procurar a
+informação numa aba adiante.
+
+`null` é **"não sabemos"**, e nunca "está tudo bem": sem caixa preenchido a conta não tem os dois
+lados. Mesma disciplina de `abaixoDoPiso`. Continua sendo **fato aritmético, nunca diagnóstico** —
+o campo não se chama `superendividado` em lugar nenhum, e a copy nomeia a repactuação sem afirmar
+que a pessoa se enquadra nela.
+
+---
+
 ## 4. Fila do backend
 
 > **Esta é a fila de trabalho canônica do backend.** `roadmap.md` aponta para cá e não repete a
@@ -1611,6 +1709,10 @@ e dois deles são código.*
 
 - [~] `usuario`, `sessao` e `codigo_recuperacao` — migration `a71d4e9c05b2`, exercitada em
       Postgres com `upgrade`, `downgrade` e `upgrade` de novo
+- [~] `GET /v1/juridico/fontes` — o corpus jurídico com id estável (M14, ADR 0024): CDC, Código
+      Civil, decreto do mínimo existencial, STJ e a **Lei 14.181/2021**. `Achado` passou a mandar
+      `fonteIds`, e caixa e revisão passaram a mandar a trilha "como calculamos". `naoFecha` chegou
+      à Rota. **Falta device.**
 - [~] `POST /v1/auth/registro` · `/login` · `/refresh` · `/logout` — JWT de 15 min mais refresh
       opaco rotacionado a cada uso (ADR 0012)
 - [~] `POST /v1/auth/senha/recuperacao` · `/senha/redefinicao` — código de 6 dígitos por e-mail,

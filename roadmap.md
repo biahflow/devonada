@@ -939,15 +939,29 @@ tem de vir antes do esforço. O M7 já tinha provado isso com o "Nível 0" do ca
 
 ## M14 — Lei do Superendividamento no corpus
 
-- [ ] Lei 14.181/2021 no RAG jurídico, ao lado do CDC. Para quem tem muitos credores, o script
-      individual não resolve: o caminho é a repactuação em bloco.
-- [ ] A triagem reconhece o perfil e nomeia esse caminho — **mantendo o enquadramento do M7**: o
-      app diz que os números **não fecham** (fato aritmético) e convida a investigar a
-      repactuação. Nunca "você está superendividado". A definição legal (CDC art. 54-A, § 1º)
-      exige boa-fé e dívida de consumo, e software não apura nenhuma das duas. O teste de copy que
-      quebra na palavra continua valendo.
-- [ ] Trilha de auditoria "como calculamos" exposta na tela — o backend já tem a fonte em
-      docstring; falta o campo na API e o disclosure na interface.
+- [x] **Lei 14.181/2021 no corpus jurídico** (F-017, ADR 0024). Não havia RAG nem corpus: havia
+      fonte em string solta dentro de cada regra, cinco achados com cinco citações independentes.
+      Agora `backend/juridico/` é registro curado com id estável — CDC, Código Civil, decreto do
+      mínimo existencial, STJ e os seis dispositivos que a Lei 14.181/2021 acrescentou ao CDC
+      (art. 54-A § 1º e § 3º, 104-A e § 1º, 104-C, 6º XI). `Achado.fonte` virou derivado, e
+      `fonteIds` é lista porque o achado do seguro prestamista sempre se apoiou em duas normas.
+      **Não virou busca vetorial de propósito:** o guardrail 3 proíbe o assistente de gerar
+      fundamento jurídico, então recuperação semântica não teria consumidor legítimo.
+- [x] **A triagem nomeia o caminho, e só onde a conta existe** (F-017). Caixa e Rota mostram
+      `naoFecha` com a mesma frase — o que a subtração deu, e a repactuação como caminho. Na
+      triagem do onboarding a renda ainda não foi informada, então a tela **convida** quem marcou
+      duas ou mais dívidas ("informe sua renda e eu mostro se as parcelas cabem") em vez de
+      afirmar. **Nenhum limiar por número de credores**: a lei não define quantidade, e inventar um
+      seria o `valorCobrado * 1.1` numa tela que manda a pessoa procurar o Procon. O teste de copy
+      que quebra na palavra continua valendo — e pegou a primeira redação desta própria feature,
+      que negava o diagnóstico em vez de não o mencionar.
+- [x] **Trilha de auditoria "como calculamos" na tela** (F-017). `GET /v1/juridico/fontes` serve o
+      corpus; caixa e revisão passaram a mandar a trilha do número que produzem. Ela tem fórmula,
+      passos, fontes e — o campo que mais importa — **limitações**: o que a conta não faz. **Ela
+      não carrega valor nenhum**, e há teste que falha em qualquer dígito: os números vivem uma vez
+      só, no campo ao lado, e duas cópias divergiriam.
+      **Falta a revisão da copy jurídica por advogado** (gate de pré-lançamento, abaixo) e a
+      validação em aparelho.
 
 ---
 

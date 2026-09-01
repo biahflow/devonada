@@ -2,24 +2,10 @@ import { screen, waitFor } from '@testing-library/react-native';
 import Triagem from '../../../app/(onboarding)/triagem';
 import { limparMocksDeRede, responderPorRota } from '../api';
 import { renderizarTela } from '../render';
-import type { RevisaoCobranca } from '../../api/types';
+import { umaRevisao } from '../mocks';
 
 afterEach(limparMocksDeRede);
 beforeEach(() => global.definirParametrosDeRota({ id: 'divida-1' }));
-
-function umaRevisao(over: Partial<RevisaoCobranca> = {}): RevisaoCobranca {
-  return {
-    dividaId: 'divida-1',
-    credor: 'Banco Teste',
-    valorCobrado: 987000,
-    achados: [],
-    // O script é sempre presente (M12); a triagem não o exibe, mas o tipo o
-    // exige. Sem achado, o backend devolve o script mínimo de segurança.
-    script: { canal: 'email', blocos: [] },
-    fundamentos: [],
-    ...over,
-  };
-}
 
 describe('triagem do onboarding', () => {
   describe('sem contrato lido', () => {
@@ -60,6 +46,7 @@ describe('triagem do onboarding', () => {
                 titulo: 'Seguro prestamista embutido',
                 explicacao: 'Não se pode ser compelido a contratar.',
                 fonte: 'CDC, art. 39, I · STJ, Tema 972',
+                fonteIds: ['cdc-39-i', 'stj-tema-972'],
                 // Obrigatório no tipo, e é o que mantém o achado como convite a
                 // investigar em vez de sentença: a pergunta de fato só o
                 // usuário responde.

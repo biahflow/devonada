@@ -1,5 +1,6 @@
 from collections import defaultdict
 from datetime import date
+from typing import NamedTuple
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
@@ -58,11 +59,26 @@ def _registrar_snapshot(db: Session, tenant: str, mes: str, saldo: int) -> None:
     db.commit()
 
 
-def _renda_minimo_e_margem(
-    db: Session, tenant: str, settings: Settings, comprometido: int
-) -> tuple[int | None, int | None, int | None]:
+class NumerosDoPainel(NamedTuple):
     """
-    De onde o painel tira renda, mínimo existencial e margem.
+    O que a Rota mostra sobre renda — e o que ela não sabe.
+
+    `nao_fecha` é `bool | None`, e o `None` importa: `False` diria "conferimos e
+    as parcelas cabem", afirmação que não temos como fazer sem caixa preenchido.
+    Mesma disciplina de `abaixoDoPiso`.
+    """
+
+    renda: int | None
+    minimo: int | None
+    margem: int | None
+    nao_fecha: bool | None
+
+
+def _numeros_do_painel(
+    db: Session, tenant: str, settings: Settings, comprometido: int
+) -> NumerosDoPainel:
+    """
+    De onde o painel tira renda, mínimo existencial, margem e o "não fecham".
 
     O CAIXA É A FONTE DA RENDA (M7); o perfil é fallback. `fonte_renda` é onde a
     renda passou a morar, e a migration do M7 já declarava que `renda_mensal`
@@ -92,6 +108,13 @@ def _renda_minimo_e_margem(
     extra: o painel para de anunciar uma sobra que o simulador recusa.
     """
     caixa = capacidade_atual(db, tenant, settings)
+
+    # O "NÃO FECHAM" SÓ EXISTE ONDE HÁ CAIXA COM RENDA (M14). Ele é
+    # `comprometido > capacidade_maxima`, e `capacidade_maxima` depende da renda
+    # líquida e do piso legal — sem caixa, a conta não tem os dois lados, e
+    # responder `False` afirmaria que as parcelas cabem.
+    nao_fecha = caixa.nao_fecha if caixa is not None and caixa.renda_liquida > 0 else None
+
     if caixa is not None and caixa.renda_liquida > 0:
         conhece_saida = (
             caixa.essenciais > 0
@@ -101,19 +124,21 @@ def _renda_minimo_e_margem(
             or caixa.aporte_aposentadoria > 0
         )
         if conhece_saida:
-            return caixa.renda_liquida, caixa.minimo_existencial, caixa.aporte_maximo
+            return NumerosDoPainel(
+                caixa.renda_liquida, caixa.minimo_existencial, caixa.aporte_maximo, nao_fecha
+            )
         renda, minimo = caixa.renda_liquida, caixa.minimo_existencial
     else:
         perfil = db.scalar(select(orm.Perfil).where(orm.Perfil.tenant_id == tenant))
         renda = perfil.renda_mensal if perfil and perfil.renda_mensal else None
         if not renda:
-            return None, None, None
+            return NumerosDoPainel(None, None, None, None)
         minimo = minimo_existencial(settings.minimo_existencial_centavos)
 
     # Sem piso configurado não há margem: subtrair zero devolveria um número
     # otimista com cara de calculado. Ausente é a resposta honesta.
     margem = margem_disponivel(renda, minimo, comprometido) if minimo is not None else None
-    return renda, minimo, margem
+    return NumerosDoPainel(renda, minimo, margem, nao_fecha)
 
 
 @router.get("/resumo", response_model=schemas.RespostaResumo)
@@ -193,7 +218,7 @@ def resumo(
         p.valor for p, _ in pendentes if f"{p.vencimento.year}-{p.vencimento.month:02d}" == mes_alvo
     ]
     comprometido = comprometimento_mensal(itens, do_mes if pendentes else None)
-    renda, minimo, margem = _renda_minimo_e_margem(db, tenant, settings, comprometido)
+    renda, minimo, margem, nao_fecha = _numeros_do_painel(db, tenant, settings, comprometido)
     comprometimento_bps = comprometimento_renda_bps(comprometido, renda) if renda else None
 
     _registrar_snapshot(db, tenant, mes_alvo, total_devido)
@@ -275,6 +300,7 @@ def resumo(
             comprometimentoRenda=comprometimento_bps,
             minimoExistencial=minimo,
             margemDisponivel=margem,
+            naoFecha=nao_fecha,
             porCriticidade=por_criticidade,
             proximosVencimentos=[
                 schemas.VencimentoProximo(

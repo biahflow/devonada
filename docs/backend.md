@@ -61,6 +61,8 @@ routers/        dividas · resumo · simulacoes · parcelas · perfil · lembret
 llm/            ÚNICO lugar que conhece SDK de modelo (ADR 0007)
 correio/        ÚNICO lugar que fala SMTP — mesmo desenho da camada llm/
 loja/           ÚNICO lugar que fala com App Store e Google Play — mesmo desenho
+juridico/       o CORPUS: as normas que o produto cita, com id estável, e as
+                trilhas "como calculamos" (M14, ADR 0024). Dado curado, sem I/O
 web/            exclusao.html, a página pública servida em GET /exclusao
 assistente/     o assistente do chat, sobre a camada llm/
 extracao/       base.py (Protocol) · regras.py (prompt) · extrator_llm.py · factory

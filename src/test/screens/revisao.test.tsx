@@ -84,6 +84,9 @@ function scriptTelefone(): ScriptNegociacao {
 
 const achadoComValor = (over: Partial<Achado> = {}): Achado => ({
   id: 'multa_acima_do_teto',
+  // Id REAL do registro de `juridico/fontes.py` (M14): é por ele que a tela
+  // abre ementa, vigência e link da norma.
+  fonteIds: ['cdc-52-1'],
   titulo: 'Multa de atraso acima do limite do CDC',
   explicacao:
     'O contrato prevê multa de 5% por atraso. O Código de Defesa do Consumidor limita a ' +
