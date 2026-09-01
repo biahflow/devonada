@@ -1300,15 +1300,49 @@ class PedidoRedefinicao(Camel):
     senha: str = Field(min_length=SENHA_MINIMA, max_length=200)
 
 
+ProvedorSocial = Literal["apple", "google"]
+
+
+class EntradaSocial(Camel):
+    """
+    Entrar pela Apple ou pelo Google (M13, ADR 0023).
+
+    O TOKEN É O ID TOKEN DO PROVEDOR, e nada mais. O app não manda e-mail, nome
+    nem `sub`: tudo isso está dentro do token, assinado, e aceitar a versão que o
+    cliente digitou ao lado seria deixar o aparelho afirmar quem ele é. O
+    servidor lê só o que a assinatura cobre.
+
+    Não há limite mínimo de tamanho útil a impor aqui — token curto demais falha
+    na conferência com a mesma frase de token forjado, que é o ponto.
+    """
+
+    provedor: ProvedorSocial
+    token: str = Field(min_length=1, max_length=8000)
+
+
 class PedidoExclusaoDeConta(Camel):
     """
-    A senha de novo, além do Bearer.
+    A reconfirmação, além do Bearer.
 
     Exclusão é irreversível, e um celular desbloqueado esquecido na mesa não
     pode apagar a vida financeira de alguém em dois toques.
+
+    DOIS CAMINHOS PORQUE HÁ DOIS TIPOS DE CONTA (ADR 0023). Quem tem senha
+    reconfirma com a senha, como sempre. Quem entrou pela Apple ou pelo Google
+    nunca escolheu senha — exigir uma que não existe deixaria essa pessoa sem
+    como excluir a conta, e um app que oferece login social e não deixa excluir
+    a conta reprova na diretriz 5.1.1(v) da Apple. Ela reapresenta o provedor,
+    que é um toque com biometria ou senha do sistema: mesmo custo de intenção
+    que digitar a senha, sem inventar credencial.
+
+    Os dois campos são OPCIONAIS no schema e obrigatórios na rota, um de cada
+    vez. Marcar qualquer um como obrigatório aqui recusaria com 422 metade das
+    contas antes de a rota poder olhar qual delas está pedindo.
     """
 
-    senha: str = Field(min_length=1, max_length=200)
+    senha: str | None = Field(default=None, min_length=1, max_length=200)
+    provedor: ProvedorSocial | None = None
+    token: str | None = Field(default=None, min_length=1, max_length=8000)
 
 
 # --------------------------------------------------------------------------- #

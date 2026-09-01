@@ -1,9 +1,30 @@
 import { useSyncExternalStore } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import type { Sessao } from './types';
+import type { ProvedorSocial, Sessao } from './types';
 
 const CHAVE_ACESSO = 'auth_access';
 const CHAVE_REFRESH = 'auth_refresh';
+
+/**
+ * POR ONDE ESTA SESSÃO ENTROU, quando foi por provedor (M13, ADR 0023).
+ *
+ * Serve a UMA pergunta, feita numa tela só: a exclusão de conta precisa saber
+ * se reconfirma com senha ou reapresentando o provedor. Conta só-social não tem
+ * senha, e pedir uma que ninguém escolheu deixaria essa pessoa sem como excluir
+ * a conta — o que reprova na diretriz 5.1.1(v) da Apple.
+ *
+ * POR QUE NO APARELHO, E NÃO NUMA ROTA. A alternativa era um `GET /v1/conta`
+ * devolvendo "tem senha?" e "qual provedor?". Ela existiria para uma tela, e
+ * abriria a porta que `useConta` fechou de propósito: o app não busca dado da
+ * conta porque nenhuma tela mostra dado da conta. Guardar por onde ESTE
+ * aparelho entrou responde a mesma pergunta sem endpoint novo e sem pedir ao
+ * servidor nada que já não esteja aqui.
+ *
+ * NÃO É DADO DO USUÁRIO: é o nome de um provedor, ao lado dos tokens, no mesmo
+ * SecureStore e apagado pelo mesmo `esquecerSessao`. Entrar com senha o LIMPA —
+ * quem entrou com senha tem senha, e é por ela que reconfirma.
+ */
+const CHAVE_PROVEDOR = 'auth_provedor';
 
 /**
  * O ÚNICO estado global do app, autorizado pela ADR 0012.
@@ -70,6 +91,43 @@ export async function tokenDeRenovacao(): Promise<string | null> {
   }
 }
 
+/**
+ * Por qual provedor esta sessão foi aberta, ou `null` para e-mail e senha.
+ *
+ * Erro de leitura devolve `null`, e não estoura: a consequência de não saber é
+ * a tela de exclusão pedir a senha, que é o caminho de sempre.
+ */
+export async function provedorDaSessao(): Promise<ProvedorSocial | null> {
+  try {
+    const guardado = await SecureStore.getItemAsync(CHAVE_PROVEDOR);
+    return guardado === 'apple' || guardado === 'google' ? guardado : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Registra por onde a ENTRADA aconteceu. `null` para e-mail e senha.
+ *
+ * FUNÇÃO SEPARADA DE `guardarSessao`, e não um parâmetro dela, por um motivo
+ * concreto: `client.ts` chama `guardarSessao` a cada rotação de refresh, que
+ * acontece a cada 15 minutos de uso. Com o provedor dentro dela, a primeira
+ * renovação apagaria o registro — e a tela de exclusão passaria a pedir senha
+ * de quem nunca teve uma, exatamente o buraco que este dado existe para fechar.
+ * Rotação de token não é troca de identidade, então ela não toca aqui.
+ *
+ * Chamar com `null` LIMPA: quem entrou pela Apple e depois criou senha pela
+ * recuperação por e-mail volta a entrar por senha, e a partir daí é por ela que
+ * reconfirma.
+ */
+export async function definirProvedor(provedor: ProvedorSocial | null): Promise<void> {
+  if (provedor) {
+    await SecureStore.setItemAsync(CHAVE_PROVEDOR, provedor);
+  } else {
+    await SecureStore.deleteItemAsync(CHAVE_PROVEDOR).catch(() => {});
+  }
+}
+
 /** Grava o par e marca a sessão como aberta. */
 export async function guardarSessao(sessao: Sessao): Promise<void> {
   await SecureStore.setItemAsync(CHAVE_ACESSO, sessao.acesso);
@@ -86,6 +144,7 @@ export async function guardarSessao(sessao: Sessao): Promise<void> {
 export async function esquecerSessao(): Promise<void> {
   await SecureStore.deleteItemAsync(CHAVE_ACESSO).catch(() => {});
   await SecureStore.deleteItemAsync(CHAVE_REFRESH).catch(() => {});
+  await SecureStore.deleteItemAsync(CHAVE_PROVEDOR).catch(() => {});
   definir('anonimo');
 }
 

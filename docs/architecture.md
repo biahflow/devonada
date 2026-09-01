@@ -230,6 +230,7 @@ produto continua rodando em Expo Go; só o fluxo de assinatura não.
 | `hooks/` | estados de query, invalidação, otimismo e rollback | Jest + React Native Testing Library |
 | `screens/` | os quatro estados de tela renderizam o que devem | RNTL |
 | `compras/` | a ORDEM do ciclo de compra: o backend confirma antes de `finishTransaction` | Jest, com `expo-iap` mockado |
+| `social/` | a tradução de cada resposta dos SDKs de identidade: token, cancelamento e falha | Jest, com `expo-apple-authentication` e `google-signin` mockados |
 
 Prioridade de cobertura, nesta ordem: `src/util/money.ts` (dinheiro), `src/api/client.ts`
 (auth e erro), hooks de mutação (invalidação). O resto é bônus.

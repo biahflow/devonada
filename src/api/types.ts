@@ -897,3 +897,13 @@ export interface Marco {
   atingidoEm: IsoDate | null;
   celebradoEm: IsoDate | null;
 }
+
+// --- M13 · login social (ADR 0023) ------------------------------------------
+
+/**
+ * Por onde a pessoa entra, quando não é por e-mail e senha.
+ *
+ * União fechada, e não `string`: é o mesmo `Literal` do `schemas.py`, e o
+ * servidor recusa com 422 qualquer outro valor antes de conferir coisa alguma.
+ */
+export type ProvedorSocial = 'apple' | 'google';

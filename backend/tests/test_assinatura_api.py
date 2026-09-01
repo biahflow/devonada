@@ -131,6 +131,10 @@ class TestVarreduraDeRotas:
         esperadas = {
             "POST /v1/auth/registro",
             "POST /v1/auth/login",
+            # Entrar pela Apple ou pelo Google é ENTRAR, e entrar não pode
+            # custar assinatura: uma trava aqui seria o mesmo deadlock do
+            # login, só que pelo outro botão. Ver ADR 0023.
+            "POST /v1/auth/social",
             "POST /v1/auth/refresh",
             "POST /v1/auth/logout",
             "POST /v1/auth/senha/recuperacao",

@@ -771,7 +771,30 @@ class Usuario(Base):
     # rota: duas requisições simultâneas passam pelo mesmo `SELECT` sem achar
     # nada e criam duas contas com o mesmo e-mail.
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
-    senha_hash: Mapped[str] = mapped_column(String(100))
+
+    # NULO EM CONTA SÓ-SOCIAL (M13, ADR 0023). Quem entrou pela Apple ou pelo
+    # Google nunca escolheu senha, e gravar um hash de algo que ninguém digitou
+    # seria inventar uma credencial que existe só no nosso banco — e que
+    # apareceria como "tem senha" para todo código que perguntasse.
+    #
+    # Quem tem conta social PODE ganhar senha depois, pela recuperação por
+    # e-mail: o código chega na caixa que o provedor confirmou ser dela, e a
+    # partir daí os dois caminhos entram na mesma conta.
+    senha_hash: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+    # POR QUAL PROVEDOR ESTA CONTA ENTRA, e o identificador que ele dá.
+    #
+    # `provedor_sub` é a CHAVE ESTÁVEL da pessoa no provedor — não o e-mail. O
+    # e-mail muda: quem usa "Ocultar meu e-mail" da Apple pode desligar o
+    # encaminhamento, e conta de Google corporativa troca de domínio.
+    #
+    # UM PROVEDOR POR CONTA, e o custo está declarado na ADR 0023: quem entra
+    # pela Apple e depois pelo Google com o MESMO e-mail verificado religa a
+    # conta ao novo provedor em vez de criar a segunda. Com e-mails diferentes
+    # — que é o caso de quem oculta o e-mail na Apple — são duas contas, e isso
+    # é inerente ao login social, não uma escolha nossa.
+    provedor: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    provedor_sub: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Trava de força bruta. Produto financeiro sem ela é convite: senha de 8
     # caracteres cai em horas contra uma rota que responde sempre.
@@ -781,6 +804,14 @@ class Usuario(Base):
     )
 
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    # A unicidade é do BANCO, e não de um SELECT antes do INSERT — o mesmo
+    # motivo do e-mail. Duas requisições simultâneas do mesmo primeiro login
+    # passariam pelo mesmo SELECT sem achar nada e criariam duas contas para a
+    # mesma pessoa, cada uma com metade da vida financeira dela.
+    __table_args__ = (
+        UniqueConstraint("provedor", "provedor_sub", name="uq_usuario_provedor_sub"),
+    )
 
 
 class Assinatura(Base):

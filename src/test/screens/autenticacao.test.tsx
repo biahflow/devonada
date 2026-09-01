@@ -6,17 +6,48 @@ import RedefinirSenha from '../../../app/(auth)/redefinir-senha';
 import { ApiError } from '../../api/client';
 import { limparMocksDeRede, requestMock, nuncaResponde } from '../api';
 import { renderizarTela } from '../render';
+import {
+  CANCELADO,
+  ErroSocial,
+  obterTokenSocial,
+  provedoresDisponiveis,
+} from '../../social';
 
 jest.mock('../../api/sessao', () => ({
   ...jest.requireActual('../../api/sessao'),
   guardarSessao: jest.fn().mockResolvedValue(undefined),
   esquecerSessao: jest.fn().mockResolvedValue(undefined),
+  definirProvedor: jest.fn().mockResolvedValue(undefined),
   tokenDeRenovacao: jest.fn().mockResolvedValue('refresh'),
 }));
+
+/**
+ * A fronteira com os SDKs de identidade, e não os SDKs em si.
+ *
+ * O que ESTA suíte prova é o que a TELA faz com cada resposta possível —
+ * disponível ou não, token, cancelamento, falha. Que `src/social/` traduza
+ * certo o que cada SDK devolve é o assunto de `src/test/social.test.ts`, que
+ * exercita o módulo de verdade contra os SDKs mockados.
+ */
+jest.mock('../../social', () => ({
+  ...jest.requireActual('../../social'),
+  provedoresDisponiveis: jest.fn().mockResolvedValue([]),
+  obterTokenSocial: jest.fn().mockResolvedValue('token-do-provedor'),
+}));
+
+const disponiveisMock = provedoresDisponiveis as jest.MockedFunction<
+  typeof provedoresDisponiveis
+>;
+const tokenMock = obterTokenSocial as jest.MockedFunction<typeof obterTokenSocial>;
 
 const SESSAO = { sessao: { acesso: 'a', refresh: 'r', expiraEm: '2026-08-07T14:15:00Z' } };
 
 afterEach(limparMocksDeRede);
+
+beforeEach(() => {
+  disponiveisMock.mockResolvedValue([]);
+  tokenMock.mockResolvedValue('token-do-provedor');
+});
 
 function preencher(rotulo: string, valor: string) {
   fireEvent.changeText(screen.getByLabelText(rotulo), valor);
@@ -87,17 +118,86 @@ describe('Login', () => {
     expect(screen.getByRole('button', { name: 'Criar conta' })).toBeTruthy();
   });
 
-  // O ACORDO DA TELA 11: os botões sociais existem no desenho, e enquanto o
-  // backend não tiver Sign in with Apple nem Google Sign-In eles ficam
-  // DESLIGADOS de verdade — inclusive para o leitor de tela. Este teste falha no
-  // dia em que alguém os deixar tocáveis sem ter para onde mandar o toque.
-  it('mostra os caminhos sociais, e desligados enquanto não existem', () => {
+  // O ACORDO DA TELA 11: os botões sociais existem no desenho, e onde não há
+  // para onde mandar o toque eles ficam DESLIGADOS de verdade — inclusive para o
+  // leitor de tela. Este teste falha no dia em que alguém os deixar tocáveis sem
+  // provedor disponível.
+  it('sem provedor disponível, mostra os dois desligados e explica', async () => {
+    disponiveisMock.mockResolvedValue([]);
     renderizarTela(<Login />);
 
     for (const nome of ['Continuar com Apple', 'Continuar com Google']) {
-      expect(screen.getByRole('button', { name: nome, disabled: true })).toBeTruthy();
+      expect(await screen.findByRole('button', { name: nome, disabled: true })).toBeTruthy();
     }
     expect(screen.getByText(/chega com a publicação nas lojas/i)).toBeTruthy();
+  });
+});
+
+describe('Login social', () => {
+  it('entra pelo provedor e leva para o app', async () => {
+    disponiveisMock.mockResolvedValue(['apple']);
+    requestMock.mockResolvedValue(SESSAO);
+    renderizarTela(<Login />);
+
+    fireEvent.press(await screen.findByRole('button', { name: 'Continuar com Apple' }));
+
+    await waitFor(() => expect(global.mockRouter.replace).toHaveBeenCalledWith('/'));
+    // O token vai para a rota social, e o app não manda e-mail nem `sub` ao
+    // lado: o que identifica está DENTRO do token, assinado pelo provedor.
+    expect(requestMock).toHaveBeenCalledWith(
+      '/v1/auth/social',
+      expect.objectContaining({ body: { provedor: 'apple', token: 'token-do-provedor' } }),
+    );
+  });
+
+  it('só mostra o botão do provedor que este aparelho tem', async () => {
+    // Apple é iOS com a capacidade assinada; Google depende do client id. Botão
+    // apagado ao lado de um aceso parece defeito — o indisponível não aparece.
+    disponiveisMock.mockResolvedValue(['google']);
+    renderizarTela(<Login />);
+
+    expect(await screen.findByRole('button', { name: 'Continuar com Google' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Continuar com Apple' })).toBeNull();
+    expect(screen.queryByText(/chega com a publicação nas lojas/i)).toBeNull();
+  });
+
+  it('desistir no provedor não entra, não navega e não acusa erro', async () => {
+    // Fechar a folha do provedor é gesto normal. Tratá-lo como falha faria o app
+    // acusar de problema quem só mudou de ideia.
+    disponiveisMock.mockResolvedValue(['apple']);
+    tokenMock.mockResolvedValue(CANCELADO);
+    renderizarTela(<Login />);
+
+    fireEvent.press(await screen.findByRole('button', { name: 'Continuar com Apple' }));
+
+    await waitFor(() => expect(tokenMock).toHaveBeenCalled());
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(global.mockRouter.replace).not.toHaveBeenCalled();
+    expect(screen.queryByText(/não deu para entrar/i)).toBeNull();
+  });
+
+  it('mostra a frase do provedor quando o fluxo dele falha', async () => {
+    disponiveisMock.mockResolvedValue(['google']);
+    tokenMock.mockRejectedValue(new ErroSocial('Não deu para entrar pelo Google agora.'));
+    renderizarTela(<Login />);
+
+    fireEvent.press(await screen.findByRole('button', { name: 'Continuar com Google' }));
+
+    expect(await screen.findByText('Não deu para entrar pelo Google agora.')).toBeTruthy();
+    expect(requestMock).not.toHaveBeenCalled();
+  });
+
+  it('mostra a frase do servidor quando ele recusa o token', async () => {
+    disponiveisMock.mockResolvedValue(['apple']);
+    requestMock.mockRejectedValue(
+      new ApiError(409, 'Esse e-mail já tem conta com senha. Entre com e-mail e senha.'),
+    );
+    renderizarTela(<Login />);
+
+    fireEvent.press(await screen.findByRole('button', { name: 'Continuar com Apple' }));
+
+    expect(await screen.findByText(/já tem conta com senha/i)).toBeTruthy();
+    expect(global.mockRouter.replace).not.toHaveBeenCalled();
   });
 });
 

@@ -25,4 +25,26 @@ export const env = {
    */
   produtoAssinaturaIos: process.env.EXPO_PUBLIC_PRODUTO_ASSINATURA_IOS ?? '',
   produtoAssinaturaAndroid: process.env.EXPO_PUBLIC_PRODUTO_ASSINATURA_ANDROID ?? '',
+
+  /**
+   * Client ids do Google Sign-In (M13, ADR 0023).
+   *
+   * `EXPO_PUBLIC_` é PÚBLICO — e aqui isso está certo, pelo mesmo motivo do id
+   * do produto: client id de OAuth não é segredo. Ele identifica o app, não
+   * autoriza nada sozinho; quem autoriza é o usuário, no fluxo do provedor. O
+   * segredo do OAuth (`client_secret`) não existe em app nativo e não aparece
+   * em lugar nenhum deste repositório.
+   *
+   * O `webClientId` é o que vira audiência do `idToken` NAS DUAS PLATAFORMAS —
+   * é ele que o servidor confere. Vazio desliga o botão do Google na tela de
+   * entrada: abrir a folha do Google para terminar em recusa seria pior que
+   * dizer antes.
+   *
+   * A APPLE NÃO TEM LINHA AQUI de propósito. O Sign in with Apple se
+   * identifica pelo bundle id do app, e quem sabe se ele está disponível é o
+   * próprio aparelho (`isAvailableAsync`) — uma variável seria uma segunda
+   * verdade sobre a mesma coisa, e a que ninguém lembra de atualizar.
+   */
+  googleWebClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '',
+  googleIosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? '',
 };
