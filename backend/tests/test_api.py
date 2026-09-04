@@ -625,3 +625,259 @@ class TestContratos:
         seguinte = client.get(f"/v1/contratos/{extracao_id}", headers=auth).json()["extracao"]
         assert seguinte["status"] == "falhou"
         assert "à mão" in seguinte["erro"]
+
+
+def _extracao(sessao, tenant_id=None, status="concluida"):
+    """Cria uma `orm.Extracao` direto pela sessão de teste (F-019, ADR 0025)."""
+    e = orm.Extracao(tenant_id=tenant_id or get_settings().tenant_id, status=status)
+    sessao.add(e)
+    sessao.commit()
+    return e
+
+
+class TestLigarDocumento:
+    def test_liga_documento_e_devolve_extracaoId(self, client, auth, sessao):
+        divida = client.post("/v1/dividas", json=_nova(), headers=auth).json()["divida"]
+        extracao = _extracao(sessao)
+
+        r = client.post(
+            f"/v1/dividas/{divida['id']}/documento",
+            json={"extracaoId": extracao.id},
+            headers=auth,
+        )
+        assert r.status_code == 200
+        assert r.json()["divida"]["extracaoId"] == extracao.id
+
+    def test_sem_campos_nenhum_campo_muda(self, client, auth, sessao):
+        divida = client.post(
+            "/v1/dividas", json=_nova(taxaJurosMensal=250), headers=auth
+        ).json()["divida"]
+        extracao = _extracao(sessao)
+
+        r = client.post(
+            f"/v1/dividas/{divida['id']}/documento",
+            json={"extracaoId": extracao.id},
+            headers=auth,
+        )
+        atualizada = r.json()["divida"]
+
+        antes = {k: v for k, v in divida.items() if k != "extracaoId"}
+        depois = {k: v for k, v in atualizada.items() if k != "extracaoId"}
+        assert depois == antes
+        assert atualizada["extracaoId"] == extracao.id
+
+    def test_campos_parcial_so_o_que_veio_muda(self, client, auth, sessao):
+        divida = client.post("/v1/dividas", json=_nova(), headers=auth).json()["divida"]
+        extracao = _extracao(sessao)
+
+        r = client.post(
+            f"/v1/dividas/{divida['id']}/documento",
+            json={"extracaoId": extracao.id, "campos": {"credor": "Banco Novo"}},
+            headers=auth,
+        )
+        atualizada = r.json()["divida"]
+        assert atualizada["credor"] == "Banco Novo"
+        assert atualizada["valorCobrado"] == divida["valorCobrado"]
+        assert atualizada["dataOrigem"] == divida["dataOrigem"]
+        assert atualizada["tipo"] == divida["tipo"]
+
+    def test_taxa_null_em_campos_nao_limpa_taxa_existente(self, client, auth, sessao):
+        divida = client.post(
+            "/v1/dividas", json=_nova(taxaJurosMensal=250), headers=auth
+        ).json()["divida"]
+        extracao = _extracao(sessao)
+
+        r = client.post(
+            f"/v1/dividas/{divida['id']}/documento",
+            json={"extracaoId": extracao.id, "campos": {"taxaJurosMensal": None}},
+            headers=auth,
+        )
+        assert r.json()["divida"]["taxaJurosMensal"] == 250
+
+    def test_extracao_de_outro_tenant_devolve_404(self, client, auth, sessao):
+        divida = client.post("/v1/dividas", json=_nova(), headers=auth).json()["divida"]
+        extracao = _extracao(sessao, tenant_id="outro-tenant")
+
+        r = client.post(
+            f"/v1/dividas/{divida['id']}/documento",
+            json={"extracaoId": extracao.id},
+            headers=auth,
+        )
+        assert r.status_code == 404
+
+    def test_extracao_inexistente_devolve_404(self, client, auth):
+        divida = client.post("/v1/dividas", json=_nova(), headers=auth).json()["divida"]
+
+        r = client.post(
+            f"/v1/dividas/{divida['id']}/documento",
+            json={"extracaoId": "00000000-0000-0000-0000-000000000999"},
+            headers=auth,
+        )
+        assert r.status_code == 404
+
+    def test_extracao_processando_devolve_409(self, client, auth, sessao):
+        divida = client.post("/v1/dividas", json=_nova(), headers=auth).json()["divida"]
+        extracao = _extracao(sessao, status="processando")
+
+        r = client.post(
+            f"/v1/dividas/{divida['id']}/documento",
+            json={"extracaoId": extracao.id},
+            headers=auth,
+        )
+        assert r.status_code == 409
+
+    def test_extracao_falhou_devolve_409(self, client, auth, sessao):
+        divida = client.post("/v1/dividas", json=_nova(), headers=auth).json()["divida"]
+        extracao = _extracao(sessao, status="falhou")
+
+        r = client.post(
+            f"/v1/dividas/{divida['id']}/documento",
+            json={"extracaoId": extracao.id},
+            headers=auth,
+        )
+        assert r.status_code == 409
+
+    def test_divida_de_outro_tenant_devolve_404(self, client, auth, sessao):
+        alheia = orm.Divida(
+            tenant_id="outro-tenant",
+            credor="Credor Alheio",
+            valor_cobrado=100000,
+            data_origem=HOJE,
+            tipo="consumo",
+        )
+        sessao.add(alheia)
+        sessao.commit()
+        extracao = _extracao(sessao)
+
+        r = client.post(
+            f"/v1/dividas/{alheia.id}/documento",
+            json={"extracaoId": extracao.id},
+            headers=auth,
+        )
+        assert r.status_code == 404
+
+    def test_divida_inexistente_devolve_404(self, client, auth, sessao):
+        extracao = _extracao(sessao)
+
+        r = client.post(
+            "/v1/dividas/00000000-0000-0000-0000-000000000999/documento",
+            json={"extracaoId": extracao.id},
+            headers=auth,
+        )
+        assert r.status_code == 404
+
+    def test_ligar_duas_vezes_substitui(self, client, auth, sessao):
+        divida = client.post("/v1/dividas", json=_nova(), headers=auth).json()["divida"]
+        primeira = _extracao(sessao)
+        segunda = _extracao(sessao)
+
+        client.post(
+            f"/v1/dividas/{divida['id']}/documento",
+            json={"extracaoId": primeira.id},
+            headers=auth,
+        )
+        r = client.post(
+            f"/v1/dividas/{divida['id']}/documento",
+            json={"extracaoId": segunda.id},
+            headers=auth,
+        )
+        assert r.json()["divida"]["extracaoId"] == segunda.id
+
+    def test_exige_auth(self, client):
+        r = client.post(
+            "/v1/dividas/00000000-0000-0000-0000-000000000999/documento",
+            json={"extracaoId": "00000000-0000-0000-0000-000000000999"},
+        )
+        assert r.status_code == 401
+
+
+    def test_campos_nao_sao_aplicados_quando_a_extracao_e_invalida(self, client, auth, sessao):
+        """
+        A atomicidade do RF-002, pelo lado observável: extração recusada deixa a
+        dívida intacta. Sem isso, ela ficaria com o valor lido de um documento
+        que nunca chegou a ser ligado — o número sem procedência que o
+        guardrail 1.3 proíbe.
+
+        O que este teste PEGA (verificado injetando o defeito): um `commit()`
+        antes da validação. O que ele NÃO pega: aplicar `campos` antes de
+        chamar `_extracao_ligavel` — a exceção impede o commit e a sessão
+        descarta a alteração, então a ordem sozinha é indiferente ao resultado.
+        Quem garante a atomicidade aqui é a transação, não a ordem das linhas.
+        """
+        divida = client.post("/v1/dividas", json=_nova(), headers=auth).json()["divida"]
+        nao_concluida = _extracao(sessao, status="processando")
+
+        r = client.post(
+            f"/v1/dividas/{divida['id']}/documento",
+            json={"extracaoId": nao_concluida.id, "campos": {"credor": "Banco Do Documento"}},
+            headers=auth,
+        )
+        assert r.status_code == 409
+
+        intacta = client.get(f"/v1/dividas/{divida['id']}", headers=auth).json()["divida"]
+        assert intacta["credor"] == divida["credor"]
+        assert intacta["extracaoId"] is None
+
+    def test_erros_trazem_message_em_pt_br(self, client, auth, sessao):
+        """
+        `message` é obrigatório em toda resposta de erro (api-contract, 1.1) e é
+        exibido DIRETO ao usuário — então ele não pode virar string técnica nem
+        carregar dado sensível (guardrail 5). O handler de `main.py` desembrulha
+        o `detail` do FastAPI para `message` no topo.
+        """
+        divida = client.post("/v1/dividas", json=_nova(), headers=auth).json()["divida"]
+
+        alheia = _extracao(sessao, tenant_id="outro-tenant")
+        r404 = client.post(
+            f"/v1/dividas/{divida['id']}/documento",
+            json={"extracaoId": alheia.id},
+            headers=auth,
+        )
+        assert r404.json()["message"] == "Não encontramos esse documento."
+
+        processando = _extracao(sessao, status="processando")
+        r409 = client.post(
+            f"/v1/dividas/{divida['id']}/documento",
+            json={"extracaoId": processando.id},
+            headers=auth,
+        )
+        assert r409.json()["message"] == "A leitura desse documento ainda não terminou."
+
+
+class TestCriarDividaValidaExtracao:
+    """Regressão do RF-007: `POST /v1/dividas` passa a usar `_extracao_ligavel`."""
+
+    def test_extracao_de_outro_tenant_devolve_404(self, client, auth, sessao):
+        extracao = _extracao(sessao, tenant_id="outro-tenant")
+        r = client.post("/v1/dividas", json=_nova(extracaoId=extracao.id), headers=auth)
+        assert r.status_code == 404
+
+    def test_extracao_processando_devolve_409(self, client, auth, sessao):
+        extracao = _extracao(sessao, status="processando")
+        r = client.post("/v1/dividas", json=_nova(extracaoId=extracao.id), headers=auth)
+        assert r.status_code == 409
+
+    def test_extracao_valida_cria_e_grava_vinculo(self, client, auth, sessao):
+        extracao = _extracao(sessao)
+        r = client.post("/v1/dividas", json=_nova(extracaoId=extracao.id), headers=auth)
+        assert r.status_code == 201
+        assert r.json()["divida"]["extracaoId"] == extracao.id
+
+
+class TestDividaExpoeExtracaoId:
+    def test_listar_e_obter_trazem_extracaoId(self, client, auth, sessao):
+        divida = client.post("/v1/dividas", json=_nova(), headers=auth).json()["divida"]
+        assert divida["extracaoId"] is None
+
+        extracao = _extracao(sessao)
+        client.post(
+            f"/v1/dividas/{divida['id']}/documento",
+            json={"extracaoId": extracao.id},
+            headers=auth,
+        )
+
+        obtida = client.get(f"/v1/dividas/{divida['id']}", headers=auth).json()["divida"]
+        assert obtida["extracaoId"] == extracao.id
+
+        listadas = client.get("/v1/dividas", headers=auth).json()["dividas"]
+        assert listadas[0]["extracaoId"] == extracao.id

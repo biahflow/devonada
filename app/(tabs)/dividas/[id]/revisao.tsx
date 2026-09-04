@@ -4,12 +4,14 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Screen } from '../../../../src/components/ui/Screen';
 import { PageHeader } from '../../../../src/components/ui/PageHeader';
 import { Card } from '../../../../src/components/ui/Card';
+import { Button } from '../../../../src/components/ui/Button';
 import { MoneyText } from '../../../../src/components/ui/MoneyText';
 import { LoadingState } from '../../../../src/components/ui/LoadingState';
 import { ErrorState } from '../../../../src/components/ui/ErrorState';
 import { AchadoCard } from '../../../../src/components/dividas/AchadoCard';
 import { ScriptCard } from '../../../../src/components/cards/ScriptCard';
 import { useRevisao } from '../../../../src/hooks/useRevisao';
+import { useDivida } from '../../../../src/hooks/useDividas';
 import type { Canal } from '../../../../src/api/types';
 import { isoParaBR } from '../../../../src/util/date';
 import { ComoCalculamos } from '../../../../src/components/ui/ComoCalculamos';
@@ -31,6 +33,13 @@ export default function RevisaoDeCobranca() {
   // Não bloqueia a tela: o número e a citação legível já vieram na revisão.
   const { porId: fontes } = useFontesJuridicas();
   const { revisao, isPending, error, refetch } = useRevisao(id, canal);
+  // Só para saber se JÁ existe documento ligado. A revisão não devolve esse
+  // fato, e sem ele o vazio abaixo manda enviar um documento que a pessoa
+  // talvez já tenha enviado — contrato lido e limpo também cai ali, porque
+  // "sem achado" não distingue "não conferimos" de "conferimos e estava certo".
+  // A query é a mesma do detalhe, então quase sempre vem do cache.
+  const { data: dadosDaDivida } = useDivida(id);
+  const jaTemDocumento = !!dadosDaDivida?.divida?.extracaoId;
 
   const cabecalho = (
     <PageHeader
@@ -106,10 +115,21 @@ export default function RevisaoDeCobranca() {
           <Card>
             <Text style={styles.eyebrow}>{revisao.credor}</Text>
             <Text style={styles.semNumero}>
-              Ainda não dá para conferir os encargos desta cobrança — para isso, envie o contrato
-              e a gente revisa ponto a ponto. Enquanto isso, use o roteiro abaixo para negociar
-              com segurança.
+              {jaTemDocumento
+                ? 'Conferimos o documento desta dívida e não achamos encargo que dê para contestar com fonte. Isso é notícia boa, não falha da leitura. Se você tem outro documento — o contrato, quando o que mandou foi um boleto —, vale trocar. Enquanto isso, use o roteiro abaixo para negociar com segurança.'
+                : 'Ainda não dá para conferir os encargos desta cobrança — para isso, envie o contrato e a gente revisa ponto a ponto. Enquanto isso, use o roteiro abaixo para negociar com segurança.'}
             </Text>
+            {/* O CONVITE VIRA PORTA. A frase acima prometia "envie o contrato" e
+                não tinha botão nenhum — convite para uma porta que não existia
+                (F-019, RF-010). E o rótulo NOMEIA a troca quando já há documento:
+                mandar quem já mandou de volta ao mesmo lugar, com o mesmo texto,
+                é o convite mentindo de outro jeito. */}
+            <Button
+              label={jaTemDocumento ? 'Trocar o documento' : 'Mandar o documento'}
+              onPress={() => router.push(`/dividas/${id}/documento`)}
+              variant="secondary"
+              style={styles.acaoSemNumero}
+            />
           </Card>
         )}
 
@@ -171,6 +191,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   semNumero: { ...typography.caption, color: colors.ink, fontSize: 14, lineHeight: 20 },
+  acaoSemNumero: { marginTop: spacing.md, alignSelf: 'stretch' },
   achados: { gap: spacing.md },
   vigencia: { ...typography.caption, color: colors.inkSoft, fontSize: 11 },
   disclaimer: {

@@ -64,6 +64,27 @@ describe('tela de edição de dívida', () => {
     expect(screen.getByLabelText('Valor cobrado').props.value).toBe('R$ 450,00');
     expect(screen.getByLabelText('Juros ao mês').props.value).toBe('12,50%');
   });
+
+  // F-019: o backend passa a recalcular as parcelas pendentes quando o valor
+  // cobrado muda numa dívida com carnê. Quem tem carnê precisa saber ANTES de
+  // salvar, não descobrir depois na tela de plano.
+  it('COM carnê, avisa que as parcelas ainda não pagas serão recalculadas', async () => {
+    responderPorRota({ '/v1/dividas/': { divida: umaDivida({ totalParcelas: 12 }) } });
+    renderizarTela(<EditarDivida />);
+
+    await waitFor(() =>
+      expect(screen.getByText(/serão recalculadas para o valor novo/)).toBeTruthy(),
+    );
+    expect(screen.getByText(/parcelas já pagas não mudam/)).toBeTruthy();
+  });
+
+  it('SEM carnê, não avisa sobre recálculo de parcela nenhuma', async () => {
+    responderPorRota({ '/v1/dividas/': { divida: umaDivida({ totalParcelas: undefined }) } });
+    renderizarTela(<EditarDivida />);
+
+    await waitFor(() => expect(screen.getByLabelText('Credor').props.value).toBeTruthy());
+    expect(screen.queryByText(/serão recalculadas/)).toBeNull();
+  });
 });
 
 describe('rascunho vindo do chat', () => {

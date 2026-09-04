@@ -4,9 +4,11 @@ import {
   createDebt,
   deleteDebt,
   getDebt,
+  ligarDocumento,
   listDebts,
   quitarDebt,
   updateDebt,
+  type DocumentoDaDivida,
   type NovaDivida,
   type PatchDivida,
   type QuitacaoInput,
@@ -71,6 +73,19 @@ export function useAtualizarDivida(id: Uuid) {
   const invalidar = useInvalidarDividas();
   return useMutation({
     mutationFn: (patch: PatchDivida) => updateDebt(id, patch),
+    onSuccess: invalidar,
+  });
+}
+
+/**
+ * Liga o documento à dívida (F-019). Vínculo e campos aceitos viajam na MESMA
+ * chamada — partir em PATCH + POST criaria a falha parcial pior possível: os
+ * campos do documento gravados e o vínculo não (ADR 0025, decisão 2).
+ */
+export function useLigarDocumento(id: Uuid) {
+  const invalidar = useInvalidarDividas();
+  return useMutation({
+    mutationFn: (corpo: DocumentoDaDivida) => ligarDocumento(id, corpo),
     onSuccess: invalidar,
   });
 }

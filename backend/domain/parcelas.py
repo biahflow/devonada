@@ -35,18 +35,41 @@ def somar_meses(inicio: date, meses: int) -> date:
     return date(ano, mes, dia)
 
 
+def dividir_valor(valor_total: int, quantidade: int) -> list[int]:
+    """
+    Divide um valor (em centavos) em N parcelas inteiras.
+
+    A SOBRA VAI NA ÚLTIMA. R$ 1.500,00 em 7 não divide exato: seis parcelas de
+    R$ 214,28 e uma de R$ 214,32, somando exatamente R$ 1.500,00.
+
+    Arredondar cada parcela isoladamente produziria um total que não bate com a
+    dívida — e a diferença apareceria como centavos fantasma no painel, que é
+    justamente o tipo de divergência que destrói a confiança no app.
+
+    Fonte única desta conta: `gerar_cronograma` a usa para o cronograma
+    inteiro, e o ajuste de parcelas pendentes (limitação 22) a usa para redistribuir
+    o que falta pagar — nenhum dos dois repete a aritmética.
+    """
+    if quantidade < 1:
+        raise ValueError("quantidade precisa ser pelo menos 1")
+    if valor_total < 0:
+        raise ValueError("valor_total não pode ser negativo")
+
+    base = valor_total // quantidade
+    sobra = valor_total - base * quantidade
+
+    return [base + (sobra if i == quantidade - 1 else 0) for i in range(quantidade)]
+
+
 def gerar_cronograma(
     valor_total: int, total_parcelas: int, primeiro_vencimento: date
 ) -> list[ParcelaGerada]:
     """
     Divide o valor em parcelas mensais.
 
-    A SOBRA VAI NA ÚLTIMA PARCELA. R$ 1.500,00 em 7 não divide exato: seis
-    parcelas de R$ 214,28 e uma de R$ 214,32, somando exatamente R$ 1.500,00.
-
-    Arredondar cada parcela isoladamente produziria um total que não bate com a
-    dívida — e a diferença apareceria como centavos fantasma no painel, que é
-    justamente o tipo de divergência que destrói a confiança no app.
+    A divisão em si é `dividir_valor` — a sobra vai na última parcela; ver o
+    docstring dela para o porquê. Esta função só acrescenta a numeração, o
+    total e o vencimento de cada parcela.
     """
     if total_parcelas < 1:
         raise ValueError("total_parcelas precisa ser pelo menos 1")
@@ -55,14 +78,13 @@ def gerar_cronograma(
     if valor_total < 0:
         raise ValueError("valor_total não pode ser negativo")
 
-    base = valor_total // total_parcelas
-    sobra = valor_total - base * total_parcelas
+    valores = dividir_valor(valor_total, total_parcelas)
 
     return [
         ParcelaGerada(
             numero=i + 1,
             total=total_parcelas,
-            valor=base + (sobra if i == total_parcelas - 1 else 0),
+            valor=valores[i],
             vencimento=somar_meses(primeiro_vencimento, i),
         )
         for i in range(total_parcelas)

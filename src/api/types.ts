@@ -57,6 +57,17 @@ export interface Divida {
   totalParcelas?: number;
   parcelasPagas?: number;
   proximoVencimento?: IsoDate;
+
+  /**
+   * A extração que originou — ou que foi ligada a — esta dívida (F-019).
+   *
+   * Até a ADR 0025 o vínculo era *write-only*: entrava em `NovaDivida` e nunca
+   * voltava na leitura. Sem ele o app não tem como saber se a dívida já tem
+   * documento, e a única forma de oferecer "mandar" ou "trocar" seria adivinhar.
+   *
+   * `null` e ausente significam a mesma coisa — nenhum documento ligado.
+   */
+  extracaoId?: Uuid | null;
 }
 
 /* ---------- Chat ---------- */

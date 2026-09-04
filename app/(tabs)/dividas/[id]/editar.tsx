@@ -5,6 +5,7 @@ import { PageHeader } from '../../../../src/components/ui/PageHeader';
 import { LoadingState } from '../../../../src/components/ui/LoadingState';
 import { ErrorState } from '../../../../src/components/ui/ErrorState';
 import { ErroDeMutacao } from '../../../../src/components/ui/ErroDeMutacao';
+import { Feedback } from '../../../../src/components/ui/Feedback';
 import { DividaForm } from '../../../../src/components/dividas/DividaForm';
 import { useAtualizarDivida, useDivida } from '../../../../src/hooks/useDividas';
 import { paramsParaProposta, temProposta } from '../../../../src/util/proposta';
@@ -44,6 +45,10 @@ export default function EditarDivida() {
   }
 
   const { divida } = data;
+  // Com carnê, mudar o valor cobrado recalcula as parcelas pendentes no
+  // backend (F-019 em andamento). Quem tem carnê precisa saber disso ANTES de
+  // salvar, não descobrir depois na tela de plano.
+  const temCarne = (divida.totalParcelas ?? 0) > 0;
 
   return (
     <Screen>
@@ -65,10 +70,33 @@ export default function EditarDivida() {
 
         <ErroDeMutacao error={atualizar.error} fallback={'Não deu para salvar. Tente de novo.'} />
 
+        {temCarne ? (
+          <Feedback
+            tone="warning"
+            message="Se você mudar o valor cobrado, as parcelas ainda não pagas deste carnê serão recalculadas para o valor novo ao salvar. As parcelas já pagas não mudam."
+          />
+        ) : null}
+
         <DividaForm
           // O campo proposto entra POR CIMA do que está salvo; o resto continua
           // como está no banco. Nada disso é gravado até ela tocar em salvar.
-          inicial={{ ...divida, ...proposta }}
+          //
+          // OS CAMPOS SÃO LISTADOS, e não espalhados da dívida inteira, porque
+          // `Divida` passou a devolver `extracaoId` (F-019) e o `DividaForm`
+          // repassa esse campo para o corpo da submissão — é assim que a criação
+          // a partir de documento liga a dívida à extração. Aqui a submissão é um
+          // PATCH, e PATCH não liga documento: o campo viajaria e o servidor o
+          // ignoraria em silêncio (ADR 0025, decisão 1). Ligar ou trocar
+          // documento tem rota própria, em `dividas/[id]/documento`.
+          inicial={{
+            credor: divida.credor,
+            valorCobrado: divida.valorCobrado,
+            dataOrigem: divida.dataOrigem,
+            tipo: divida.tipo,
+            taxaJurosMensal: divida.taxaJurosMensal,
+            totalParcelas: divida.totalParcelas,
+            ...proposta,
+          }}
           submitLabel="Salvar alterações"
           submitting={atualizar.isPending}
           onSubmit={(input) => atualizar.mutate(input, { onSuccess: () => router.back() })}

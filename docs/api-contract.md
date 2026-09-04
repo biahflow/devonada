@@ -128,8 +128,12 @@ Consumido por `listDebts()` em `src/api/debts.ts`.
 
 Response `200`:
 ```json
-{ "dividas": [ { "id": "...", "credor": "...", "valorCobrado": 150000, "dataOrigem": "2021-06-01", "tipo": "juros_abusivos", "valorCorrigido": 165000, "possivelPrescricao": false } ] }
+{ "dividas": [ { "id": "...", "credor": "...", "valorCobrado": 150000, "dataOrigem": "2021-06-01", "tipo": "juros_abusivos", "valorCorrigido": 165000, "possivelPrescricao": false, "extracaoId": null } ] }
 ```
+
+`extracaoId` (`string | null`) diz se a dívida tem documento lido ligado a ela — é o que permite ao
+app oferecer "mandar o documento" ou "trocar o documento". Entrou no F-019; antes o vínculo era
+*write-only*. Ver a seção 3.16.
 
 ### `POST /v1/dividas`
 Consumido por `createDebt()`.
@@ -144,7 +148,10 @@ como `0` (ausência e "juros zero" são afirmações diferentes):
 `extracaoId` é **opcional** e liga a dívida à extração que a originou (ver `POST /v1/dividas` com
 vínculo, abaixo). Ausente numa dívida cadastrada por valor; presente quando o cadastro nasceu de um
 documento lido — inclusive na fila do onboarding (ADR 0022). Sem ele, a revisão daquela dívida não
-encontra a extração e não produz achado:
+encontra a extração e não produz achado.
+
+**Desde o F-019 ele é validado** (ADR 0025): a extração precisa existir, ser do mesmo tenant e estar
+`concluida`, sob pena de `404`/`409` — antes era gravado cru. Ver a seção 3.16:
 ```json
 { "credor": "Banco Teste S/A", "valorCobrado": 150000, "dataOrigem": "2021-06-01", "tipo": "juros_abusivos", "extracaoId": "…" }
 ```
@@ -165,6 +172,20 @@ Response `200`: `{ "divida": Divida }`. `404` se não existir ou for de outro te
 #### `PATCH /v1/dividas/{id}`
 Aceita subconjunto de `{ credor, valorCobrado, dataOrigem, tipo }`. Response `200`:
 `{ "divida": Divida }` com os derivados recalculados.
+
+**`valorCobrado` mexe no carnê** (limitação 22 do `docs/inventario.md`, fechada). Quando o valor
+muda numa dívida com parcelas **pendentes**, elas passam a somar `novo valor − o que já foi pago`,
+mantendo datas, quantidade e **ids** — os lembretes de push carregam `parcelaId` no payload, e
+recriar parcela quebraria deep link em voo. Parcelas pagas e canceladas nunca são tocadas. A divisão
+é a mesma de `gerar_cronograma` (igual, sobra na última), não um método novo.
+
+| Erro | Status | Quando |
+|---|---|---|
+| `{ "message": "O valor novo é menor do que já foi pago nesta dívida. …" }` | `409` | `novo valor − já pago ≤ 0`. O servidor **não decide** o que isso significa — pode ser erro de digitação, pode ser juros, pode ser acordo novo —, e nenhuma dessas é conta que o app tenha fonte para fazer. Nada é alterado. |
+
+Isto **não é renegociação** e não grava `Renegociacao`: corrigir um número errado não é o credor ter
+concordado com termos novos, e sujar essa tabela corromperia o benchmark de desconto por credor.
+Carnê **inteiramente pago** não é ajustado — ver a limitação residual no inventário.
 
 #### `POST /v1/dividas/{id}/quitacao`
 Marca como quitada. Request `{ "dataQuitacao": "2024-03-15", "valorPago": 90000 }`.
@@ -296,6 +317,10 @@ backend ligar a dívida à extração que a originou. Quem consome: `createDebt(
 (`src/util/extracao.ts`) e repassado pelo `DividaForm` ao lado do submit — nunca como campo
 editável. Vale para os dois caminhos que nascem de documento: a tela de revisão
 (`contrato/[id].tsx`) e a fila multi-dívida do onboarding (ADR 0022).
+
+Para dívida que **já existe**, o vínculo não passa por aqui: é `POST /v1/dividas/{id}/documento`,
+seção 3.16 (F-019, ADR 0025). `extracaoId` **não** é aceito no `PATCH` — e nunca foi, apesar de o
+tipo `PatchDivida = Partial<NovaDivida>` do cliente sugerir que sim.
 
 > **Regressão coberta:** o backend sempre aceitou e gravou `extracaoId` (`schemas.NovaDivida`,
 > `routers/dividas.py`), mas até o F-015 **nenhum cliente o enviava** — o tipo `NovaDivida` não
@@ -1633,6 +1658,79 @@ informação numa aba adiante.
 lados. Mesma disciplina de `abaixoDoPiso`. Continua sendo **fato aritmético, nunca diagnóstico** —
 o campo não se chama `superendividado` em lugar nenhum, e a copy nomeia a repactuação sem afirmar
 que a pessoa se enquadra nela.
+
+### 3.16 F-019 · documento em dívida existente (ADR 0025)
+
+O fluxo de documento do M1.5 sempre termina em **criação**: envia, lê, `POST /v1/dividas`. Não havia
+caminho para levar um documento a uma dívida **que já existe**, e a consequência era o produto
+cortar o próprio valor — dívida cadastrada à mão devolve `achados: []`, porque `revisao._campos`
+sai por `None` quando `divida.extracao_id` é nulo.
+
+A coluna `divida.extracao_id` **já existia** desde a migração inicial. Não faltava dado: faltava
+rota. Esta seção não gera migração.
+
+#### `POST /v1/dividas/{id}/documento`
+
+Liga uma extração **já concluída** a uma dívida existente, e grava na mesma chamada os campos que o
+usuário aceitou do documento.
+
+Request:
+```json
+{
+  "extracaoId": "…",
+  "campos": {
+    "credor": "Banco Teste S/A",
+    "valorCobrado": 150000,
+    "dataOrigem": "2021-06-01",
+    "taxaJurosMensal": 1250
+  }
+}
+```
+
+| Campo | Obrigatório | Significado |
+|---|---|---|
+| `extracaoId` | sim | A extração a ligar. Precisa existir, ser **do mesmo tenant** e estar `concluida`. |
+| `campos` | não | Só o que o usuário **marcou** na revisão lado a lado. Mesma forma e mesmas validações de `PatchDivida`. **Ausente ou vazio significa "não mude nada"** — ver ADR 0025, decisão 3. |
+
+Response `200`: o objeto `Divida` atualizado, já com `extracaoId` preenchido.
+
+**As duas coisas são atômicas.** Vínculo e campos entram juntos ou não entra nenhum: gravar os
+campos do documento sem o vínculo produziria exatamente a dívida que exibe número vindo de documento
+**sem** achado que o sustente.
+
+| Erro | Status | Quando |
+|---|---|---|
+| `{ "message": "Não encontramos essa dívida." }` | `404` | Dívida inexistente, excluída ou de outro tenant. |
+| `{ "message": "Não encontramos esse documento." }` | `404` | Extração inexistente ou de **outro tenant**. Nunca `403` — um `403` confirmaria que o id existe. |
+| `{ "message": "A leitura desse documento ainda não terminou." }` | `409` | Extração com `status` `processando` ou `falhou`. Conflito de estado, não payload inválido. |
+| `{ "message": "…", "campo": "valorCobrado" }` | `422` | Campo de `campos` inválido, pelas mesmas regras do `PATCH`. |
+| `{ "message": "O valor novo é menor do que já foi pago nesta dívida. …" }` | `409` | `campos.valorCobrado` aceito do documento fica abaixo do já pago. Mesmo validador do `PATCH`. |
+
+**`campos.valorCobrado` mexe no carnê** exatamente como o `PATCH` — mesma função, mesmas regras. A
+tela avisa antes de confirmar, e o aviso **não traz número**: o valor novo de cada parcela é conta do
+servidor, e o cliente não faz conta de dinheiro (guardrail 1.2).
+
+**Substituição é permitida e é o comportamento correto.** Uma dívida tem no máximo um documento
+(`extracao_id` é coluna, não lista). Quem mandou o boleto e depois achou o contrato quer o contrato.
+A tela **nomeia** a troca; a API não guarda histórico do documento anterior.
+
+#### `Divida` passa a devolver `extracaoId`
+
+`extracaoId: string | null` entra no objeto `Divida` de `GET /v1/dividas` e
+`GET /v1/dividas/{id}`. Antes o vínculo era *write-only* — entrava em `NovaDivida` e nunca voltava
+—, e sem ele o app não tem como saber se deve oferecer "mandar o documento" ou "trocar o documento".
+
+#### Mudança de comportamento: `POST /v1/dividas` passa a validar `extracaoId`
+
+**Declarada, e atinge rota que já está no ar.** `POST /v1/dividas` gravava `extracaoId` cru, sem
+conferir existência, tenant ou status — a única blindagem era de leitura (a revisão filtra a
+extração por tenant). Passa a usar o **mesmo validador** da rota nova, com os mesmos `404` e `409`.
+
+Nenhum cliente legítimo é atingido: os dois caminhos que enviam `extracaoId` — a tela de revisão de
+extração e a fila multi-dívida do onboarding — só o fazem com extração do próprio tenant e
+`status === "concluida"`. O que deixa de passar é o que nunca deveria ter passado.
+
+---
 
 ---
 

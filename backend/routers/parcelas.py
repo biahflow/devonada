@@ -1,7 +1,7 @@
 from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 import orm
@@ -9,7 +9,7 @@ import schemas
 from auth import tenant_atual
 from db import get_db
 from domain.marcos import marcos_atingidos
-from domain.parcelas import gerar_cronograma, situacao_da_parcela
+from domain.parcelas import dividir_valor, gerar_cronograma, situacao_da_parcela
 from routers.marcos import registrar_marcos
 
 router = APIRouter(prefix="/v1", tags=["Parcelas"])
@@ -48,6 +48,75 @@ def criar_parcelas(
                 vencimento=g.vencimento,
             )
         )
+
+
+def ajustar_parcelas_pendentes(
+    db: Session, tenant: str, divida: orm.Divida, valor_antes: int
+) -> None:
+    """
+    Redistribui as parcelas PENDENTES quando `valorCobrado` muda.
+
+    Fecha a limitação 22 do `docs/inventario.md`, dentro da F-019.
+
+    Mudar o valor cobrado de uma dívida sem tocar o carnê deixava a dívida
+    dizendo um número e o carnê somando outro (limitação 22 do inventário).
+    Esta função fecha essa divergência: as pendentes passam a somar
+    `novo_valor - o que já foi pago`, mantendo datas, quantidade e ids.
+
+    Chamada por `dividas.atualizar()` e `dividas.ligar_documento()`, DEPOIS de
+    aplicar o patch/campos do documento e ANTES do commit da rota — não faz
+    commit próprio.
+    """
+    if divida.valor_cobrado == valor_antes:
+        return
+
+    pendentes = db.scalars(
+        select(orm.Parcela)
+        .where(
+            orm.Parcela.divida_id == divida.id,
+            orm.Parcela.tenant_id == tenant,
+            orm.Parcela.cancelada_em.is_(None),
+            orm.Parcela.paga_em.is_(None),
+        )
+        .order_by(orm.Parcela.numero)
+    ).all()
+    if not pendentes:
+        # Carnê inteiramente pago (ou inexistente): não há o que redistribuir.
+        # Mexer no `valor` de uma parcela paga falsificaria histórico de
+        # pagamento — limitação residual declarada, não um caso a resolver
+        # aqui.
+        return
+
+    # `valor_pago` é o que realmente saiu do bolso da pessoa — é ele que diz
+    # quanto do total já está liquidado. `valor` é só o que estava previsto,
+    # usado quando não há registro do valor real pago (`valor_pago` é
+    # nullable). Cancelada não entra: não é pendente nem paga.
+    ja_pago = (
+        db.scalar(
+            select(func.sum(func.coalesce(orm.Parcela.valor_pago, orm.Parcela.valor))).where(
+                orm.Parcela.divida_id == divida.id,
+                orm.Parcela.tenant_id == tenant,
+                orm.Parcela.paga_em.is_not(None),
+                orm.Parcela.cancelada_em.is_(None),
+            )
+        )
+        or 0
+    )
+
+    restante = divida.valor_cobrado - ja_pago
+    if restante <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": (
+                    "O valor novo é menor do que já foi pago nesta dívida. Confira "
+                    "o valor — ou, se o acordo mudou, registre a renegociação."
+                )
+            },
+        )
+
+    for parcela, valor in zip(pendentes, dividir_valor(restante, len(pendentes))):
+        parcela.valor = valor
 
 
 def _buscar_divida(db: Session, tenant: str, divida_id: str) -> orm.Divida:

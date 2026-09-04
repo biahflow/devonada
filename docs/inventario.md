@@ -70,7 +70,7 @@ distinção é do `roadmap.md` e este documento não a apaga.
    única pendência transversal do projeto e nenhum gate automático a substitui.
 2. **Itens parciais do M1** — cadastro, detalhe, edição, quitação e exclusão nunca foram
    exercitados no app contra o backend real.
-3. **Anexar contrato a dívida já cadastrada** — não existe. Detalhado na Parte III.
+3. ~~**Anexar contrato a dívida já cadastrada**~~ — **entregue no F-019** (ADR 0025). Falta device.
 4. **Fechamento do mês (M7.1)** — entregue. A tela abre pré-preenchida com o mês anterior,
    diz de onde veio cada número e grava só o que o usuário confirmou. Falta device.
 
@@ -174,7 +174,7 @@ Canônico: `docs/architecture.md` · ADR 0003.
 - **Cache com prefixo `['dividas']`** (ADR 0002): resumo, parcelas e revisão vivem dentro do
   prefixo, então as mutações de dívida revalidam tudo sem código novo.
 
-## 3. Superfície de API — 46 operações em 33 rotas, mais a página de exclusão
+## 3. Superfície de API — 67 operações em 49 caminhos, mais 5 rotas soltas em `main.py`
 
 Canônico: `docs/api-contract.md`. Autenticação: `Authorization: Bearer <access>`, um JWT de 15
 minutos (ADR 0012). As únicas rotas públicas são as seis de `/v1/auth`, o health check e
@@ -325,7 +325,7 @@ alguém rodá-los.
 cobre o campo, que a notificação toca na hora certa e que a permissão de câmera se comporta.
 Isso é o "falta device" que aparece em quase todos os milestones.
 
-## 8. Decisões arquiteturais — 24 ADRs
+## 8. Decisões arquiteturais — 25 ADRs
 
 | # | Decisão |
 |---|---|
@@ -353,6 +353,7 @@ Isso é o "falta device" que aparece em quase todos os milestones.
 | 0022 | Documento lido inline na fila multi-dívida do onboarding, sem sair do grupo |
 | 0023 | Login social: a conta é o `sub` do provedor, e conta sem senha exclui pelo provedor |
 | 0024 | O corpus jurídico é registro curado com id estável, e a trilha não carrega valor |
+| 0025 | Documento em dívida existente entra por rota própria, e o que a pessoa digitou vence |
 
 As linhas 0019 a 0022 **estavam faltando** nesta tabela desde o M11 — o inventário é visão
 derivada, e a fonte canônica é [`docs/adr/README.md`](adr/README.md). Corrigidas aqui.
@@ -371,7 +372,12 @@ Estão aqui porque escondê-las inverteria o princípio do projeto. Íntegras em
 5. Sem renda informada, o aporte não é checado contra o mínimo existencial.
 6. A revisão **não recalcula o contrato**: achado que exigiria reamortizar aparece sem número e
    não entra em `valorJusto`.
-7. Dívida sem contrato lido **não produz achado** — cadastro manual devolve `achados: []`.
+7. **~~Dívida sem contrato lido não produz achado~~ — RESOLVIDO no F-019 (ADR 0025).** Cadastro
+   manual continua devolvendo `achados: []` **enquanto** não houver documento ligado, mas isso
+   deixou de ser condenação: `POST /v1/dividas/{id}/documento` leva um documento a uma dívida que
+   já existe, com conciliação campo a campo (o digitado vence por padrão), e a revisão daquela
+   dívida passa a produzir achado. As entradas estão no detalhe da dívida e no vazio da própria
+   revisão — que antes convidava a "envie o contrato" **sem botão nenhum**.
 8. A margem consignável ficou de fora: incide sobre a soma de todas as consignações, não sobre
    uma dívida.
 9. O teto de juros do consignado é responsabilidade do operador, vive no `.env` **sem default**,
@@ -449,6 +455,53 @@ Estão aqui porque escondê-las inverteria o princípio do projeto. Íntegras em
     quatro. Nada no código força uma regra nova de domínio que produza número exposto a ganhar
     trilha — e a que não ganhar volta a ser número sem procedência na tela.
 
+22. **~~Mudar o valor cobrado não regenera as parcelas~~ — RESOLVIDO onde dá para resolver
+    honestamente.** Os dois caminhos que mudam `valorCobrado` (`PATCH /v1/dividas/{id}` e
+    `POST /v1/dividas/{id}/documento`) passaram a chamar `ajustar_parcelas_pendentes`: as parcelas
+    **pendentes** passam a somar `novo valor − o que já foi pago`, mantendo datas, quantidade e
+    **ids** — os lembretes de push mandam `parcelaId` no payload, e recriar parcela quebraria deep
+    link em voo. Pagas e canceladas nunca são tocadas, e nenhuma `Renegociacao` é gravada: corrigir
+    um número errado não é o credor ter aceitado termos novos, e sujar essa tabela corromperia o
+    benchmark de desconto por credor. O método de divisão agora tem definição única
+    (`dividir_valor`, em `backend/domain/parcelas.py`), usada também por `gerar_cronograma`.
+
+    **Onde ele se recusa a resolver:** se o novo valor ficar **abaixo do que já foi pago**, a rota
+    devolve `409` e não altera nada. Pode ser erro de digitação, pode ser juros, pode ser acordo
+    novo — nenhuma dessas é conta que o app tenha fonte para fazer, e escolher uma seria o
+    `valorCobrado * 1.1` de novo.
+
+    **Limitação residual, e ela continua real:** dívida com o carnê **inteiramente pago** não é
+    ajustada, porque mexer no `valor` de uma parcela paga falsificaria histórico de pagamento.
+    Nesse caso a soma das parcelas continua divergindo do `valorCobrado`. É o único caso que sobra,
+    e ele sobra por escolha.
+
+23. **~~O mapa campo→trecho é mantido em dois lugares~~ — RESOLVIDO.** `camposDaDivida`
+    (`src/util/extracao.ts`) passou a ser a definição única do mapa "campo do documento → campo da
+    dívida", tipada campo a campo. `extracaoParaProposta` monta a proposta a partir dela e
+    `linhasDeConciliacao` a indexa para achar o trecho — o segundo `switch` deixou de existir.
+    O teste que trava o invariante percorre as **duas funções públicas**, não o mapa: para os
+    quatro tipos de documento, todo campo que a proposta traz tem de virar linha com `trecho` à
+    vista. Se alguém reseparar os mapas e eles divergirem, a divergência aparece ali como campo
+    proposto sem linha, ou linha sem trecho.
+    `linhasDeRevisao` (`src/util/revisaoExtracao.ts`) **não** foi unificado de propósito: ele monta
+    as linhas de TODOS os campos do documento, encargos inclusive, e não é o mesmo mapa.
+
+24. **`divida.parcelas_pagas` nunca é escrito.** A coluna existe (`backend/orm.py:51`) e é
+    servida como `parcelasPagas` (`backend/routers/dividas.py:41`), mas **nenhuma linha do backend
+    de produção atribui valor a ela** — nem a rota de pagamento de parcela, nem a de quitação. A
+    tela de detalhe exibe "{parcelasPagas ?? 0} de {totalParcelas} pagas"
+    (`app/(tabs)/dividas/[id]/index.tsx:118-125`), então **mostra "0 de 12 pagas" mesmo com o carnê
+    inteiro quitado**. É bug visível ao usuário, achado ao mapear a limitação 22, e é anterior ao
+    F-019. A correção provável não é passar a escrever a coluna, e sim derivá-la da lista de
+    parcelas — coluna que ninguém preenche envelhece, verificação derivada não (mesma lição de
+    `tabelas_do_tenant()` no M8).
+
+25. **`divida.proximo_vencimento` não avança quando uma parcela é paga.** Só é escrito na criação
+    da dívida (`backend/routers/dividas.py:146`) e na renegociação
+    (`backend/routers/parcelas.py:197`). A rota de pagamento não o toca. Quem lê a coluna direto
+    (`backend/routers/chat.py:82`, como fallback) recebe uma data que já passou. As telas que leem
+    a lista real de parcelas não são afetadas. Também anterior ao F-019.
+
 (Duas limitações antigas foram **resolvidas** no M3 e não constam acima: `comprometimentoRenda`
 deixou de ser aproximação e `proximosVencimentos` deixou de voltar vazio.)
 
@@ -460,7 +513,7 @@ deixou de ser aproximação e `proximosVencimentos` deixou de voltar vazio.)
 
 | Lacuna | Situação |
 |---|---|
-| **Anexar contrato a dívida já cadastrada** | **Não existe.** O fluxo de contrato é global e sempre cria dívida nova. Pior: o vazio da revisão diz "envie o contrato **desta dívida**" e manda para `/dividas/contrato` (`app/(tabs)/dividas/[id]/revisao.tsx:73`) — seguir o convite duplica a dívida. Precisa de mudança de contrato de API, não só de tela |
+| ~~**Anexar contrato a dívida já cadastrada**~~ | **Fechada no F-019** (ADR 0025). `POST /v1/dividas/{id}/documento` liga extração concluída do mesmo tenant a uma dívida existente, com conciliação campo a campo. Não precisou de migração: `divida.extracao_id` existia desde a migração inicial — faltava caminho, não coluna |
 | **Validação em device** | Pendência transversal de M1.5 a M6 |
 | **Telas do M1 não exercitadas** | Cadastro, detalhe, edição, quitação e exclusão contra o backend real |
 | ~~**Login de verdade**~~ | **Fechada no M8.** Cadastro, login, sessão revogável e recuperação de senha (ADR 0012). A tela de token do beta foi removida |

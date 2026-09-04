@@ -66,6 +66,21 @@ class PatchDivida(Camel):
     taxaJurosMensal: int | None = Field(default=None, ge=0)
 
 
+class LigarDocumento(Camel):
+    """
+    Liga um documento já lido a uma dívida existente (F-019, ADR 0025).
+
+    `extracaoId` é obrigatório: sem ele não há o que ligar. `campos` é
+    OPCIONAL e usa a mesma forma de `PatchDivida` — ausente ou vazio significa
+    "não mude nada" (ADR 0025, decisão 3). Não confundir com `PatchDivida`:
+    esta rota tem pré-condição própria (a extração existir, ser do tenant e
+    estar concluída) que edição de campo não tem.
+    """
+
+    extracaoId: str
+    campos: PatchDivida | None = None
+
+
 class QuitacaoInput(Camel):
     dataQuitacao: date
     valorPago: int = Field(ge=0)
@@ -89,6 +104,10 @@ class Divida(Camel):
     totalParcelas: int | None = None
     parcelasPagas: int | None = None
     proximoVencimento: date | None = None
+    # A extração que originou (ou foi ligada a) esta dívida. Era write-only —
+    # entrava em `NovaDivida` e nunca voltava —, e sem ele o app não tem como
+    # saber se deve oferecer "mandar" ou "trocar" o documento (F-019, ADR 0025).
+    extracaoId: str | None = None
 
 
 class ListaDividas(Camel):

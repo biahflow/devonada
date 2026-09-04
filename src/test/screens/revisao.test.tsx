@@ -6,6 +6,7 @@ import { ApiError } from '../../api/client';
 import type { Achado, BlocoScript, Canal, ScriptNegociacao } from '../../api/types';
 import { limparMocksDeRede, nuncaResponde, responderPorRota } from '../api';
 import { renderizarTela } from '../render';
+import { umaDivida } from '../mocks';
 
 jest.mock('expo-clipboard', () => ({ setStringAsync: jest.fn() }));
 
@@ -156,6 +157,54 @@ describe('tela de revisão de cobrança', () => {
     expect(screen.getByText(REGRA)).toBeTruthy();
     // E não afirma que a cobrança está certa.
     expect(screen.queryByText(/tudo certo/i)).toBeNull();
+  });
+
+  // F-019, RF-010. A frase já convidava — "envie o contrato e a gente revisa
+  // ponto a ponto" — e não tinha botão nenhum: convite para uma porta que não
+  // existia. É o vazio de quem cadastrou a dívida à mão, e é exatamente quem
+  // mais precisa da porta.
+  it('o vazio da revisão ganha o botão que a própria frase promete', async () => {
+    responderPorRota({
+      '/v1/dividas/': revisao({
+        achados: [],
+        valorJusto: null,
+        script: scriptEscrito('email', { comAchado: false }),
+      }),
+    });
+    renderizarTela(<RevisaoDeCobranca />);
+
+    await waitFor(() => expect(screen.getByText(/envie o contrato/)).toBeTruthy());
+    fireEvent.press(screen.getByText('Mandar o documento'));
+    expect(global.mockRouter.push).toHaveBeenCalledWith('/dividas/divida-1/documento');
+  });
+
+  // O MESMO VAZIO recebe quem JÁ mandou documento: contrato lido e limpo também
+  // dá zero achado, porque "sem achado" não distingue "não conferimos" de
+  // "conferimos e estava certo". Sem isto, a tela mandaria a pessoa enviar de
+  // novo o documento que ela já enviou — e agora com um botão levando lá.
+  it('quando a dívida já tem documento, o vazio nomeia a troca em vez de pedir de novo', async () => {
+    responderPorRota({
+      '/v1/dividas/divida-1/revisao': revisao({
+        achados: [],
+        valorJusto: null,
+        script: scriptEscrito('email', { comAchado: false }),
+      }),
+      '/v1/dividas/divida-1': { divida: umaDivida({ extracaoId: 'extracao-1' }) },
+    });
+    renderizarTela(<RevisaoDeCobranca />);
+
+    await waitFor(() => expect(screen.getByText('Trocar o documento')).toBeTruthy());
+    expect(screen.queryByText('Mandar o documento')).toBeNull();
+    expect(screen.queryByText(/envie o contrato/)).toBeNull();
+    expect(screen.getByText(/não achamos encargo que dê para contestar/)).toBeTruthy();
+  });
+
+  it('com achado, o convite ao documento não aparece — ele já foi lido', async () => {
+    responderPorRota({ '/v1/dividas/': revisao() });
+    renderizarTela(<RevisaoDeCobranca />);
+
+    await waitFor(() => expect(screen.getByText('Banco Teste S/A')).toBeTruthy());
+    expect(screen.queryByText('Mandar o documento')).toBeNull();
   });
 
   it('lista o achado com valor, fonte e o trecho do contrato', async () => {

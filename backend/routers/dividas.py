@@ -12,7 +12,7 @@ from domain.correcao import valor_corrigido
 from domain.marcos import marcos_atingidos
 from domain.prescricao import possivel_prescricao
 from routers.marcos import registrar_marcos
-from routers.parcelas import criar_parcelas
+from routers.parcelas import ajustar_parcelas_pendentes, criar_parcelas
 
 router = APIRouter(prefix="/v1/dividas", tags=["Dividas"])
 
@@ -40,6 +40,7 @@ def _para_schema(d: orm.Divida) -> schemas.Divida:
         totalParcelas=d.total_parcelas,
         parcelasPagas=d.parcelas_pagas,
         proximoVencimento=d.proximo_vencimento,
+        extracaoId=d.extracao_id,
     )
 
 
@@ -63,6 +64,34 @@ def _buscar(db: Session, tenant: str, divida_id: str) -> orm.Divida:
             detail={"message": "Não encontramos essa dívida."},
         )
     return d
+
+
+def _extracao_ligavel(db: Session, tenant: str, extracao_id: str) -> orm.Extracao:
+    """
+    Extração pronta para ser ligada a uma dívida (F-019, ADR 0025).
+
+    Busca escopada por tenant, como `_buscar`. Extração de outro tenant devolve
+    404, NUNCA 403: um 403 confirmaria que o id existe, que é justamente o que
+    não queremos revelar. Extração que ainda não terminou devolve 409 —
+    conflito de estado, não payload inválido.
+    """
+    e = db.scalar(
+        select(orm.Extracao).where(
+            orm.Extracao.id == extracao_id,
+            orm.Extracao.tenant_id == tenant,
+        )
+    )
+    if e is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"message": "Não encontramos esse documento."},
+        )
+    if e.status != "concluida":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"message": "A leitura desse documento ainda não terminou."},
+        )
+    return e
 
 
 @router.get("", response_model=schemas.ListaDividas)
@@ -98,6 +127,12 @@ def criar(
                 "campo": faltando,
             },
         )
+
+    # F-019 / ADR 0025, decisão 5: o mesmo validador da rota de ligação passa a
+    # valer aqui. Extração inexistente, de outro tenant ou não concluída falha
+    # onde antes era gravada crua — mudança de comportamento declarada.
+    if nova.extracaoId is not None:
+        _extracao_ligavel(db, tenant, nova.extracaoId)
 
     d = orm.Divida(
         tenant_id=tenant,
@@ -140,6 +175,7 @@ def atualizar(
     tenant: str = Depends(tenant_atual),
 ):
     d = _buscar(db, tenant, divida_id)
+    valor_antes = d.valor_cobrado
 
     campos = patch.model_dump(exclude_unset=True)
     if "credor" in campos and campos["credor"]:
@@ -154,6 +190,58 @@ def atualizar(
     # que ele mesmo digitou errado.
     if "taxaJurosMensal" in campos:
         d.taxa_juros_mensal = campos["taxaJurosMensal"]
+
+    # Limitação 22: valorCobrado mudou ⇒ as parcelas pendentes são redistribuídas
+    # para continuar somando o novo total. Sem isso, a dívida diria um número
+    # e o carnê continuaria somando outro (limitação 22 do inventário).
+    ajustar_parcelas_pendentes(db, tenant, d, valor_antes)
+
+    db.commit()
+    db.refresh(d)
+    return schemas.RespostaDivida(divida=_para_schema(d))
+
+
+@router.post("/{divida_id}/documento", response_model=schemas.RespostaDivida)
+def ligar_documento(
+    divida_id: str,
+    corpo: schemas.LigarDocumento,
+    db: Session = Depends(get_db),
+    tenant: str = Depends(tenant_atual),
+):
+    """
+    Liga um documento já lido a uma dívida existente (F-019, ADR 0025).
+
+    Vínculo e campos aceitos são ATÔMICOS: um único `commit()`, para nunca
+    gravar os campos do documento sem o vínculo que os sustenta (achado sem
+    procedência) nem o contrário.
+    """
+    d = _buscar(db, tenant, divida_id)
+    e = _extracao_ligavel(db, tenant, corpo.extracaoId)
+    valor_antes = d.valor_cobrado
+
+    if corpo.campos is not None:
+        campos = corpo.campos.model_dump(exclude_unset=True)
+        if "credor" in campos and campos["credor"]:
+            d.credor = campos["credor"].strip()
+        if "valorCobrado" in campos and campos["valorCobrado"]:
+            d.valor_cobrado = campos["valorCobrado"]
+        if "dataOrigem" in campos and campos["dataOrigem"]:
+            d.data_origem = campos["dataOrigem"]
+        if "tipo" in campos and campos["tipo"]:
+            d.tipo = campos["tipo"]
+        # Divergência deliberada de `atualizar()`: aqui `taxaJurosMensal: null`
+        # é IGNORADO, não limpa a taxa. No PATCH, `None` explícito é o usuário
+        # desfazendo um valor que ele mesmo digitou; aqui o que chega vem de
+        # leitura de documento, e documento não apaga afirmação que a pessoa
+        # fez (ADR 0025, decisão 3).
+        if "taxaJurosMensal" in campos and campos["taxaJurosMensal"] is not None:
+            d.taxa_juros_mensal = campos["taxaJurosMensal"]
+
+    d.extracao_id = e.id
+
+    # Limitação 22: mesmo ajuste do PATCH, para o valor lido de um documento não
+    # deixar as parcelas com o total antigo (limitação 22 do inventário).
+    ajustar_parcelas_pendentes(db, tenant, d, valor_antes)
 
     db.commit()
     db.refresh(d)
