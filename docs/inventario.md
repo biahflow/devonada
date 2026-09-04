@@ -564,6 +564,12 @@ Estão aqui porque escondê-las inverteria o princípio do projeto. Íntegras em
     de produto sobre o que "falta quitar" significa, e provavelmente ADR — o comprometimento da
     renda e os próximos vencimentos **já** usam parcela real e estão corretos.
 
+    **A rota não está congelada — ela anda pelo evento errado.** Observado na mesma sessão: a
+    renegociação da mesma dívida (valor cobrado de R$ 4.800,00 para R$ 3.600,00) moveu o painel na
+    hora, de "R$ 26.300,00 · 0%" para "R$ 25.100,00 · 5% da rota percorrida". Ou seja: negociar um
+    desconto move a rota, e pagar a parcela combinada não. Para quem usa o app, é o incentivo
+    invertido.
+
 (Duas limitações antigas foram **resolvidas** no M3 e não constam acima: `comprometimentoRenda`
 deixou de ser aproximação e `proximosVencimentos` deixou de voltar vazio.)
 
