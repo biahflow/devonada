@@ -596,6 +596,21 @@ Estão aqui porque escondê-las inverteria o princípio do projeto. Íntegras em
     das fontes existem; **nada valida que a fórmula corresponda à cascata** — é o mesmo buraco das
     limitações 23 e 24, agora entre a narrativa do número e o número.
 
+30. **Sobra por mês negativa aparece em verde, ao lado de um selo de saúde e de um alerta que se
+    contradizem aos olhos.** Verificado em aparelho em 04/09/2026, no cenário em que as parcelas
+    não cabem (`naoFecha: true`, `margemDisponivel: -48531`): o painel exibiu **"Sobra por mês
+    −R$ 485,31" em verde**. A cor é fixa — `app/(tabs)/painel/index.tsx:131` passa `tone="accent"`
+    ao `MoneyText`, e `corDoTom` (`src/components/ui/MoneyText.tsx:67`) só desvia de tom para
+    `debt` em tamanho grande. Nenhum caminho pinta valor negativo de outra cor.
+
+    No mesmo cartão convivem, de cima para baixo: o medidor verde "Comprometimento da renda 11,01%
+    · Dentro do limite saudável de 30%", o número negativo em verde, e o alerta âmbar "As parcelas
+    que você já paga não cabem no que sobra". **O medidor não está errado** — ele troca o texto
+    quando passa do limite (`src/components/ui/Meter.tsx:49`), e 11,01% está mesmo abaixo de 30%,
+    porque mede parcelas ÷ renda. O alerta também não: ele considera gastos e provisões. As duas
+    métricas respondem perguntas diferentes e aparecem lado a lado sem nomear qual é qual — a
+    mesma raiz da limitação 14, agora visível como contradição aparente na tela de abertura.
+
 (Duas limitações antigas foram **resolvidas** no M3 e não constam acima: `comprometimentoRenda`
 deixou de ser aproximação e `proximosVencimentos` deixou de voltar vazio.)
 
