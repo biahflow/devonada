@@ -71,6 +71,56 @@ gate de release**, e o `.gitignore` cobre `backend/*.db` para banco local não v
 hoje se cria conta pelo próprio app, com e-mail e senha. O primeiro cadastro num banco sem
 usuários adota o tenant do beta, para dívidas e caixa já cadastrados não ficarem órfãos.
 
+### Atalho: `npm run local:up`
+
+A sequência acima está automatizada em `scripts/subir-local.mjs`, com as armadilhas desta seção
+já resolvidas — interface de rede, porta livre, `.env` do app, fallback SQLite, chave de sessão e
+`--host 0.0.0.0`:
+
+```bash
+npm run local:up      # Postgres (ou SQLite), API e Metro; confere pelo IP da rede antes de dizer "pronto"
+npm run local:down    # para API e Metro. Postgres só com --tudo; nunca apaga banco
+```
+
+Leia esta seção mesmo assim: o script resolve os passos, não explica os porquês.
+
+### Fora de casa: `npm run tunel:up`
+
+O modo acima serve pelo IP da LAN, que só existe dentro de casa. Para usar o app no celular em
+qualquer rede, `--tunel` publica as duas pontas — a API por `cloudflared` e o Metro por
+`expo start --tunnel` —, imprime o QR e segura o Mac acordado com `caffeinate`:
+
+```bash
+npm run tunel:up                 # sobe tudo e mostra o QR para o Expo Go
+npm run tunel:up -- --sem-llm    # idem, com a leitura de documento desligada
+npm run local:down               # derruba tudo, inclusive túnel e caffeinate
+```
+
+Precisa de `cloudflared` (`brew install cloudflared`) e de `@expo/ngrok`, que é devDependency. O
+script confere os dois antes de subir qualquer coisa: sem `@expo/ngrok`, o `expo start --tunnel`
+**para e pergunta** se pode instalar, e a pergunta ficaria esperando num log que ninguém lê.
+
+**A ordem não é arbitrária.** `EXPO_PUBLIC_API_BASE_URL` é embutida no bundle quando o Metro
+compila, então o túnel da API precisa existir e o `.env` precisa apontar para ele **antes** de o
+Metro subir. Invertido, o app sai apontando para um IP de LAN que o celular não alcança — e o
+sintoma é erro de rede genérico, não uma mensagem dizendo que a URL está errada.
+
+**O túnel sai por TCP 443 (`--protocol http2`), não pelo QUIC padrão.** O QUIC é UDP na 7844 e é a
+primeira coisa que VPN corporativa e Wi-Fi de hotel bloqueiam; o sintoma é `failed to dial to edge
+with quic: timeout`, com o cloudflared tentando para sempre.
+
+**Se a conferência final não alcançar a URL pública, leia o que o script diz antes de concluir que
+quebrou.** Com VPN ativa, o resolvedor interno devolve NXDOMAIN para `trycloudflare.com` e o
+**Mac** não resolve o nome — o celular, fora da VPN, resolve. O script distingue os dois casos:
+confirma o túnel por DNS-over-HTTPS e diz de quem é a culpa.
+
+> **O que o túnel custa.** Enquanto ele está no ar, a API de desenvolvimento está na internet. A
+> URL é sorteada e não indexada, mas isso é obscuridade, não segurança: o registro de conta é
+> aberto, e quem chegar na URL pode criar conta e usar a **leitura de documento, que gasta a chave
+> de LLM configurada**. `--sem-llm` sobe a API com as chaves vazias — a extração passa a responder
+> "este recurso ainda não está configurado neste servidor" em vez de cobrar, e o resto do app
+> continua funcionando. Suba o túnel para testar e derrube depois.
+
 ---
 
 ## Estrutura
