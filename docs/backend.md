@@ -14,10 +14,21 @@
 cd backend
 cp .env.example .env                      # veja os três ajustes abaixo
 docker compose up -d                      # Postgres na 5433
+lsof -nP -iTCP:8001 -sTCP:LISTEN          # PRIMEIRO: a 8001 está livre? Ver abaixo
 python3 -m venv venv && ./venv/bin/pip install -r requirements.txt
 ./venv/bin/alembic upgrade head
 ./venv/bin/uvicorn main:app --host 0.0.0.0 --port 8001 --reload
 ./venv/bin/pytest
+```
+
+**Se o `python3` da máquina for anterior ao 3.12**, o `venv` acima instala e quebra em import.
+Alternativa sem venv, que fixa a versão:
+
+```bash
+uv run --python 3.12 --with-requirements requirements.txt alembic upgrade head
+uv run --python 3.12 --with-requirements requirements.txt \
+  uvicorn main:app --host 0.0.0.0 --port 8001 --reload
+uv run --python 3.12 --with-requirements requirements.txt --with pytest pytest -q
 ```
 
 **Três ajustes no `.env` recém-copiado**, e só o primeiro é obrigatório:
@@ -31,13 +42,30 @@ python3 -m venv venv && ./venv/bin/pip install -r requirements.txt
 Os tetos do consignado ficam **vazios**, e isso está certo: sem o teto a regra devolve `None` e o
 achado não é produzido, nunca um teto chutado (ADR 0008).
 
-**Portas escolhidas por colisão, não por gosto:** a 8000 e a 5432 já são do stack do
+**Portas escolhidas por colisão, não por gosto:** a 8000 e a 5432 já eram do stack do
 `biahflow-portal-cliente`. A API vai na **8001**, o Postgres na **5433**. O
 `docker-compose.yml` fixa `name: devonada` pelo mesmo motivo — sem isso o Compose deriva o
 projeto do diretório (`backend`), que colide com o repositório de origem do fork.
 
+**A 8001 também colide, dependendo da máquina — confira antes de subir.** Em 04/09/2026 ela
+estava ocupada por outro projeto (`homecareos-api-1`) numa das máquinas de desenvolvimento. O
+sintoma é traiçoeiro: o app não acusa porta errada, ele **conversa com a API do outro projeto** e
+devolve erro de forma, ou falha de rede genérica. Se `lsof` mostrar a 8001 ocupada, escolha outra
+(a 8002 é a próxima livre) e **aponte o `.env` do app junto**:
+`EXPO_PUBLIC_API_BASE_URL=http://<IP>:<porta>`. As duas pontas têm de concordar; mudar só uma
+produz exatamente o mesmo sintoma.
+
 **`--host 0.0.0.0` não é enfeite:** sem ele o uvicorn só escuta em `127.0.0.1`, e um celular na
-mesma rede não alcança a API.
+mesma rede não alcança a API. No aparelho, o `.env` do app precisa do **IP da máquina**, não de
+`localhost` — do celular, `localhost` é o próprio celular. O IP sai de `ipconfig getifaddr <iface>`,
+e a interface **não é sempre a `en0`**: em Mac com Wi-Fi em outra interface é `en1`. Descubra com
+`route -n get default | grep interface`.
+
+**Sem Docker?** Para exercitar tela quando o daemon não sobe, a API roda em SQLite — o mesmo banco
+que a suíte usa. `DEVONADA_DATABASE_URL="sqlite+pysqlite:///./devonada-local.db"`, criando o schema
+por `Base.metadata.create_all` (o Alembic tem migração que o SQLite não aceita; é por isso que
+`conftest.py` também usa `create_all`). Serve para ver tela funcionar. **Postgres continua sendo o
+gate de release**, e o `.gitignore` cobre `backend/*.db` para banco local não virar commit.
 
 **Não há token para colar.** A tela de token e o `DEVONADA_API_TOKEN` saíram no M8 (ADR 0012):
 hoje se cria conta pelo próprio app, com e-mail e senha. O primeiro cadastro num banco sem
