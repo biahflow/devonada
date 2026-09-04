@@ -5,6 +5,13 @@
  *     npm run local:down                # para API e Metro; Postgres fica de pé
  *     npm run local:down -- --tudo      # idem, e também para o Postgres (docker compose stop)
  *
+ * Serve para os dois modos de `subir-local.mjs`. Quando o ambiente subiu com
+ * `--tunel`, este script também para o `cloudflared` e o `caffeinate` — e aí a
+ * ordem importa por um motivo prático: derrubar o túnel deixa o `.env` do app
+ * apontando para uma URL que não existe mais. Reescrevê-lo aqui seria decidir
+ * pelo dono do arquivo, então o script AVISA e deixa o `local:up` seguinte
+ * (que sempre sincroniza o `.env`) fazer isso.
+ *
  * Duas decisões deliberadas, e as duas protegem dado do usuário:
  *
  * 1. **Postgres só para com `--tudo`.** Container é lento de subir de novo (o
@@ -113,19 +120,38 @@ async function main() {
   if (estado) {
     await pararProcesso(estado.apiPid, 'API');
     await pararProcesso(estado.metroPid, 'Metro');
+    await pararProcesso(estado.cloudflaredPid, 'Túnel (cloudflared)');
+    await pararProcesso(estado.caffeinatePid, 'caffeinate');
   } else {
     console.log(`Não achei ${LOCAL_RUN_PATH} — procurando processos pelo padrão de comando.`);
     const apiPids = pidsPorPadrao('uvicorn main:app');
     const metroPids = pidsPorPadrao('expo start');
+    // `cloudflared tunnel --url` e não só `cloudflared`: quem usa o Cloudflare
+    // para outra coisa nesta máquina não deve ver o túnel dela morrer aqui.
+    const tunelPids = pidsPorPadrao('cloudflared tunnel --url');
+    const cafePids = pidsPorPadrao('caffeinate -dis');
     for (const pid of apiPids) {
       await pararProcesso(pid, 'API');
     }
     for (const pid of metroPids) {
       await pararProcesso(pid, 'Metro');
     }
-    if (apiPids.length === 0 && metroPids.length === 0) {
-      console.log('Nenhum processo de API ou Metro encontrado — já estava tudo parado.');
+    for (const pid of tunelPids) {
+      await pararProcesso(pid, 'Túnel (cloudflared)');
     }
+    for (const pid of cafePids) {
+      await pararProcesso(pid, 'caffeinate');
+    }
+    if (apiPids.length === 0 && metroPids.length === 0 && tunelPids.length === 0) {
+      console.log('Nenhum processo de API, Metro ou túnel encontrado — já estava tudo parado.');
+    }
+  }
+
+  if (estado?.tunel) {
+    console.log(
+      `\nO túnel caiu, e o .env do app ainda aponta para ${estado.apiUrl ?? 'a URL dele'} — que não existe mais.\n` +
+        'O próximo `npm run local:up` (ou `tunel:up`) reescreve essa linha; até lá, o app não vai achar a API.',
+    );
   }
 
   console.log('');
