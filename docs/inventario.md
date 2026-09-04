@@ -570,6 +570,32 @@ Estão aqui porque escondê-las inverteria o princípio do projeto. Íntegras em
     desconto move a rota, e pagar a parcela combinada não. Para quem usa o app, é o incentivo
     invertido.
 
+29. **As trilhas do caixa descrevem uma conta que não é a executada: o mínimo existencial está na
+    fórmula e não está na aritmética.** Verificado em aparelho e pela API em 04/09/2026, com renda
+    líquida de R$ 3.500,00 e piso de R$ 600,00 configurado (`minimoExistencialVigenteEm`
+    2023-06-19): `capacidadeHoje` voltou **R$ 3.500,00** — o piso não foi descontado —, e a tela
+    exibiu esse número sob "Como chegamos na sua sobra por mês", com a fórmula *"renda típica −
+    impostos e reservas − **mínimo existencial** − respiro − gastos essenciais − gastos não
+    essenciais"* e o passo *"Tiramos o mínimo existencial: o piso que a lei protege de qualquer
+    plano de pagamento"* (`backend/juridico/trilhas.py:65`).
+
+    A cascata real (`backend/domain/caixa.py:460-489`) é `renda_líquida − essenciais − provisão −
+    reserva − aposentadoria − respiro − compromisso − não_essenciais`. O piso não aparece em linha
+    nenhuma dela: no caixa ele é **guardrail de validação** — respiro ou compromisso que empurre a
+    sobra abaixo dele é recusado com 422 (`backend/routers/caixa.py:880` e `:1161`) — e o campo
+    `abaixoDoPiso`. Nunca uma parcela subtraída.
+
+    **Vale para as duas trilhas do caixa.** `NAO_FECHA` declara *"soma das parcelas mínimas > renda
+    típica − impostos − mínimo existencial"*, e o domínio decide por `comprometido_dividas >
+    capacidade_maxima` (`backend/domain/caixa.py:553`), também sem o piso.
+
+    Nenhuma das duas contas está necessariamente errada — tratar o piso como limite, e não como
+    despesa, é decisão defensável e é o que o 422 já faz. O que está errado é a trilha afirmar uma
+    coisa e a conta fazer outra, na peça que existe justamente para tornar o número auditável, e
+    sobre justamente o número que a lei protege. `_conferida()` (`trilhas.py:55`) valida que os ids
+    das fontes existem; **nada valida que a fórmula corresponda à cascata** — é o mesmo buraco das
+    limitações 23 e 24, agora entre a narrativa do número e o número.
+
 (Duas limitações antigas foram **resolvidas** no M3 e não constam acima: `comprometimentoRenda`
 deixou de ser aproximação e `proximosVencimentos` deixou de voltar vazio.)
 
