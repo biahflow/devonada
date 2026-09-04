@@ -2,6 +2,16 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { Platform } from 'react-native';
 import { CANCELADO, ErroSocial, obterTokenSocial, provedoresDisponiveis } from '../social';
+import { rodandoNoExpoGo } from '../config/expoGo';
+
+/**
+ * `../config/expoGo` é mockado (não `expo-constants` direto): o que este
+ * arquivo testa é o que `src/social/` FAZ com a resposta, não como o helper
+ * lê `Constants.executionEnvironment` — isso já é coberto no próprio módulo.
+ */
+jest.mock('../config/expoGo');
+
+const expoGoMock = rodandoNoExpoGo as jest.MockedFunction<typeof rodandoNoExpoGo>;
 
 /**
  * A fronteira com os dois SDKs de identidade — o módulo de verdade, contra os
@@ -38,6 +48,7 @@ afterEach(() => {
   disponivelMock.mockResolvedValue(false);
   appleMock.mockResolvedValue({ identityToken: 'token-da-apple' } as never);
   googleMock.mockResolvedValue({ type: 'success', data: { idToken: 'token-do-google' } } as never);
+  expoGoMock.mockReturnValue(false);
 });
 
 describe('Quais provedores este aparelho tem', () => {
@@ -70,6 +81,19 @@ describe('Quais provedores este aparelho tem', () => {
 
   it('o Google entra com client id configurado', async () => {
     // O `jest.setup.js` preenche o client id, como o `.env` faria.
+    expect(await provedoresDisponiveis()).toContain('google');
+  });
+
+  it('no Expo Go o Google NÃO entra, mesmo com client id configurado', async () => {
+    // O módulo nativo não existe no binário do Expo Go: oferecer o botão
+    // terminaria em exceção na hora do toque, não numa recusa educada.
+    expoGoMock.mockReturnValue(true);
+    expect(await provedoresDisponiveis()).not.toContain('google');
+  });
+
+  it('fora do Expo Go, com client id configurado, o Google continua entrando', async () => {
+    // Regressão: o comportamento de hoje não pode mudar fora do Expo Go.
+    expoGoMock.mockReturnValue(false);
     expect(await provedoresDisponiveis()).toContain('google');
   });
 });
