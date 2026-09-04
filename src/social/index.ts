@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { env } from '../config/env';
+import { rodandoNoExpoGo } from '../config/expoGo';
 import type { ProvedorSocial } from '../api/types';
 
 /**
@@ -35,11 +35,37 @@ export const CANCELADO = null;
 export class ErroSocial extends Error {}
 
 /**
+ * Carrega o SDK do Google SOB DEMANDA, dentro da função que o usa — nunca no
+ * topo do arquivo.
+ *
+ * `@react-native-google-signin/google-signin` roda, EM ESCOPO DE MÓDULO,
+ * `TurboModuleRegistry.getEnforcing('RNGoogleSignin')`
+ * (`lib/module/spec/NativeGoogleSignin.js`), que lança exceção SÍNCRONA
+ * quando o módulo nativo não está linkado — e o Expo Go não o linka. Um
+ * `import` estático no topo deste arquivo bastava para derrubar o app inteiro
+ * no boot, porque `src/hooks/useConta.ts` importa `../social`, e seis telas
+ * importam `useConta`. `require()` aqui adia essa avaliação até o instante em
+ * que o Google realmente for usado — e nesse ponto, no Expo Go, já nem se
+ * chega: `provedoresDisponiveis()` tira o Google da lista antes.
+ *
+ * `expo-iap` e `expo-apple-authentication` NÃO precisam deste tratamento:
+ * o primeiro resolve o módulo nativo por `Proxy` preguiçoso, o segundo usa
+ * `requireOptionalNativeModule` com um stub seguro — nenhum dos dois lança no
+ * import. Se um dia "arrumar" este import de volta para o topo por
+ * consistência estética, o app volta a morrer no Expo Go.
+ */
+function googleSignInSdk(): typeof import('@react-native-google-signin/google-signin') {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- import tardio de propósito, ver comentário desta função
+  return require('@react-native-google-signin/google-signin');
+}
+
+/**
  * `configure` é idempotente e barato, mas precisa ter rodado antes do
  * `signIn` — chamá-lo na hora do toque evita um efeito de inicialização no
  * `_layout` para um caminho que a maioria das sessões não usa.
  */
 function configurarGoogle() {
+  const { GoogleSignin } = googleSignInSdk();
   GoogleSignin.configure({
     // O `webClientId` é o que vira audiência do `idToken` nas DUAS plataformas.
     // Sem ele o token chega ao servidor com `aud` que a configuração não
@@ -73,8 +99,9 @@ export async function provedoresDisponiveis(): Promise<ProvedorSocial[]> {
 
   // O Google não tem o que perguntar ao aparelho — o que falta, quando falta, é
   // o client id. Sem ele o fluxo abriria a tela do Google para terminar em
-  // recusa, e a legenda diz a verdade mais cedo.
-  if (env.googleWebClientId) disponiveis.push('google');
+  // recusa, e a legenda diz a verdade mais cedo. E no Expo Go o módulo nativo
+  // nem existe: oferecer o botão terminaria numa exceção, não numa recusa.
+  if (env.googleWebClientId && !rodandoNoExpoGo()) disponiveis.push('google');
 
   return disponiveis;
 }
@@ -109,6 +136,7 @@ async function apple(): Promise<string | null> {
 
 async function google(): Promise<string | null> {
   try {
+    const { GoogleSignin } = googleSignInSdk();
     configurarGoogle();
     // Só no Android tem o que conferir; no iOS a chamada resolve direto.
     await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
@@ -137,6 +165,7 @@ async function google(): Promise<string | null> {
  * "Não deu para entrar" apareça para quem só fechou a folha.
  */
 function cancelou(e: unknown): boolean {
+  const { statusCodes } = googleSignInSdk();
   const codigo = (e as { code?: string } | null)?.code;
   return codigo === 'ERR_REQUEST_CANCELED' || codigo === statusCodes.SIGN_IN_CANCELLED;
 }

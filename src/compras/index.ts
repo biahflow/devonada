@@ -11,6 +11,7 @@ import {
 } from 'expo-iap';
 import type { Purchase } from 'expo-iap';
 import { env } from '../config/env';
+import { rodandoNoExpoGo } from '../config/expoGo';
 import type { PlataformaCompra } from '../api/types';
 
 /**
@@ -66,6 +67,11 @@ let conectado = false;
  * `initConnection` repetido é desperdício silencioso no Android.
  */
 export async function conectar(): Promise<void> {
+  // Sai antes de tocar o SDK: no Expo Go o módulo nativo da loja não existe, e
+  // `initConnection()` não é `Proxy` preguiçoso — a chamada real estouraria.
+  // `LojaIndisponivel` é o mesmo caminho que a falha de rede real já usa, e a
+  // tela já sabe mostrar isso (`useProdutos`, `assinatura.tsx`).
+  if (rodandoNoExpoGo()) throw new LojaIndisponivel();
   if (conectado) return;
   try {
     await initConnection();
@@ -155,8 +161,16 @@ export async function encerrar(compra: Purchase): Promise<void> {
   await finishTransaction({ purchase: compra, isConsumable: false });
 }
 
-/** Abre a tela de gerenciamento de assinatura do sistema. */
+/**
+ * Abre a tela de gerenciamento de assinatura do sistema.
+ *
+ * Não passa por `conectar()`, então precisa do próprio guard: no Expo Go vira
+ * no-op silencioso em vez de tocar o SDK — o botão que chama esta função
+ * (`assinatura.tsx`) não trata o retorno, e uma exceção aqui viraria rejeição
+ * de promise sem ninguém para escutar.
+ */
 export async function abrirGerenciamento(): Promise<void> {
+  if (rodandoNoExpoGo()) return;
   await deepLinkToSubscriptions({ skuAndroid: produtoDaPlataforma() });
 }
 
@@ -170,6 +184,12 @@ export function aoComprar(
   onCompra: (compra: Purchase) => void,
   onErro: (mensagem: string) => void,
 ): () => void {
+  // Não passa por `conectar()` e é chamado direto dentro de um `useEffect`
+  // (`useComprar`, em `useAssinatura.ts`) — exceção síncrona aqui derruba a
+  // tela. No Expo Go, nem tenta registrar os listeners: devolve a limpeza
+  // vazia, sem tocar o SDK.
+  if (rodandoNoExpoGo()) return () => {};
+
   const compra = purchaseUpdatedListener(onCompra);
   const erro = purchaseErrorListener((e) => {
     // Cancelar não é erro. A pessoa olhou o preço e desistiu; mostrar um alerta

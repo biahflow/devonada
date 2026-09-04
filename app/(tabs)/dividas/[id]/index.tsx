@@ -140,6 +140,19 @@ export default function DetalheDivida() {
             onPress={() => router.push(`/dividas/${divida.id}/revisao`)}
             variant="secondary"
           />
+          {/* O RÓTULO NOMEIA A TROCA. Uma dívida tem no máximo um documento, e
+              ligar de novo substitui (ADR 0025, decisão 6) — descobrir isso
+              depois seria a substituição silenciosa que a feature evita. */}
+          <Button
+            label={divida.extracaoId ? 'Trocar o documento' : 'Mandar o documento'}
+            onPress={() => router.push(`/dividas/${divida.id}/documento`)}
+            variant="secondary"
+            accessibilityHint={
+              divida.extracaoId
+                ? 'O documento novo entra no lugar do que já está ligado a esta dívida.'
+                : undefined
+            }
+          />
           <Button
             label="Editar"
             onPress={() => router.push(`/dividas/${divida.id}/editar`)}

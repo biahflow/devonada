@@ -70,7 +70,7 @@ distinção é do `roadmap.md` e este documento não a apaga.
    única pendência transversal do projeto e nenhum gate automático a substitui.
 2. **Itens parciais do M1** — cadastro, detalhe, edição, quitação e exclusão nunca foram
    exercitados no app contra o backend real.
-3. **Anexar contrato a dívida já cadastrada** — não existe. Detalhado na Parte III.
+3. ~~**Anexar contrato a dívida já cadastrada**~~ — **entregue no F-019** (ADR 0025). Falta device.
 4. **Fechamento do mês (M7.1)** — entregue. A tela abre pré-preenchida com o mês anterior,
    diz de onde veio cada número e grava só o que o usuário confirmou. Falta device.
 
@@ -174,7 +174,7 @@ Canônico: `docs/architecture.md` · ADR 0003.
 - **Cache com prefixo `['dividas']`** (ADR 0002): resumo, parcelas e revisão vivem dentro do
   prefixo, então as mutações de dívida revalidam tudo sem código novo.
 
-## 3. Superfície de API — 46 operações em 33 rotas, mais a página de exclusão
+## 3. Superfície de API — 67 operações em 49 caminhos, mais 5 rotas soltas em `main.py`
 
 Canônico: `docs/api-contract.md`. Autenticação: `Authorization: Bearer <access>`, um JWT de 15
 minutos (ADR 0012). As únicas rotas públicas são as seis de `/v1/auth`, o health check e
@@ -325,7 +325,7 @@ alguém rodá-los.
 cobre o campo, que a notificação toca na hora certa e que a permissão de câmera se comporta.
 Isso é o "falta device" que aparece em quase todos os milestones.
 
-## 8. Decisões arquiteturais — 24 ADRs
+## 8. Decisões arquiteturais — 25 ADRs
 
 | # | Decisão |
 |---|---|
@@ -353,6 +353,7 @@ Isso é o "falta device" que aparece em quase todos os milestones.
 | 0022 | Documento lido inline na fila multi-dívida do onboarding, sem sair do grupo |
 | 0023 | Login social: a conta é o `sub` do provedor, e conta sem senha exclui pelo provedor |
 | 0024 | O corpus jurídico é registro curado com id estável, e a trilha não carrega valor |
+| 0025 | Documento em dívida existente entra por rota própria, e o que a pessoa digitou vence |
 
 As linhas 0019 a 0022 **estavam faltando** nesta tabela desde o M11 — o inventário é visão
 derivada, e a fonte canônica é [`docs/adr/README.md`](adr/README.md). Corrigidas aqui.
@@ -371,7 +372,12 @@ Estão aqui porque escondê-las inverteria o princípio do projeto. Íntegras em
 5. Sem renda informada, o aporte não é checado contra o mínimo existencial.
 6. A revisão **não recalcula o contrato**: achado que exigiria reamortizar aparece sem número e
    não entra em `valorJusto`.
-7. Dívida sem contrato lido **não produz achado** — cadastro manual devolve `achados: []`.
+7. **~~Dívida sem contrato lido não produz achado~~ — RESOLVIDO no F-019 (ADR 0025).** Cadastro
+   manual continua devolvendo `achados: []` **enquanto** não houver documento ligado, mas isso
+   deixou de ser condenação: `POST /v1/dividas/{id}/documento` leva um documento a uma dívida que
+   já existe, com conciliação campo a campo (o digitado vence por padrão), e a revisão daquela
+   dívida passa a produzir achado. As entradas estão no detalhe da dívida e no vazio da própria
+   revisão — que antes convidava a "envie o contrato" **sem botão nenhum**.
 8. A margem consignável ficou de fora: incide sobre a soma de todas as consignações, não sobre
    uma dívida.
 9. O teto de juros do consignado é responsabilidade do operador, vive no `.env` **sem default**,
@@ -449,6 +455,162 @@ Estão aqui porque escondê-las inverteria o princípio do projeto. Íntegras em
     quatro. Nada no código força uma regra nova de domínio que produza número exposto a ganhar
     trilha — e a que não ganhar volta a ser número sem procedência na tela.
 
+22. **~~Mudar o valor cobrado não regenera as parcelas~~ — RESOLVIDO onde dá para resolver
+    honestamente.** Os dois caminhos que mudam `valorCobrado` (`PATCH /v1/dividas/{id}` e
+    `POST /v1/dividas/{id}/documento`) passaram a chamar `ajustar_parcelas_pendentes`: as parcelas
+    **pendentes** passam a somar `novo valor − o que já foi pago`, mantendo datas, quantidade e
+    **ids** — os lembretes de push mandam `parcelaId` no payload, e recriar parcela quebraria deep
+    link em voo. Pagas e canceladas nunca são tocadas, e nenhuma `Renegociacao` é gravada: corrigir
+    um número errado não é o credor ter aceitado termos novos, e sujar essa tabela corromperia o
+    benchmark de desconto por credor. O método de divisão agora tem definição única
+    (`dividir_valor`, em `backend/domain/parcelas.py`), usada também por `gerar_cronograma`.
+
+    **Onde ele se recusa a resolver:** se o novo valor ficar **abaixo do que já foi pago**, a rota
+    devolve `409` e não altera nada. Pode ser erro de digitação, pode ser juros, pode ser acordo
+    novo — nenhuma dessas é conta que o app tenha fonte para fazer, e escolher uma seria o
+    `valorCobrado * 1.1` de novo.
+
+    **Limitação residual, e ela continua real:** dívida com o carnê **inteiramente pago** não é
+    ajustada, porque mexer no `valor` de uma parcela paga falsificaria histórico de pagamento.
+    Nesse caso a soma das parcelas continua divergindo do `valorCobrado`. É o único caso que sobra,
+    e ele sobra por escolha.
+
+23. **~~O mapa campo→trecho é mantido em dois lugares~~ — RESOLVIDO.** `camposDaDivida`
+    (`src/util/extracao.ts`) passou a ser a definição única do mapa "campo do documento → campo da
+    dívida", tipada campo a campo. `extracaoParaProposta` monta a proposta a partir dela e
+    `linhasDeConciliacao` a indexa para achar o trecho — o segundo `switch` deixou de existir.
+    O teste que trava o invariante percorre as **duas funções públicas**, não o mapa: para os
+    quatro tipos de documento, todo campo que a proposta traz tem de virar linha com `trecho` à
+    vista. Se alguém reseparar os mapas e eles divergirem, a divergência aparece ali como campo
+    proposto sem linha, ou linha sem trecho.
+    `linhasDeRevisao` (`src/util/revisaoExtracao.ts`) **não** foi unificado de propósito: ele monta
+    as linhas de TODOS os campos do documento, encargos inclusive, e não é o mesmo mapa.
+
+24. **~~`divida.parcelas_pagas` nunca é escrito~~ — RESOLVIDO por derivação.** A coluna nunca
+    foi mantida por ninguém, e a tela exibia **"0 de 12 pagas" com o carnê inteiro quitado**.
+    `parcelasPagas` passou a ser **contado da lista real de parcelas** (não canceladas, com
+    `paga_em` preenchido) em `_agregados_de_parcelas`. A coluna continua no banco como resquício —
+    remover coluna é mudança destrutiva e exige aprovação humana — mas deixou de ser a resposta.
+    Não se passou a escrever a coluna de propósito: coluna que alguém precisa lembrar de atualizar
+    envelhece; derivada, não (mesma lição de `tabelas_do_tenant()` no M8).
+
+25. **~~`divida.proximo_vencimento` não avança quando uma parcela é paga~~ — RESOLVIDO por
+    derivação.** `proximoVencimento` passou a ser o **menor vencimento entre as pendentes**. Carnê
+    inteiro pago devolve `null`, e não a data antiga: não há nada a vencer, e cair de volta na
+    coluna reintroduziria a data velha por outra porta. `backend/routers/chat.py:82` continua com o
+    fallback próprio — ele já lê as parcelas reais quando há pendentes, e sua lógica não foi tocada.
+
+    As duas derivações saem de **uma query só** para a página inteira de `GET /v1/dividas`,
+    agregada em Python — nada de `COUNT(...) FILTER` ou `case()`, que são construções de dialeto e
+    passariam no SQLite da suíte para quebrar no Postgres do ar. **Há teste que conta as queries** e
+    falha se voltar a ser uma por dívida (verificado injetando o N+1).
+
+26. **Depois de uma renegociação, "X de Y pagas" mistura dois carnês — e há `numero` repetido.**
+    `renegociar()` cancela só as **pendentes** e cria o carnê novo numerado a partir de 1
+    (`backend/routers/parcelas.py:171-206`). A parcela paga do carnê antigo sobrevive, não
+    cancelada, com o `numero` dela. Consequências, as duas reais:
+    (a) `GET /v1/dividas/{id}/parcelas` devolve **duas parcelas número 1** — uma paga do carnê
+    antigo e a primeira do novo —, e a tela de plano as lista lado a lado;
+    (b) **as duas telas discordam entre si.** Verificado em aparelho em 04/09/2026, com um acordo
+    de R$ 3.600,00 em 3 parcelas fechado sobre um carnê de 12 com uma paga: o detalhe da dívida
+    exibe **"1 de 3 pagas"** — `app/(tabs)/dividas/[id]/index.tsx:122` usa `parcelasPagas` e
+    `totalParcelas` da API —, enquanto o carnê exibe **"1 de 4 pagas"** —
+    `app/(tabs)/dividas/[id]/plano.tsx:76` conta as linhas carregadas. A descrição anterior desta
+    limitação previa só o "1 de 3 onde existem 4 linhas"; o que o usuário vê são **dois números
+    diferentes em duas telas**, e a lista ainda mostra "Parcela 1 de 12" ao lado de "Parcela 1 de
+    3", com o denominador antigo e o novo no mesmo carnê.
+
+    Observado na mesma passagem, menor e de rolagem: voltar da renegociação para o carnê deixa a
+    tela **em branco** até rolar para cima — a lista encurtou de 12 para 4 itens e a posição de
+    scroll anterior ficou além do novo conteúdo.
+    Decidido em 03/09/2026 **não** derivar o denominador junto: ele deixaria de bater com o número
+    de parcelas que a pessoa combinou no acordo. A correção de raiz é a renegociação continuar a
+    numeração e somar as pagas ao total — mexe na semântica de `novoTotalParcelas` no contrato de
+    API e pede ADR própria.
+
+27. **A extração de CONTRATO não funciona com `DEVONADA_LLM_PROVIDER=anthropic`.** Verificado em
+    runtime em 04/09/2026: `POST /v1/contratos` com `tipo=contrato` termina em `status: "falhou"`
+    para **qualquer** documento, com **400** do provedor — *"Schemas contains too many parameters
+    with union types (38 parameters with type arrays or anyOf) ... limit: 16"*. A causa é
+    estrutural e não depende do arquivo: `CampoExtraido` (`backend/schemas.py:415`) tem três campos
+    anuláveis (`valor`, `trecho`, `pagina`) e o structured outputs conta cada um como união, então
+    os 12 campos do contrato viram 36. **O boleto passa a um campo do teto** (15 de 16); carta (12)
+    e print (9) sobram. O usuário vê apenas "Não deu certo agora", porque `ClienteAnthropic`
+    traduz `APIStatusError` sem registrar o corpo do erro (`backend/llm/anthropic_cliente.py`) — o
+    diagnóstico exige chamar o extrator fora da rota e ler a exceção encadeada. O resto do
+    adaptador está correto para os modelos atuais (`thinking` adaptativo, `output_config` com
+    `effort` e `format`, sem parâmetros de amostragem). **Não apareceu antes porque o provedor
+    padrão é `openai`:** o caminho anthropic é a segunda implementação que prova que a fronteira do
+    `ClienteLLM` é real, e nenhum teste o exercita — a suíte não toca a rede.
+
+28. **"Falta quitar" não desce quando o usuário paga uma parcela, e discorda do simulador.**
+    Verificado em aparelho em 04/09/2026: com uma parcela de R$ 400,00 paga, a aba Rota continuou
+    exibindo **R$ 26.300,00** e **"0% da rota percorrida"**, enquanto o simulador, na mesma sessão e
+    no mesmo mês, partiu de **R$ 23.582,50**. São duas definições de saldo convivendo:
+
+    | quem | fonte | setembro/26 |
+    | --- | --- | --- |
+    | Rota, detalhe da dívida, cards do chat | `sum(valor_cobrado)` — `backend/routers/resumo.py:168`, `backend/routers/dividas.py:98`, `backend/routers/chat.py:114` | R$ 26.300,00 |
+    | Simulador | soma das parcelas pendentes — `backend/leitura.py:41` | R$ 23.582,50 |
+
+    A do simulador é deliberada e está escrita no próprio código ("SALDO E PARCELA MÍNIMA VÊM DAS
+    PARCELAS REAIS quando existe cronograma"). A outra nunca foi decidida: `valor_cobrado` é o que o
+    credor cobra, e só vira zero quando a dívida inteira é marcada como quitada. O alcance passa da
+    linha "Saldo devedor": **`rotaPercorridaBps`, a curva de evolução do saldo e os marcos**
+    (`registrar_marcos`, mesmo router) derivam do mesmo total, então pagar parcela não move a rota
+    nem atinge marco — o oposto da tese do produto. **Não é conserto de uma linha:** descontar a
+    parcela paga do total afirmaria uma amortização que o app não tem fonte para calcular (parte da
+    parcela é juro), e é exatamente o tipo de número que a seção 1.2 proíbe inventar. Pede decisão
+    de produto sobre o que "falta quitar" significa, e provavelmente ADR — o comprometimento da
+    renda e os próximos vencimentos **já** usam parcela real e estão corretos.
+
+    **A rota não está congelada — ela anda pelo evento errado.** Observado na mesma sessão: a
+    renegociação da mesma dívida (valor cobrado de R$ 4.800,00 para R$ 3.600,00) moveu o painel na
+    hora, de "R$ 26.300,00 · 0%" para "R$ 25.100,00 · 5% da rota percorrida". Ou seja: negociar um
+    desconto move a rota, e pagar a parcela combinada não. Para quem usa o app, é o incentivo
+    invertido.
+
+29. **As trilhas do caixa descrevem uma conta que não é a executada: o mínimo existencial está na
+    fórmula e não está na aritmética.** Verificado em aparelho e pela API em 04/09/2026, com renda
+    líquida de R$ 3.500,00 e piso de R$ 600,00 configurado (`minimoExistencialVigenteEm`
+    2023-06-19): `capacidadeHoje` voltou **R$ 3.500,00** — o piso não foi descontado —, e a tela
+    exibiu esse número sob "Como chegamos na sua sobra por mês", com a fórmula *"renda típica −
+    impostos e reservas − **mínimo existencial** − respiro − gastos essenciais − gastos não
+    essenciais"* e o passo *"Tiramos o mínimo existencial: o piso que a lei protege de qualquer
+    plano de pagamento"* (`backend/juridico/trilhas.py:65`).
+
+    A cascata real (`backend/domain/caixa.py:460-489`) é `renda_líquida − essenciais − provisão −
+    reserva − aposentadoria − respiro − compromisso − não_essenciais`. O piso não aparece em linha
+    nenhuma dela: no caixa ele é **guardrail de validação** — respiro ou compromisso que empurre a
+    sobra abaixo dele é recusado com 422 (`backend/routers/caixa.py:880` e `:1161`) — e o campo
+    `abaixoDoPiso`. Nunca uma parcela subtraída.
+
+    **Vale para as duas trilhas do caixa.** `NAO_FECHA` declara *"soma das parcelas mínimas > renda
+    típica − impostos − mínimo existencial"*, e o domínio decide por `comprometido_dividas >
+    capacidade_maxima` (`backend/domain/caixa.py:553`), também sem o piso.
+
+    Nenhuma das duas contas está necessariamente errada — tratar o piso como limite, e não como
+    despesa, é decisão defensável e é o que o 422 já faz. O que está errado é a trilha afirmar uma
+    coisa e a conta fazer outra, na peça que existe justamente para tornar o número auditável, e
+    sobre justamente o número que a lei protege. `_conferida()` (`trilhas.py:55`) valida que os ids
+    das fontes existem; **nada valida que a fórmula corresponda à cascata** — é o mesmo buraco das
+    limitações 23 e 24, agora entre a narrativa do número e o número.
+
+30. **Sobra por mês negativa aparece em verde, ao lado de um selo de saúde e de um alerta que se
+    contradizem aos olhos.** Verificado em aparelho em 04/09/2026, no cenário em que as parcelas
+    não cabem (`naoFecha: true`, `margemDisponivel: -48531`): o painel exibiu **"Sobra por mês
+    −R$ 485,31" em verde**. A cor é fixa — `app/(tabs)/painel/index.tsx:131` passa `tone="accent"`
+    ao `MoneyText`, e `corDoTom` (`src/components/ui/MoneyText.tsx:67`) só desvia de tom para
+    `debt` em tamanho grande. Nenhum caminho pinta valor negativo de outra cor.
+
+    No mesmo cartão convivem, de cima para baixo: o medidor verde "Comprometimento da renda 11,01%
+    · Dentro do limite saudável de 30%", o número negativo em verde, e o alerta âmbar "As parcelas
+    que você já paga não cabem no que sobra". **O medidor não está errado** — ele troca o texto
+    quando passa do limite (`src/components/ui/Meter.tsx:49`), e 11,01% está mesmo abaixo de 30%,
+    porque mede parcelas ÷ renda. O alerta também não: ele considera gastos e provisões. As duas
+    métricas respondem perguntas diferentes e aparecem lado a lado sem nomear qual é qual — a
+    mesma raiz da limitação 14, agora visível como contradição aparente na tela de abertura.
+
 (Duas limitações antigas foram **resolvidas** no M3 e não constam acima: `comprometimentoRenda`
 deixou de ser aproximação e `proximosVencimentos` deixou de voltar vazio.)
 
@@ -460,7 +622,7 @@ deixou de ser aproximação e `proximosVencimentos` deixou de voltar vazio.)
 
 | Lacuna | Situação |
 |---|---|
-| **Anexar contrato a dívida já cadastrada** | **Não existe.** O fluxo de contrato é global e sempre cria dívida nova. Pior: o vazio da revisão diz "envie o contrato **desta dívida**" e manda para `/dividas/contrato` (`app/(tabs)/dividas/[id]/revisao.tsx:73`) — seguir o convite duplica a dívida. Precisa de mudança de contrato de API, não só de tela |
+| ~~**Anexar contrato a dívida já cadastrada**~~ | **Fechada no F-019** (ADR 0025). `POST /v1/dividas/{id}/documento` liga extração concluída do mesmo tenant a uma dívida existente, com conciliação campo a campo. Não precisou de migração: `divida.extracao_id` existia desde a migração inicial — faltava caminho, não coluna |
 | **Validação em device** | Pendência transversal de M1.5 a M6 |
 | **Telas do M1 não exercitadas** | Cadastro, detalhe, edição, quitação e exclusão contra o backend real |
 | ~~**Login de verdade**~~ | **Fechada no M8.** Cadastro, login, sessão revogável e recuperação de senha (ADR 0012). A tela de token do beta foi removida |

@@ -307,6 +307,13 @@ tom neutro, nunca alarme vermelho.
 ### plano de pagamento
 O cronograma de parcelas de uma dívida, com o que já foi pago e o que falta. É a tela de M3.
 
+### carnê
+Como o app CHAMA o plano de pagamento quando fala com o usuário: "Sem carnê para esta dívida",
+"as parcelas ainda não pagas deste carnê". É a palavra que o brasileiro usa, e por isso ela está
+na interface enquanto "plano de pagamento" fica na documentação e no código. Estava em uso na tela
+de plano sem entrada aqui; entrou no glossário quando o F-019 a espalhou para a edição e a
+conciliação de documento.
+
 ### aporte extra
 Valor que o usuário consegue destinar por mês **além** das parcelas mínimas. É o insumo
 principal do simulador: sem aporte extra, a única variável é a ordem de pagamento.

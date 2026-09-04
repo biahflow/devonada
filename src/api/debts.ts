@@ -31,6 +31,18 @@ export interface QuitacaoInput {
   valorPago: number;
 }
 
+/**
+ * Corpo de `POST /v1/dividas/{id}/documento` (ADR 0025, api-contract 3.16).
+ *
+ * `campos` traz SÓ o que o usuário marcou na conciliação lado a lado. Ausente
+ * ou vazio significa "não mude nada": o que a pessoa digitou vence por padrão, e
+ * a extração nunca sobrescreve em silêncio.
+ */
+export interface DocumentoDaDivida {
+  extracaoId: Uuid;
+  campos?: PatchDivida;
+}
+
 export function listDebts() {
   return request<{ dividas: Divida[] }>('/v1/dividas');
 }
@@ -45,6 +57,22 @@ export function createDebt(input: NovaDivida) {
 
 export function updateDebt(id: Uuid, patch: PatchDivida) {
   return request<{ divida: Divida }>(`/v1/dividas/${id}`, { method: 'PATCH', body: patch });
+}
+
+/**
+ * Liga uma extração já concluída a uma dívida que JÁ EXISTE, e grava na mesma
+ * chamada os campos aceitos do documento.
+ *
+ * ROTA PRÓPRIA, e não `extracaoId` no PATCH. `PatchDivida` é `Partial<NovaDivida>`,
+ * então o tipo do cliente aceitaria `extracaoId` num PATCH — mas
+ * `schemas.PatchDivida` não tem o campo e o Pydantic ignora o extra: a chamada
+ * compila, roda, devolve 200 e não liga nada. Ver ADR 0025, decisão 1.
+ */
+export function ligarDocumento(dividaId: Uuid, corpo: DocumentoDaDivida) {
+  return request<{ divida: Divida }>(`/v1/dividas/${dividaId}/documento`, {
+    method: 'POST',
+    body: corpo,
+  });
 }
 
 export function quitarDebt(id: Uuid, input: QuitacaoInput) {

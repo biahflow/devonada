@@ -981,6 +981,45 @@ tem de vir antes do esforço. O M7 já tinha provado isso com o "Nível 0" do ca
 
 ---
 
+## F-019 — Documento em dívida já cadastrada — entregue, aguardando device
+
+Não é milestone novo: é a **lacuna nº 1** do `docs/inventario.md` fechada antes do feature freeze.
+
+- [x] **Quem cadastrou a dívida à mão deixa de ficar fora da revisão de cobrança.** O fluxo de
+      documento sempre terminou em *criação* — não havia como levar um contrato a uma dívida que já
+      existe, e sem `extracao_id` a revisão daquela dívida devolvia `achados: []` para sempre
+      (limitação 7). `POST /v1/dividas/{id}/documento` abre o caminho. **Sem migração:**
+      `divida.extracao_id` existia desde a migração inicial — faltava rota, não coluna.
+- [x] **O convite virou porta.** O vazio da revisão dizia "envie o contrato e a gente revisa ponto a
+      ponto" e **não tinha botão nenhum**. Agora tem — e ele nomeia a troca quando já existe
+      documento, porque o mesmo vazio recebe quem mandou um contrato que foi lido e estava limpo:
+      "sem achado" não distingue "não conferimos" de "conferimos e estava certo".
+- [x] **O que a pessoa digitou vence** (ADR 0025). A conciliação mostra "você informou X · o
+      documento diz Y" com o trecho à vista, e a divergência **nasce desmarcada**. Campo que a
+      dívida não tem nasce marcado — ali não há afirmação anterior a apagar. O guardrail 8.1 foi
+      escrito para a criação; esta é a primeira vez que ele encontra um número que o usuário já
+      confirmou uma vez, e um LLM reescrevendo isso em silêncio seria a seção 1.2 furada com
+      agravante.
+- [x] **Vínculo e campos são atômicos**, um commit só: gravar os campos do documento sem o vínculo
+      produziria exatamente a dívida que exibe número vindo de documento sem achado que o sustente.
+- [x] **Mudança de comportamento declarada:** `POST /v1/dividas` passou a validar `extracaoId`
+      (existe? é do tenant? terminou?) pelo mesmo validador. Antes gravava a string crua. Nenhum
+      cliente legítimo é atingido; o que deixa de passar é o que nunca deveria ter passado.
+- [x] **O carnê deixa de ficar defasado.** Mudar o `valorCobrado` de uma dívida com parcelas não
+      mexia nelas: a dívida dizia um número e o carnê somava outro, e a divergência contaminava seis
+      consumidores que leem parcela real (saldo, caixa, simulador, cards do chat, lembretes e a multa
+      da revisão). Agora as **pendentes** passam a somar `novo valor − já pago`, mantendo datas,
+      quantidade e ids — recriar parcela quebraria o deep link do push, que carrega `parcelaId`.
+      Pagas e canceladas nunca são tocadas, e **nenhuma `Renegociacao` é gravada**: corrigir número
+      errado não é o credor ter aceitado termos novos. Novo valor abaixo do já pago devolve **409** em
+      vez de escolher um significado que o app não tem fonte para escolher.
+- [ ] **Device.** Layout da conciliação em tela pequena, seletor nativo e safe area não foram
+      vistos em aparelho.
+
+Ver `docs/features/F-019-contrato-em-divida-existente/` e a ADR 0025.
+
+---
+
 ## Fora do MVP de dezembro — de propósito
 
 Não porque sejam ruins, mas porque a data é real e o escopo tem de caber nela. Cada um tem valor

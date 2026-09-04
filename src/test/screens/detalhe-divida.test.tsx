@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import DetalheDivida from '../../../app/(tabs)/dividas/[id]/index';
 import { ApiError } from '../../api/client';
 import { limparMocksDeRede, nuncaResponde, responderPorRota } from '../api';
@@ -70,6 +70,35 @@ describe('tela de detalhe da dívida', () => {
     renderizarTela(<DetalheDivida />);
 
     await waitFor(() => expect(screen.getByText(/Não é aconselhamento jurídico/)).toBeTruthy());
+  });
+
+  // F-019, RF-009. A dívida cadastrada à mão ficava sem caminho para o
+  // documento — e sem documento a revisão dela nunca produz achado.
+  it('oferece MANDAR o documento quando a dívida não tem nenhum', async () => {
+    responderPorRota({ '/v1/dividas/': { divida: umaDivida({ extracaoId: null }) } });
+    renderizarTela(<DetalheDivida />);
+
+    await waitFor(() => expect(screen.getByText('Mandar o documento')).toBeTruthy());
+    expect(screen.queryByText('Trocar o documento')).toBeNull();
+  });
+
+  it('oferece TROCAR quando já há documento — a substituição é nomeada', async () => {
+    // Uma dívida tem no máximo um documento, e ligar de novo substitui
+    // (ADR 0025, decisão 6). Descobrir isso depois seria troca silenciosa.
+    responderPorRota({ '/v1/dividas/': { divida: umaDivida({ extracaoId: 'extracao-1' }) } });
+    renderizarTela(<DetalheDivida />);
+
+    await waitFor(() => expect(screen.getByText('Trocar o documento')).toBeTruthy());
+    expect(screen.queryByText('Mandar o documento')).toBeNull();
+  });
+
+  it('leva para a tela de documento daquela dívida', async () => {
+    responderPorRota({ '/v1/dividas/': { divida: umaDivida() } });
+    renderizarTela(<DetalheDivida />);
+
+    await waitFor(() => expect(screen.getByText('Mandar o documento')).toBeTruthy());
+    fireEvent.press(screen.getByText('Mandar o documento'));
+    expect(global.mockRouter.push).toHaveBeenCalledWith('/dividas/divida-1/documento');
   });
 
   it('esconde "marcar como quitada" numa dívida já quitada', async () => {

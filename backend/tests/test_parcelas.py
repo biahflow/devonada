@@ -2,7 +2,7 @@ from datetime import date, timedelta
 
 import pytest
 
-from domain.parcelas import gerar_cronograma, situacao_da_parcela, somar_meses
+from domain.parcelas import dividir_valor, gerar_cronograma, situacao_da_parcela, somar_meses
 
 HOJE = date.today()
 
@@ -83,6 +83,35 @@ class TestGerarCronograma:
     def test_acima_do_teto_e_erro(self):
         with pytest.raises(ValueError):
             gerar_cronograma(150000, 481, date(2026, 9, 10))
+
+
+class TestDividirValor:
+    @pytest.mark.parametrize(
+        "valor,n", [(100, 3), (1, 1), (999999, 13), (150000, 7), (100000, 6), (7, 7)]
+    )
+    def test_soma_sempre_bate(self, valor, n):
+        assert sum(dividir_valor(valor, n)) == valor
+
+    def test_sobra_vai_na_ultima(self):
+        assert dividir_valor(150000, 7) == [21428] * 6 + [21432]
+
+    def test_quantidade_um_devolve_o_valor_inteiro(self):
+        assert dividir_valor(150000, 1) == [150000]
+
+    def test_restante_menor_que_a_quantidade_base_zero_sobra_na_ultima(self):
+        # 5 centavos para 7 parcelas: base é 0, e os 5 inteiros vão pro final.
+        assert dividir_valor(5, 7) == [0, 0, 0, 0, 0, 0, 5]
+
+    def test_zero_e_valido_e_devolve_tudo_zero(self):
+        assert dividir_valor(0, 4) == [0, 0, 0, 0]
+
+    def test_quantidade_zero_e_erro(self):
+        with pytest.raises(ValueError):
+            dividir_valor(1000, 0)
+
+    def test_valor_negativo_e_erro(self):
+        with pytest.raises(ValueError):
+            dividir_valor(-1, 3)
 
 
 class TestSituacaoDaParcela:

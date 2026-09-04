@@ -1,4 +1,9 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
+
+from sqlalchemy import event
+
+import orm
+from config import get_settings
 
 HOJE = date.today()
 
@@ -17,6 +22,14 @@ def _nova(**over):
 def _com_carne(client, auth, **over):
     corpo = _nova(totalParcelas=7, primeiroVencimento=str(HOJE + timedelta(days=10)), **over)
     return client.post("/v1/dividas", json=corpo, headers=auth).json()["divida"]
+
+
+def _extracao(sessao, tenant_id=None, status="concluida"):
+    """Cria uma `orm.Extracao` direto pela sessão de teste (padrão de F-019)."""
+    e = orm.Extracao(tenant_id=tenant_id or get_settings().tenant_id, status=status)
+    sessao.add(e)
+    sessao.commit()
+    return e
 
 
 class TestGeracaoNoCadastro:
@@ -118,6 +131,186 @@ class TestPagamento:
         assert parcelas[0]["situacao"] == "atrasada"
 
 
+class TestAjustaParcelasAoMudarValorCobrado:
+    """
+    Limitação 22: mudar `valorCobrado` numa dívida com carnê deixava as parcelas com
+    o total antigo (limitação 22 do inventário). Cobre os dois caminhos que
+    mudam o valor sem regenerar o cronograma: PATCH e a ligação de documento.
+    """
+
+    def test_patch_sobe_o_valor_redistribui_as_pendentes(self, client, auth):
+        d = _com_carne(client, auth, valorCobrado=150000)
+        antes = client.get(f"/v1/dividas/{d['id']}/parcelas", headers=auth).json()["parcelas"]
+
+        r = client.patch(f"/v1/dividas/{d['id']}", json={"valorCobrado": 210000}, headers=auth)
+        assert r.status_code == 200
+        assert r.json()["divida"]["valorCobrado"] == 210000
+
+        depois = client.get(f"/v1/dividas/{d['id']}/parcelas", headers=auth).json()["parcelas"]
+        assert sum(p["valor"] for p in depois) == 210000
+        assert [p["id"] for p in depois] == [p["id"] for p in antes]
+        assert [p["numero"] for p in depois] == [p["numero"] for p in antes]
+        assert [p["vencimento"] for p in depois] == [p["vencimento"] for p in antes]
+
+    def test_patch_desce_o_valor_ainda_acima_do_ja_pago(self, client, auth):
+        d = _com_carne(client, auth, valorCobrado=150000)
+
+        r = client.patch(f"/v1/dividas/{d['id']}", json={"valorCobrado": 90000}, headers=auth)
+        assert r.status_code == 200
+
+        depois = client.get(f"/v1/dividas/{d['id']}/parcelas", headers=auth).json()["parcelas"]
+        assert sum(p["valor"] for p in depois) == 90000
+
+    def test_com_parcela_paga_a_paga_fica_intacta_e_so_as_pendentes_mudam(self, client, auth):
+        d = _com_carne(client, auth, valorCobrado=150000)
+        antes = client.get(f"/v1/dividas/{d['id']}/parcelas", headers=auth).json()["parcelas"]
+        primeira = antes[0]
+
+        pagamento = client.post(
+            f"/v1/parcelas/{primeira['id']}/pagamento",
+            json={"pagoEm": str(HOJE), "valorPago": primeira["valor"]},
+            headers=auth,
+        ).json()["parcela"]
+
+        r = client.patch(f"/v1/dividas/{d['id']}", json={"valorCobrado": 210000}, headers=auth)
+        assert r.status_code == 200
+
+        depois = client.get(f"/v1/dividas/{d['id']}/parcelas", headers=auth).json()["parcelas"]
+        paga = next(p for p in depois if p["id"] == primeira["id"])
+        pendentes = [p for p in depois if p["id"] != primeira["id"]]
+
+        # A paga é byte a byte igual — o ajuste não a toca.
+        assert paga["valor"] == pagamento["valor"]
+        assert paga["pagoEm"] == pagamento["pagoEm"]
+        assert paga["valorPago"] == pagamento["valorPago"]
+
+        # 6 pendentes somam o novo total menos o que já saiu do bolso da pessoa.
+        assert sum(p["valor"] for p in pendentes) == 210000 - pagamento["valorPago"]
+        assert sum(p["valor"] for p in depois) == 210000
+
+    def test_valor_abaixo_do_ja_pago_devolve_409_e_nada_muda(self, client, auth):
+        d = _com_carne(client, auth, valorCobrado=150000)
+        antes_parcelas = client.get(f"/v1/dividas/{d['id']}/parcelas", headers=auth).json()["parcelas"]
+        primeira = antes_parcelas[0]
+
+        client.post(
+            f"/v1/parcelas/{primeira['id']}/pagamento",
+            json={"pagoEm": str(HOJE), "valorPago": primeira["valor"]},
+            headers=auth,
+        )
+        antes_divida = client.get(f"/v1/dividas/{d['id']}", headers=auth).json()["divida"]
+        antes_parcelas = client.get(f"/v1/dividas/{d['id']}/parcelas", headers=auth).json()["parcelas"]
+
+        r = client.patch(
+            f"/v1/dividas/{d['id']}", json={"valorCobrado": primeira["valor"] - 1}, headers=auth
+        )
+        assert r.status_code == 409
+        assert r.json()["message"] == (
+            "O valor novo é menor do que já foi pago nesta dívida. Confira o valor — "
+            "ou, se o acordo mudou, registre a renegociação."
+        )
+
+        depois_divida = client.get(f"/v1/dividas/{d['id']}", headers=auth).json()["divida"]
+        depois_parcelas = client.get(f"/v1/dividas/{d['id']}/parcelas", headers=auth).json()["parcelas"]
+        assert depois_divida == antes_divida
+        assert depois_parcelas == antes_parcelas
+
+    def test_carne_inteiro_pago_patch_passa_sem_mudar_parcelas(self, client, auth):
+        d = client.post(
+            "/v1/dividas",
+            json=_nova(
+                valorCobrado=20000, totalParcelas=2, primeiroVencimento=str(HOJE + timedelta(days=10))
+            ),
+            headers=auth,
+        ).json()["divida"]
+        parcelas = client.get(f"/v1/dividas/{d['id']}/parcelas", headers=auth).json()["parcelas"]
+        for p in parcelas:
+            client.post(
+                f"/v1/parcelas/{p['id']}/pagamento",
+                json={"pagoEm": str(HOJE), "valorPago": p["valor"]},
+                headers=auth,
+            )
+        antes = client.get(f"/v1/dividas/{d['id']}/parcelas", headers=auth).json()["parcelas"]
+
+        r = client.patch(f"/v1/dividas/{d['id']}", json={"valorCobrado": 30000}, headers=auth)
+        assert r.status_code == 200
+
+        depois = client.get(f"/v1/dividas/{d['id']}/parcelas", headers=auth).json()["parcelas"]
+        assert depois == antes
+
+    def test_divida_sem_carne_patch_passa_sem_erro(self, client, auth):
+        d = client.post("/v1/dividas", json=_nova(valorCobrado=100000), headers=auth).json()["divida"]
+
+        r = client.patch(f"/v1/dividas/{d['id']}", json={"valorCobrado": 130000}, headers=auth)
+        assert r.status_code == 200
+        assert r.json()["divida"]["valorCobrado"] == 130000
+        assert client.get(f"/v1/dividas/{d['id']}/parcelas", headers=auth).json()["parcelas"] == []
+
+    def test_patch_que_nao_mexe_no_valor_nao_toca_parcelas(self, client, auth):
+        d = _com_carne(client, auth, valorCobrado=150000)
+        antes = client.get(f"/v1/dividas/{d['id']}/parcelas", headers=auth).json()["parcelas"]
+
+        r = client.patch(f"/v1/dividas/{d['id']}", json={"credor": "Banco Novo"}, headers=auth)
+        assert r.status_code == 200
+
+        depois = client.get(f"/v1/dividas/{d['id']}/parcelas", headers=auth).json()["parcelas"]
+        assert depois == antes
+
+    def test_ligar_documento_com_valor_cobrado_ajusta_igual_ao_patch(self, client, auth, sessao):
+        d = _com_carne(client, auth, valorCobrado=150000)
+        extracao = _extracao(sessao)
+
+        r = client.post(
+            f"/v1/dividas/{d['id']}/documento",
+            json={"extracaoId": extracao.id, "campos": {"valorCobrado": 210000}},
+            headers=auth,
+        )
+        assert r.status_code == 200
+        assert r.json()["divida"]["valorCobrado"] == 210000
+
+        parcelas = client.get(f"/v1/dividas/{d['id']}/parcelas", headers=auth).json()["parcelas"]
+        assert sum(p["valor"] for p in parcelas) == 210000
+
+    def test_parcela_cancelada_nao_entra_no_ja_pago_nem_e_alterada(self, client, auth, sessao):
+        d = client.post(
+            "/v1/dividas",
+            json=_nova(
+                valorCobrado=120000,
+                totalParcelas=4,
+                primeiroVencimento=str(HOJE + timedelta(days=10)),
+            ),
+            headers=auth,
+        ).json()["divida"]
+        parcelas = client.get(f"/v1/dividas/{d['id']}/parcelas", headers=auth).json()["parcelas"]
+        primeira = parcelas[0]
+
+        # Paga a primeira e depois a cancela diretamente (combinação que não
+        # existe em nenhum fluxo real do produto): é o jeito de provar que a
+        # soma do "já pago" filtra `cancelada_em`, mesmo com `paga_em`
+        # preenchido — não só que uma parcela nunca-paga é ignorada.
+        client.post(
+            f"/v1/parcelas/{primeira['id']}/pagamento",
+            json={"pagoEm": str(HOJE), "valorPago": primeira["valor"]},
+            headers=auth,
+        )
+        linha = sessao.get(orm.Parcela, primeira["id"])
+        linha.cancelada_em = datetime.now(timezone.utc)
+        valor_antes = linha.valor
+        sessao.commit()
+
+        r = client.patch(f"/v1/dividas/{d['id']}", json={"valorCobrado": 90000}, headers=auth)
+        assert r.status_code == 200
+
+        sessao.refresh(linha)
+        assert linha.valor == valor_antes
+
+        restantes = client.get(f"/v1/dividas/{d['id']}/parcelas", headers=auth).json()["parcelas"]
+        # A cancelada não aparece na listagem, e as 3 restantes somam o novo
+        # total INTEIRO — a cancelada-e-paga não contou como "já pago".
+        assert len(restantes) == 3
+        assert sum(p["valor"] for p in restantes) == 90000
+
+
 class TestRenegociacao:
     def test_preserva_as_parcelas_pagas_e_gera_novas(self, client, auth):
         d = _com_carne(client, auth)
@@ -149,6 +342,38 @@ class TestRenegociacao:
         assert len(novas) == 3
         assert sum(p["valor"] for p in novas) == 90000
 
+    def test_resposta_da_renegociacao_concorda_com_o_get_seguinte(self, client, auth):
+        """
+        A rota devolvia `parcelasPagas` da coluna que ninguém escreve (sempre
+        `None`) enquanto o `GET` seguinte já devolvia o número derivado — a mesma
+        dívida respondendo duas coisas com segundos de diferença. É o tipo de
+        divergência que vira "apareceu 0 e depois 1" no relato de quem usa.
+        """
+        d = _com_carne(client, auth)
+        antes = client.get(f"/v1/dividas/{d['id']}/parcelas", headers=auth).json()["parcelas"]
+        client.post(
+            f"/v1/parcelas/{antes[0]['id']}/pagamento",
+            json={"pagoEm": str(HOJE), "valorPago": antes[0]["valor"]},
+            headers=auth,
+        )
+
+        da_renegociacao = client.post(
+            f"/v1/dividas/{d['id']}/renegociacao",
+            json={
+                "novoValor": 90000,
+                "novoTotalParcelas": 3,
+                "primeiroVencimento": str(HOJE + timedelta(days=30)),
+                "observacao": "Acordo por telefone",
+            },
+            headers=auth,
+        ).json()["divida"]
+
+        do_get = client.get(f"/v1/dividas/{d['id']}", headers=auth).json()["divida"]
+
+        assert da_renegociacao["parcelasPagas"] == do_get["parcelasPagas"] == 1
+        assert da_renegociacao["proximoVencimento"] == do_get["proximoVencimento"]
+        assert da_renegociacao["proximoVencimento"] == str(HOJE + timedelta(days=30))
+
     def test_atualiza_o_valor_da_divida(self, client, auth):
         d = _com_carne(client, auth)
         client.post(
@@ -163,6 +388,201 @@ class TestRenegociacao:
         assert (
             client.get(f"/v1/dividas/{d['id']}", headers=auth).json()["divida"]["valorCobrado"]
             == 90000
+        )
+
+
+class TestParcelasPagasEProximoVencimentoDerivados:
+    """
+    Fecha as limitações 24 e 25 do inventário: `divida.parcelas_pagas` nunca
+    era escrito pela rota de pagamento e `divida.proximo_vencimento` não
+    avançava quando uma parcela era paga. `parcelasPagas` e
+    `proximoVencimento` passam a ser derivados da lista real de `orm.Parcela`
+    em vez de lidos das colunas resquício.
+    """
+
+    def test_parcelas_pagas_reflete_pagamentos_parciais_no_get_e_na_lista(self, client, auth):
+        d = _com_carne(client, auth)  # 7 parcelas
+        parcelas = client.get(f"/v1/dividas/{d['id']}/parcelas", headers=auth).json()["parcelas"]
+        for p in parcelas[:3]:
+            client.post(
+                f"/v1/parcelas/{p['id']}/pagamento",
+                json={"pagoEm": str(HOJE), "valorPago": p["valor"]},
+                headers=auth,
+            )
+
+        obtido = client.get(f"/v1/dividas/{d['id']}", headers=auth).json()["divida"]
+        assert obtido["parcelasPagas"] == 3
+
+        listado = next(
+            x for x in client.get("/v1/dividas", headers=auth).json()["dividas"] if x["id"] == d["id"]
+        )
+        assert listado["parcelasPagas"] == 3
+
+    def test_parcelas_pagas_zero_quando_nenhuma_paga(self, client, auth):
+        d = _com_carne(client, auth)
+        obtido = client.get(f"/v1/dividas/{d['id']}", headers=auth).json()["divida"]
+        assert obtido["parcelasPagas"] == 0
+
+    def test_divida_sem_carne_parcelas_pagas_e_proximo_vencimento_continuam_none(self, client, auth):
+        d = client.post("/v1/dividas", json=_nova(), headers=auth).json()["divida"]
+        assert d["parcelasPagas"] is None
+        assert d["proximoVencimento"] is None
+
+        obtido = client.get(f"/v1/dividas/{d['id']}", headers=auth).json()["divida"]
+        assert obtido["parcelasPagas"] is None
+        assert obtido["proximoVencimento"] is None
+
+    def test_proximo_vencimento_avanca_quando_a_primeira_e_paga(self, client, auth):
+        d = _com_carne(client, auth)
+        parcelas = client.get(f"/v1/dividas/{d['id']}/parcelas", headers=auth).json()["parcelas"]
+
+        antes = client.get(f"/v1/dividas/{d['id']}", headers=auth).json()["divida"]
+        assert antes["proximoVencimento"] == parcelas[0]["vencimento"]
+
+        client.post(
+            f"/v1/parcelas/{parcelas[0]['id']}/pagamento",
+            json={"pagoEm": str(HOJE), "valorPago": parcelas[0]["valor"]},
+            headers=auth,
+        )
+
+        depois = client.get(f"/v1/dividas/{d['id']}", headers=auth).json()["divida"]
+        assert depois["proximoVencimento"] == parcelas[1]["vencimento"]
+
+    def test_carne_inteiro_pago_proximo_vencimento_e_none(self, client, auth):
+        d = client.post(
+            "/v1/dividas",
+            json=_nova(
+                valorCobrado=20000, totalParcelas=2, primeiroVencimento=str(HOJE + timedelta(days=10))
+            ),
+            headers=auth,
+        ).json()["divida"]
+        parcelas = client.get(f"/v1/dividas/{d['id']}/parcelas", headers=auth).json()["parcelas"]
+        for p in parcelas:
+            client.post(
+                f"/v1/parcelas/{p['id']}/pagamento",
+                json={"pagoEm": str(HOJE), "valorPago": p["valor"]},
+                headers=auth,
+            )
+
+        obtido = client.get(f"/v1/dividas/{d['id']}", headers=auth).json()["divida"]
+        assert obtido["proximoVencimento"] is None
+
+    def test_regressao_limitacao_24_carne_inteiro_pago_nao_mostra_zero(self, client, auth):
+        """
+        Regressão nomeada da limitação 24: a tela de detalhe mostrava
+        "0 de N pagas" mesmo com o carnê inteiro quitado, porque
+        `parcelas_pagas` nunca era escrito. `parcelasPagas` tem de bater com
+        `totalParcelas`, não com zero.
+        """
+        d = client.post(
+            "/v1/dividas",
+            json=_nova(
+                valorCobrado=30000, totalParcelas=3, primeiroVencimento=str(HOJE + timedelta(days=10))
+            ),
+            headers=auth,
+        ).json()["divida"]
+        parcelas = client.get(f"/v1/dividas/{d['id']}/parcelas", headers=auth).json()["parcelas"]
+        for p in parcelas:
+            client.post(
+                f"/v1/parcelas/{p['id']}/pagamento",
+                json={"pagoEm": str(HOJE), "valorPago": p["valor"]},
+                headers=auth,
+            )
+
+        obtido = client.get(f"/v1/dividas/{d['id']}", headers=auth).json()["divida"]
+        assert obtido["totalParcelas"] == 3
+        assert obtido["parcelasPagas"] == 3
+        assert obtido["parcelasPagas"] != 0
+
+    def test_parcela_cancelada_nao_conta_em_nada(self, client, auth, sessao):
+        d = client.post(
+            "/v1/dividas",
+            json=_nova(
+                valorCobrado=120000,
+                totalParcelas=4,
+                primeiroVencimento=str(HOJE + timedelta(days=10)),
+            ),
+            headers=auth,
+        ).json()["divida"]
+        parcelas = client.get(f"/v1/dividas/{d['id']}/parcelas", headers=auth).json()["parcelas"]
+        primeira = parcelas[0]
+
+        client.post(
+            f"/v1/parcelas/{primeira['id']}/pagamento",
+            json={"pagoEm": str(HOJE), "valorPago": primeira["valor"]},
+            headers=auth,
+        )
+        linha = sessao.get(orm.Parcela, primeira["id"])
+        linha.cancelada_em = datetime.now(timezone.utc)
+        sessao.commit()
+
+        obtido = client.get(f"/v1/dividas/{d['id']}", headers=auth).json()["divida"]
+        # A cancelada-e-paga não conta como paga...
+        assert obtido["parcelasPagas"] == 0
+        # ...nem interfere no próximo vencimento, que segue vindo das 3
+        # pendentes restantes.
+        pendentes = client.get(f"/v1/dividas/{d['id']}/parcelas", headers=auth).json()["parcelas"]
+        assert len(pendentes) == 3
+        assert obtido["proximoVencimento"] == min(p["vencimento"] for p in pendentes)
+
+    def test_parcela_de_outro_tenant_nao_entra_na_conta(self, client, auth, sessao):
+        d = _com_carne(client, auth)
+
+        # Semeia uma parcela de outro tenant com o MESMO divida_id — cenário
+        # que não ocorre no produto real, mas é o jeito direto de provar que
+        # quem impede a fuga é o filtro por tenant_id na query do agregado, e
+        # não a ausência de dado com o id certo.
+        sessao.add(
+            orm.Parcela(
+                tenant_id="outro-tenant-que-nao-existe",
+                divida_id=d["id"],
+                numero=1,
+                total=1,
+                valor=100,
+                vencimento=HOJE,
+                paga_em=HOJE,
+            )
+        )
+        sessao.commit()
+
+        obtido = client.get(f"/v1/dividas/{d['id']}", headers=auth).json()["divida"]
+        assert obtido["parcelasPagas"] == 0
+
+
+class TestListagemNaoDisparaQueryDeParcelaPorDivida:
+    """
+    Trava o N+1 que o desenho de `_agregados_de_parcelas` existe para evitar:
+    `GET /v1/dividas` tem de continuar buscando as parcelas de TODAS as
+    dívidas da página numa query só, não uma por dívida.
+    """
+
+    def test_contagem_de_queries_de_parcela_nao_cresce_com_o_numero_de_dividas(
+        self, client, auth, engine
+    ):
+        for _ in range(3):
+            _com_carne(client, auth)
+
+        statements: list[str] = []
+
+        def registrar(conn, cursor, statement, parameters, context, executemany):
+            statements.append(statement)
+
+        event.listen(engine, "before_cursor_execute", registrar)
+        try:
+            r = client.get("/v1/dividas", headers=auth)
+        finally:
+            event.remove(engine, "before_cursor_execute", registrar)
+
+        assert r.status_code == 200
+        assert len(r.json()["dividas"]) == 3
+
+        # "from parcela", não só "parcela": a própria tabela `divida` tem a
+        # coluna `parcelas_pagas`, e um filtro que buscasse só a substring
+        # "parcela" contaria essa SELECT de `divida` como se fosse do carnê.
+        queries_de_parcela = [s for s in statements if "from parcela" in s.lower()]
+        assert len(queries_de_parcela) == 1, (
+            "esperava 1 query de parcela para 3 dívidas com carnê (agregado numa "
+            f"query só); achou {len(queries_de_parcela)}: {queries_de_parcela}"
         )
 
 
