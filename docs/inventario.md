@@ -511,8 +511,18 @@ Estão aqui porque escondê-las inverteria o princípio do projeto. Íntegras em
     cancelada, com o `numero` dela. Consequências, as duas reais:
     (a) `GET /v1/dividas/{id}/parcelas` devolve **duas parcelas número 1** — uma paga do carnê
     antigo e a primeira do novo —, e a tela de plano as lista lado a lado;
-    (b) `parcelasPagas` derivado conta a paga antiga enquanto `totalParcelas` é o `novoTotalParcelas`
-    do acordo, então a tela exibe "1 de 3" onde existem 4 linhas.
+    (b) **as duas telas discordam entre si.** Verificado em aparelho em 04/09/2026, com um acordo
+    de R$ 3.600,00 em 3 parcelas fechado sobre um carnê de 12 com uma paga: o detalhe da dívida
+    exibe **"1 de 3 pagas"** — `app/(tabs)/dividas/[id]/index.tsx:122` usa `parcelasPagas` e
+    `totalParcelas` da API —, enquanto o carnê exibe **"1 de 4 pagas"** —
+    `app/(tabs)/dividas/[id]/plano.tsx:76` conta as linhas carregadas. A descrição anterior desta
+    limitação previa só o "1 de 3 onde existem 4 linhas"; o que o usuário vê são **dois números
+    diferentes em duas telas**, e a lista ainda mostra "Parcela 1 de 12" ao lado de "Parcela 1 de
+    3", com o denominador antigo e o novo no mesmo carnê.
+
+    Observado na mesma passagem, menor e de rolagem: voltar da renegociação para o carnê deixa a
+    tela **em branco** até rolar para cima — a lista encurtou de 12 para 4 itens e a posição de
+    scroll anterior ficou além do novo conteúdo.
     Decidido em 03/09/2026 **não** derivar o denominador junto: ele deixaria de bater com o número
     de parcelas que a pessoa combinou no acordo. A correção de raiz é a renegociação continuar a
     numeração e somar as pagas ao total — mexe na semântica de `novoTotalParcelas` no contrato de
