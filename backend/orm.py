@@ -48,6 +48,14 @@ class Divida(Base):
 
     taxa_juros_mensal: Mapped[int | None] = mapped_column(Integer, nullable=True)
     total_parcelas: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # RESQUÍCIO (limitações 24 e 25 do inventário). O backend de produção nunca
+    # escreve `parcelas_pagas` (a rota de pagamento não a toca) e só escreve
+    # `proximo_vencimento` na criação e na renegociação — ela não avança
+    # quando uma parcela é paga. `routers/dividas.py::_para_schema` deriva os
+    # dois campos da API a partir de `orm.Parcela` via `_agregados_de_parcelas`
+    # sempre que a dívida tem carnê; as colunas só sobram como fallback para
+    # dívida sem cronograma. Não removidas: remover coluna é mudança
+    # destrutiva e exige aprovação humana.
     parcelas_pagas: Mapped[int | None] = mapped_column(Integer, nullable=True)
     proximo_vencimento: Mapped[date | None] = mapped_column(Date, nullable=True)
 

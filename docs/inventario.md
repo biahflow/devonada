@@ -486,21 +486,37 @@ Estão aqui porque escondê-las inverteria o princípio do projeto. Íntegras em
     `linhasDeRevisao` (`src/util/revisaoExtracao.ts`) **não** foi unificado de propósito: ele monta
     as linhas de TODOS os campos do documento, encargos inclusive, e não é o mesmo mapa.
 
-24. **`divida.parcelas_pagas` nunca é escrito.** A coluna existe (`backend/orm.py:51`) e é
-    servida como `parcelasPagas` (`backend/routers/dividas.py:41`), mas **nenhuma linha do backend
-    de produção atribui valor a ela** — nem a rota de pagamento de parcela, nem a de quitação. A
-    tela de detalhe exibe "{parcelasPagas ?? 0} de {totalParcelas} pagas"
-    (`app/(tabs)/dividas/[id]/index.tsx:118-125`), então **mostra "0 de 12 pagas" mesmo com o carnê
-    inteiro quitado**. É bug visível ao usuário, achado ao mapear a limitação 22, e é anterior ao
-    F-019. A correção provável não é passar a escrever a coluna, e sim derivá-la da lista de
-    parcelas — coluna que ninguém preenche envelhece, verificação derivada não (mesma lição de
-    `tabelas_do_tenant()` no M8).
+24. **~~`divida.parcelas_pagas` nunca é escrito~~ — RESOLVIDO por derivação.** A coluna nunca
+    foi mantida por ninguém, e a tela exibia **"0 de 12 pagas" com o carnê inteiro quitado**.
+    `parcelasPagas` passou a ser **contado da lista real de parcelas** (não canceladas, com
+    `paga_em` preenchido) em `_agregados_de_parcelas`. A coluna continua no banco como resquício —
+    remover coluna é mudança destrutiva e exige aprovação humana — mas deixou de ser a resposta.
+    Não se passou a escrever a coluna de propósito: coluna que alguém precisa lembrar de atualizar
+    envelhece; derivada, não (mesma lição de `tabelas_do_tenant()` no M8).
 
-25. **`divida.proximo_vencimento` não avança quando uma parcela é paga.** Só é escrito na criação
-    da dívida (`backend/routers/dividas.py:146`) e na renegociação
-    (`backend/routers/parcelas.py:197`). A rota de pagamento não o toca. Quem lê a coluna direto
-    (`backend/routers/chat.py:82`, como fallback) recebe uma data que já passou. As telas que leem
-    a lista real de parcelas não são afetadas. Também anterior ao F-019.
+25. **~~`divida.proximo_vencimento` não avança quando uma parcela é paga~~ — RESOLVIDO por
+    derivação.** `proximoVencimento` passou a ser o **menor vencimento entre as pendentes**. Carnê
+    inteiro pago devolve `null`, e não a data antiga: não há nada a vencer, e cair de volta na
+    coluna reintroduziria a data velha por outra porta. `backend/routers/chat.py:82` continua com o
+    fallback próprio — ele já lê as parcelas reais quando há pendentes, e sua lógica não foi tocada.
+
+    As duas derivações saem de **uma query só** para a página inteira de `GET /v1/dividas`,
+    agregada em Python — nada de `COUNT(...) FILTER` ou `case()`, que são construções de dialeto e
+    passariam no SQLite da suíte para quebrar no Postgres do ar. **Há teste que conta as queries** e
+    falha se voltar a ser uma por dívida (verificado injetando o N+1).
+
+26. **Depois de uma renegociação, "X de Y pagas" mistura dois carnês — e há `numero` repetido.**
+    `renegociar()` cancela só as **pendentes** e cria o carnê novo numerado a partir de 1
+    (`backend/routers/parcelas.py:171-206`). A parcela paga do carnê antigo sobrevive, não
+    cancelada, com o `numero` dela. Consequências, as duas reais:
+    (a) `GET /v1/dividas/{id}/parcelas` devolve **duas parcelas número 1** — uma paga do carnê
+    antigo e a primeira do novo —, e a tela de plano as lista lado a lado;
+    (b) `parcelasPagas` derivado conta a paga antiga enquanto `totalParcelas` é o `novoTotalParcelas`
+    do acordo, então a tela exibe "1 de 3" onde existem 4 linhas.
+    Decidido em 03/09/2026 **não** derivar o denominador junto: ele deixaria de bater com o número
+    de parcelas que a pessoa combinou no acordo. A correção de raiz é a renegociação continuar a
+    numeração e somar as pagas ao total — mexe na semântica de `novoTotalParcelas` no contrato de
+    API e pede ADR própria.
 
 (Duas limitações antigas foram **resolvidas** no M3 e não constam acima: `comprometimentoRenda`
 deixou de ser aproximação e `proximosVencimentos` deixou de voltar vazio.)

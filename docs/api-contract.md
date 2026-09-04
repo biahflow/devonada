@@ -135,6 +135,14 @@ Response `200`:
 app oferecer "mandar o documento" ou "trocar o documento". Entrou no F-019; antes o vínculo era
 *write-only*. Ver a seção 3.16.
 
+**`parcelasPagas` e `proximoVencimento` são DERIVADOS das parcelas**, não colunas (limitações 24 e
+25 do `docs/inventario.md`). `parcelasPagas` conta as parcelas não canceladas com pagamento
+registrado; `proximoVencimento` é o menor vencimento entre as pendentes. Dívida **sem** cronograma
+mantém o comportamento antigo (`parcelasPagas: null` — "sem cronograma" não é "zero pagas"). Dívida
+com cronograma e **nenhuma pendente** devolve `proximoVencimento: null`, porque não há nada a
+vencer. As colunas homônimas continuam no banco como resquício e não são a fonte: `parcelas_pagas`
+nunca foi escrita por ninguém, e a tela exibia "0 de 12 pagas" com o carnê quitado.
+
 ### `POST /v1/dividas`
 Consumido por `createDebt()`.
 

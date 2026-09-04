@@ -224,6 +224,7 @@ def renegociar(
     Parcelas já pagas e o registro do acordo permanecem. Apagar o histórico
     tiraria do usuário justamente a prova do que ele já pagou antes do acordo.
     """
+    from routers.dividas import _agregados_de_parcelas
     from routers.dividas import _para_schema as divida_para_schema
 
     d = _buscar_divida(db, tenant, divida_id)
@@ -276,4 +277,10 @@ def renegociar(
 
     db.commit()
     db.refresh(d)
-    return schemas.RespostaDivida(divida=divida_para_schema(d))
+    # O agregado é lido DEPOIS do commit: as parcelas novas acabaram de nascer,
+    # e as antigas acabaram de ser canceladas. Sem isto, esta resposta devolveria
+    # `parcelasPagas` da coluna que ninguém escreve (sempre `None`) enquanto o
+    # `GET` seguinte devolveria o número certo — a mesma dívida respondendo duas
+    # coisas com segundos de diferença (limitações 24 e 25).
+    agregado = _agregados_de_parcelas(db, tenant, [d.id]).get(d.id)
+    return schemas.RespostaDivida(divida=divida_para_schema(d, agregado))

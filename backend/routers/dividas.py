@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -17,14 +18,88 @@ from routers.parcelas import ajustar_parcelas_pendentes, criar_parcelas
 router = APIRouter(prefix="/v1/dividas", tags=["Dividas"])
 
 
-def _para_schema(d: orm.Divida) -> schemas.Divida:
+@dataclass(frozen=True)
+class AgregadoDeParcelas:
+    """
+    Fecha as limitações 24 e 25 do inventário.
+
+    `divida.parcelas_pagas` e `divida.proximo_vencimento` são colunas que
+    ninguém no backend de produção mantém atualizadas — a rota de pagamento
+    nunca as toca. Este agregado deriva os dois fatos da lista real de
+    `orm.Parcela`, que é quem de fato muda a cada pagamento (mesma lição de
+    `tabelas_do_tenant()` no M8: coluna que ninguém escreve envelhece,
+    verificação derivada não).
+    """
+
+    pagas: int
+    proximo_vencimento: date | None
+    tem_parcelas: bool
+
+
+def _agregados_de_parcelas(
+    db: Session, tenant: str, divida_ids: list[str]
+) -> dict[str, AgregadoDeParcelas]:
+    """
+    Um agregado por dívida, numa ÚNICA query — o resto é agregado em Python.
+
+    Nada de `COUNT(...) FILTER` nem `case()` dentro de agregação: a suíte roda
+    em SQLite e a produção é Postgres, e construção específica de dialeto é
+    exatamente o defeito que passa no teste e quebra no ar. Buscar as linhas
+    de parcela das dívidas pedidas e agregar aqui evita as duas coisas ao
+    mesmo tempo — inclusive o N+1 de uma query por dívida em `listar()`.
+    """
+    if not divida_ids:
+        return {}
+
+    linhas = db.execute(
+        select(orm.Parcela.divida_id, orm.Parcela.paga_em, orm.Parcela.vencimento).where(
+            orm.Parcela.divida_id.in_(divida_ids),
+            orm.Parcela.tenant_id == tenant,
+            orm.Parcela.cancelada_em.is_(None),
+        )
+    ).all()
+
+    pagas: dict[str, int] = {}
+    proximos: dict[str, date] = {}
+
+    for divida_id, paga_em, vencimento in linhas:
+        if paga_em is not None:
+            pagas[divida_id] = pagas.get(divida_id, 0) + 1
+        else:
+            atual = proximos.get(divida_id)
+            if atual is None or vencimento < atual:
+                proximos[divida_id] = vencimento
+
+    presentes = {divida_id for divida_id, _paga_em, _vencimento in linhas}
+    return {
+        divida_id: AgregadoDeParcelas(
+            pagas=pagas.get(divida_id, 0),
+            proximo_vencimento=proximos.get(divida_id),
+            tem_parcelas=True,
+        )
+        for divida_id in presentes
+    }
+
+
+def _para_schema(d: orm.Divida, agregado: AgregadoDeParcelas | None = None) -> schemas.Divida:
     """
     ORM → contrato de API, aplicando as regras derivadas.
 
     `valorCorrigido` sai como None quando a dívida não tem taxa — o app exibe
     "ainda não calculado", que é a verdade, em vez de um número inventado.
+
+    `agregado` fecha as limitações 24 e 25: quando a dívida TEM parcelas, os
+    dois campos vêm da lista real, não da coluna que ninguém escreve. Sem
+    agregado (dívida sem cronograma), a coluna continua sendo a resposta —
+    "sem cronograma" não é "zero pagas". `agregado` tem default `None` só
+    para não quebrar `routers.parcelas.renegociar()`, que importa esta função
+    e está fora do escopo desta mudança.
     """
     saldo = d.valor_cobrado if d.situacao != "quitada" else 0
+
+    tem_parcelas = agregado is not None and agregado.tem_parcelas
+    parcelas_pagas = agregado.pagas if tem_parcelas else d.parcelas_pagas
+    proximo_vencimento = agregado.proximo_vencimento if tem_parcelas else d.proximo_vencimento
 
     return schemas.Divida(
         id=d.id,
@@ -38,8 +113,8 @@ def _para_schema(d: orm.Divida) -> schemas.Divida:
         saldoDevedor=saldo,
         taxaJurosMensal=d.taxa_juros_mensal,
         totalParcelas=d.total_parcelas,
-        parcelasPagas=d.parcelas_pagas,
-        proximoVencimento=d.proximo_vencimento,
+        parcelasPagas=parcelas_pagas,
+        proximoVencimento=proximo_vencimento,
         extracaoId=d.extracao_id,
     )
 
@@ -101,7 +176,12 @@ def listar(db: Session = Depends(get_db), tenant: str = Depends(tenant_atual)):
         .where(orm.Divida.tenant_id == tenant, orm.Divida.excluido_em.is_(None))
         .order_by(orm.Divida.criado_em.desc())
     ).all()
-    return schemas.ListaDividas(dividas=[_para_schema(d) for d in dividas])
+    # UMA query para todas as dívidas da página — N+1 aqui seria a regressão
+    # que o desenho de `_agregados_de_parcelas` existe para evitar.
+    agregados = _agregados_de_parcelas(db, tenant, [d.id for d in dividas])
+    return schemas.ListaDividas(
+        dividas=[_para_schema(d, agregados.get(d.id)) for d in dividas]
+    )
 
 
 @router.post("", response_model=schemas.RespostaDivida, status_code=status.HTTP_201_CREATED)
@@ -155,7 +235,10 @@ def criar(
 
     db.commit()
     db.refresh(d)
-    return schemas.RespostaDivida(divida=_para_schema(d))
+    # As parcelas só existem depois deste commit — o agregado tem de ser lido
+    # aqui, não antes.
+    agregado = _agregados_de_parcelas(db, tenant, [d.id]).get(d.id)
+    return schemas.RespostaDivida(divida=_para_schema(d, agregado))
 
 
 @router.get("/{divida_id}", response_model=schemas.RespostaDivida)
@@ -164,7 +247,9 @@ def obter(
     db: Session = Depends(get_db),
     tenant: str = Depends(tenant_atual),
 ):
-    return schemas.RespostaDivida(divida=_para_schema(_buscar(db, tenant, divida_id)))
+    d = _buscar(db, tenant, divida_id)
+    agregado = _agregados_de_parcelas(db, tenant, [d.id]).get(d.id)
+    return schemas.RespostaDivida(divida=_para_schema(d, agregado))
 
 
 @router.patch("/{divida_id}", response_model=schemas.RespostaDivida)
@@ -198,7 +283,8 @@ def atualizar(
 
     db.commit()
     db.refresh(d)
-    return schemas.RespostaDivida(divida=_para_schema(d))
+    agregado = _agregados_de_parcelas(db, tenant, [d.id]).get(d.id)
+    return schemas.RespostaDivida(divida=_para_schema(d, agregado))
 
 
 @router.post("/{divida_id}/documento", response_model=schemas.RespostaDivida)
@@ -245,7 +331,8 @@ def ligar_documento(
 
     db.commit()
     db.refresh(d)
-    return schemas.RespostaDivida(divida=_para_schema(d))
+    agregado = _agregados_de_parcelas(db, tenant, [d.id]).get(d.id)
+    return schemas.RespostaDivida(divida=_para_schema(d, agregado))
 
 
 @router.post("/{divida_id}/quitacao", response_model=schemas.RespostaDivida)
@@ -275,7 +362,8 @@ def quitar(
 
     db.commit()
     db.refresh(d)
-    return schemas.RespostaDivida(divida=_para_schema(d))
+    agregado = _agregados_de_parcelas(db, tenant, [d.id]).get(d.id)
+    return schemas.RespostaDivida(divida=_para_schema(d, agregado))
 
 
 @router.delete("/{divida_id}", status_code=status.HTTP_204_NO_CONTENT)
