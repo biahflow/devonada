@@ -39,4 +39,14 @@ yarn-error.*
 
 # Backend
 backend/.env
+
+# Estado e logs de scripts/subir-local.mjs e scripts/derrubar-local.mjs — pid,
+# porta e banco escolhidos numa máquina não descrevem outra.
+.local-run.json
+.local-logs/
+
+# Banco SQLite local — alternativa ao Postgres quando o Docker não sobe. Contém
+# conta de teste com hash de senha; não é segredo real, mas banco não se versiona.
+backend/*.db
+backend/*.sqlite3
 backend/alembic/versions/__pycache__/

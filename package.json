@@ -16,7 +16,9 @@
     "bundle:check": "expo export --platform ios --output-dir .expo/bundle-check --clear",
     "palette:check": "node scripts/paleta-check.mjs",
     "digits:check": "node scripts/digitos-check.mjs",
-    "eos:sync": "node scripts/sync-engineering-os.mjs"
+    "eos:sync": "node scripts/sync-engineering-os.mjs",
+    "local:up": "node scripts/subir-local.mjs",
+    "local:down": "node scripts/derrubar-local.mjs"
   },
   "jest": {
     "preset": "jest-expo",
