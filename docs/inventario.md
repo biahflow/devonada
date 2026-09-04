@@ -518,6 +518,42 @@ Estão aqui porque escondê-las inverteria o princípio do projeto. Íntegras em
     numeração e somar as pagas ao total — mexe na semântica de `novoTotalParcelas` no contrato de
     API e pede ADR própria.
 
+27. **A extração de CONTRATO não funciona com `DEVONADA_LLM_PROVIDER=anthropic`.** Verificado em
+    runtime em 04/09/2026: `POST /v1/contratos` com `tipo=contrato` termina em `status: "falhou"`
+    para **qualquer** documento, com **400** do provedor — *"Schemas contains too many parameters
+    with union types (38 parameters with type arrays or anyOf) ... limit: 16"*. A causa é
+    estrutural e não depende do arquivo: `CampoExtraido` (`backend/schemas.py:415`) tem três campos
+    anuláveis (`valor`, `trecho`, `pagina`) e o structured outputs conta cada um como união, então
+    os 12 campos do contrato viram 36. **O boleto passa a um campo do teto** (15 de 16); carta (12)
+    e print (9) sobram. O usuário vê apenas "Não deu certo agora", porque `ClienteAnthropic`
+    traduz `APIStatusError` sem registrar o corpo do erro (`backend/llm/anthropic_cliente.py`) — o
+    diagnóstico exige chamar o extrator fora da rota e ler a exceção encadeada. O resto do
+    adaptador está correto para os modelos atuais (`thinking` adaptativo, `output_config` com
+    `effort` e `format`, sem parâmetros de amostragem). **Não apareceu antes porque o provedor
+    padrão é `openai`:** o caminho anthropic é a segunda implementação que prova que a fronteira do
+    `ClienteLLM` é real, e nenhum teste o exercita — a suíte não toca a rede.
+
+28. **"Falta quitar" não desce quando o usuário paga uma parcela, e discorda do simulador.**
+    Verificado em aparelho em 04/09/2026: com uma parcela de R$ 400,00 paga, a aba Rota continuou
+    exibindo **R$ 26.300,00** e **"0% da rota percorrida"**, enquanto o simulador, na mesma sessão e
+    no mesmo mês, partiu de **R$ 23.582,50**. São duas definições de saldo convivendo:
+
+    | quem | fonte | setembro/26 |
+    | --- | --- | --- |
+    | Rota, detalhe da dívida, cards do chat | `sum(valor_cobrado)` — `backend/routers/resumo.py:168`, `backend/routers/dividas.py:98`, `backend/routers/chat.py:114` | R$ 26.300,00 |
+    | Simulador | soma das parcelas pendentes — `backend/leitura.py:41` | R$ 23.582,50 |
+
+    A do simulador é deliberada e está escrita no próprio código ("SALDO E PARCELA MÍNIMA VÊM DAS
+    PARCELAS REAIS quando existe cronograma"). A outra nunca foi decidida: `valor_cobrado` é o que o
+    credor cobra, e só vira zero quando a dívida inteira é marcada como quitada. O alcance passa da
+    linha "Saldo devedor": **`rotaPercorridaBps`, a curva de evolução do saldo e os marcos**
+    (`registrar_marcos`, mesmo router) derivam do mesmo total, então pagar parcela não move a rota
+    nem atinge marco — o oposto da tese do produto. **Não é conserto de uma linha:** descontar a
+    parcela paga do total afirmaria uma amortização que o app não tem fonte para calcular (parte da
+    parcela é juro), e é exatamente o tipo de número que a seção 1.2 proíbe inventar. Pede decisão
+    de produto sobre o que "falta quitar" significa, e provavelmente ADR — o comprometimento da
+    renda e os próximos vencimentos **já** usam parcela real e estão corretos.
+
 (Duas limitações antigas foram **resolvidas** no M3 e não constam acima: `comprometimentoRenda`
 deixou de ser aproximação e `proximosVencimentos` deixou de voltar vazio.)
 
